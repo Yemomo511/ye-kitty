@@ -1,0 +1,14 @@
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "67fe96286e9f0513b58c52db9de9e2029224d5ec",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
