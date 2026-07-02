@@ -3,7 +3,7 @@ import { dirname, join, parse } from 'node:path';
 import {
   createQqAccountExperimentChannel,
   loadQqAccountExperimentConfig,
-} from '../application/qq-account-experiment.factory';
+} from '../src/platforms/qq/application/qq-account-experiment.factory';
 
 // 1. 从当前目录向上查找 .env
 loadNearestEnvFile();
