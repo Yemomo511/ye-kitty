@@ -11,17 +11,15 @@ export class OneBotQqBotClient implements QqBotClientPort {
     readonly conversationType: 'private' | 'group';
     readonly text: string;
   }): Promise<void> {
-    if (input.conversationType !== 'group') {
-      throw new Error('OneBot QQ 实验通道当前只支持群聊回复');
-    }
+    const action = input.conversationType === 'group' ? 'send_group_msg' : 'send_private_msg';
 
     await this.server.sendAction({
-      action: 'send_group_msg',
+      action,
       params: {
-        group_id: input.conversationExternalId,
+        [input.conversationType === 'group' ? 'group_id' : 'user_id']: input.conversationExternalId,
         message: input.text,
       },
-      echo: `send_group_msg:${Date.now()}:${this.nextEchoId++}`,
+      echo: `${action}:${Date.now()}:${this.nextEchoId++}`,
     });
   }
 }

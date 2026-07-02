@@ -45,11 +45,11 @@ export function loadQqAccountExperimentConfig(
 ): QqAccountExperimentRuntimeConfig {
   const accessToken = env.YE_KITTY_ONEBOT_ACCESS_TOKEN;
   const selfQqId = env.YE_KITTY_QQ_SELF_ID;
-  const groupAllowlist = env.YE_KITTY_QQ_GROUP_ALLOWLIST;
+  const groupAllowlist = env.YE_KITTY_QQ_GROUP_ALLOWLIST ?? '';
+  const friendAllowlist = env.YE_KITTY_QQ_FRIEND_ALLOWLIST ?? '';
 
   if (!accessToken) throw new Error('缺少 YE_KITTY_ONEBOT_ACCESS_TOKEN');
   if (!selfQqId) throw new Error('缺少 YE_KITTY_QQ_SELF_ID');
-  if (!groupAllowlist) throw new Error('缺少 YE_KITTY_QQ_GROUP_ALLOWLIST');
 
   return {
     host: env.YE_KITTY_ONEBOT_WS_HOST ?? '0.0.0.0',
@@ -57,10 +57,8 @@ export function loadQqAccountExperimentConfig(
     path: env.YE_KITTY_ONEBOT_WS_PATH ?? '/onebot/v11',
     accessToken,
     selfQqId,
-    allowedGroupIds: groupAllowlist
-      .split(',')
-      .map((groupId) => groupId.trim())
-      .filter((groupId) => groupId.length > 0),
+    allowedGroupIds: parseIdList(groupAllowlist),
+    allowedFriendIds: parseIdList(friendAllowlist),
   };
 }
 
@@ -71,4 +69,20 @@ function readPort(rawPort: string | undefined): number {
   }
 
   return port;
+}
+
+function parseIdList(rawList: string): readonly string[] {
+  const trimmedList = rawList.trim();
+  if (trimmedList.length === 0) return [];
+
+  const normalizedList =
+    trimmedList.startsWith('[') && trimmedList.endsWith(']')
+      ? trimmedList.slice(1, -1)
+      : trimmedList;
+
+  return normalizedList
+    .split(',')
+    .map((item) => item.trim())
+    .map((item) => item.replace(/^['"]|['"]$/g, ''))
+    .filter((item) => item.length > 0);
 }

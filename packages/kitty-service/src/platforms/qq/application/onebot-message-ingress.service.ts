@@ -1,18 +1,19 @@
 import type { QqTextMessagePayload } from '../domain/qq-message';
 import type {
-  OneBotV11GroupMessageEvent,
   OneBotV11MessageSegment,
+  OneBotV11SupportedMessageEvent,
 } from '../domain/onebot-v11';
 
 export class OneBotMessageIngressService {
-  toQqTextMessagePayload(event: OneBotV11GroupMessageEvent): QqTextMessagePayload {
+  toQqTextMessagePayload(event: OneBotV11SupportedMessageEvent): QqTextMessagePayload {
     const text = this.extractText(event.message);
     const mentions = this.extractMentions(event.message);
+    const conversationType = event.message_type === 'group' ? 'group' : 'private';
 
     return {
       messageId: String(event.message_id),
-      conversationExternalId: String(event.group_id),
-      conversationType: 'group',
+      conversationExternalId: this.getConversationExternalId(event),
+      conversationType,
       senderExternalId: String(event.user_id),
       senderDisplayName: event.sender.card || event.sender.nickname,
       text,
@@ -42,5 +43,10 @@ export class OneBotMessageIngressService {
         return segment.type === 'at' && typeof segment.data?.qq === 'string';
       })
       .map((segment) => segment.data.qq);
+  }
+
+  private getConversationExternalId(event: OneBotV11SupportedMessageEvent): string {
+    if (event.message_type === 'group') return String(event.group_id);
+    return String(event.user_id);
   }
 }

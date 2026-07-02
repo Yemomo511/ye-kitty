@@ -28,4 +28,29 @@ describe('OneBotQqBotClient', () => {
       },
     });
   });
+
+  test('发送好友文本消息时生成 send_private_msg 动作', async () => {
+    const sentActions: OneBotV11ActionRequest[] = [];
+    const server = {
+      async sendAction(action: OneBotV11ActionRequest) {
+        sentActions.push(action);
+      },
+    } as OneBotFastifyReverseWsServer;
+
+    const client = new OneBotQqBotClient(server);
+    await client.sendTextMessage({
+      conversationExternalId: '1463645455',
+      conversationType: 'private',
+      text: '叶猫猫收到：你好',
+    });
+
+    expect(sentActions).toHaveLength(1);
+    expect(sentActions[0]).toMatchObject({
+      action: 'send_private_msg',
+      params: {
+        user_id: '1463645455',
+        message: '叶猫猫收到：你好',
+      },
+    });
+  });
 });
