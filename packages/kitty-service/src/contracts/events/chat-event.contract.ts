@@ -4,7 +4,7 @@ import type {
   MessageId,
   ParticipantId,
   Platform,
-} from '@kitty/shared/domain/ids';
+} from '@kitty/shared/types/ids';
 
 export type ChatEventType = 'message.received';
 export type ConversationType = 'private' | 'group';

@@ -16,6 +16,7 @@ bootstrap
 规则：
 
 - `shared` 不依赖任何服务模块或平台模块。
+- `shared/types` 统一存放跨模块共享的类型、接口和结构体定义。
 - `contracts` 只包含跨服务共享的事件和动作 DTO。
 - `services/*/domain` 存放业务对象和服务内局部值类型。
 - `services/*/application` 编排单个服务边界内的用例流程。

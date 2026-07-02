@@ -1,4 +1,4 @@
-import type { PersonaId } from '@kitty/shared/domain/ids';
+import type { PersonaId } from '@kitty/shared/types/ids';
 
 export interface Persona {
   readonly id: PersonaId;

@@ -4,7 +4,7 @@ import type {
   ConversationId,
   MessageId,
   ParticipantId,
-} from '@kitty/shared/domain/ids';
+} from '@kitty/shared/types/ids';
 import type { NormalizedChatEvent } from '@kitty/services/event-gateway/domain/normalized-chat-event';
 import type { EventIngressPort } from '@kitty/services/event-gateway/ports/event-ingress.port';
 import type { QqTextMessagePayload } from '../domain/qq-message';

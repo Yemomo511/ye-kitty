@@ -2,7 +2,7 @@ import type {
   ConversationId,
   MessageId,
   ParticipantId,
-} from '@kitty/shared/domain/ids';
+} from '@kitty/shared/types/ids';
 
 export type MessageDirection = 'incoming' | 'outgoing';
 

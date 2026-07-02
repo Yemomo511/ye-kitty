@@ -1,8 +1,6 @@
-export interface ServiceModule {
-  readonly name: string;
-  readonly version: string;
-  readonly dependsOn: readonly string[];
-}
+import type { ServiceModule } from '@kitty/shared/types/service-module';
+
+export type { ServiceModule } from '@kitty/shared/types/service-module';
 
 export function defineServiceModule(module: ServiceModule): ServiceModule {
   return module;

@@ -1,4 +1,4 @@
-import type { ConversationId, Platform } from '@kitty/shared/domain/ids';
+import type { ConversationId, Platform } from '@kitty/shared/types/ids';
 import type { ConversationType } from '@kitty/contracts/events/chat-event.contract';
 
 export type ConversationStatus = 'active' | 'muted' | 'blocked';

@@ -1,4 +1,4 @@
-import type { EventBusPort } from '@kitty/shared/events/event-bus.port';
+import type { EventBusPort } from '@kitty/shared/types/event-bus';
 import type { EventIngressPort } from '../ports/event-ingress.port';
 
 export class EventGatewayService<TRawPayload> {

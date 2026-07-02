@@ -1,5 +1,5 @@
-import type { ConversationId } from '@kitty/shared/domain/ids';
-import type { RepositoryPort } from '@kitty/shared/ports/repository.port';
+import type { ConversationId } from '@kitty/shared/types/ids';
+import type { RepositoryPort } from '@kitty/shared/types/repository';
 import type { Conversation } from '../domain/conversation';
 import type { ConversationMessage } from '../domain/message';
 

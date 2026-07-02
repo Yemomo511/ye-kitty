@@ -3,7 +3,7 @@ import type {
   ChatEventId,
   ConversationId,
   Platform,
-} from '@kitty/shared/domain/ids';
+} from '@kitty/shared/types/ids';
 
 export type OutgoingActionType = 'send_message';
 export type OutgoingActionStatus = 'pending' | 'sent' | 'failed' | 'blocked';

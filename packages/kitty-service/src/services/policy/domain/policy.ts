@@ -1,4 +1,4 @@
-import type { PolicyId } from '@kitty/shared/domain/ids';
+import type { PolicyId } from '@kitty/shared/types/ids';
 
 export type PolicyActionType = 'allow_reply' | 'ignore' | 'refuse' | 'human_review';
 
