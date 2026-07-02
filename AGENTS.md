@@ -15,3 +15,7 @@
 
 - Monorepo 统一使用 `pnpm` 管理依赖和运行脚本，禁止提交 npm 或 yarn 的 lockfile。
 - 提交前优先运行根目录 `pnpm check`，统一完成 ESLint、Prettier 和测试校验。
+
+## 目录
+- `knowledge`：项目知识库，包含项目的所有文档、注释、代码等。主要是给开发人员来看的
+- `docs`: 项目文档目录，AGENTS.md 观看。

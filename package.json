@@ -2,7 +2,7 @@
   "name": "ye-kitty",
   "version": "0.0.1",
   "private": true,
-  "description": "叶墨沫想要一个叶猫猫服务,他能处理互联网中的大量信息并进行回应.",
+  "description": "叶墨沫想要一个叶猫猫虚拟人物服务,他能处理互联网中的大量信息并进行回应。",
   "workspaces": [
     "packages/*"
   ],
