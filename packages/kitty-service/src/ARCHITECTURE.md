@@ -39,11 +39,14 @@ QQ 原始载荷
   -> services/conversation
   -> services/persona
   -> services/policy
+  -> services/agent-runtime
   -> services/llm
   -> services/risk
   -> services/actions
   -> platforms/qq
 ```
+
+`agent-runtime` 是 Ye-Kitty 自研的可审计 Agent Harness。它负责编排人格、会话、策略结果、Skill、MCP 工具权限和底层 Agent Runner，让 Agent 生成候选回复或候选动作。候选结果必须继续经过 `risk` 和 `actions`，不能由 Agent Runner 直接执行对外平台动作。
 
 ## 服务边界
 
@@ -51,12 +54,22 @@ QQ 原始载荷
 - `conversation`：负责会话、参与者和近期消息上下文。
 - `persona`：负责 Ye-Kitty 人格版本和启用规则。
 - `policy`：判断事件应当触发回复、拒绝、人工审核还是静默处理。
+- `agent-runtime`：承载可审计 Agent Harness，负责上下文组装、Skill 选择、MCP 工具授权、运行记录和 OpenAI Agents SDK 等底层 Runner 调用。
 - `llm`：构造模型请求，并返回结构化生成结果。
 - `risk`：在对外发送前检查生成内容。
 - `actions`：持久化并执行对外社交动作。
 - `platforms/qq`：MVP 阶段提供 QQ 官方契约占位，并新增 OneBot v11 + NapCat 的 QQ 账号实验通道；实验通道只负责接收白名单群消息、发布统一聊天事件，并通过 OneBot 动作发送默认回复。
 
 每个边界都优先暴露端口。后续可以在不修改调用方的情况下补充基础设施实现。
+
+### agent-runtime 约束
+
+- 业务模块只能依赖 `agent-runtime/ports`，不能直接依赖 OpenAI Agents SDK、LangGraph 或具体 MCP 客户端。
+- OpenAI Agents SDK 先作为默认短链路 `AgentRunner` 实现，负责 Agent loop、工具调用、MCP 接入、会话、追踪和人工介入。
+- MCP 只作为工具接入协议，不作为信任边界。MCP Server、工具名称、工具参数、调用预算和高风险工具都必须经过 Ye-Kitty 的权限治理。
+- Skills 是可版本化的中文能力包，用于描述专项能力、Prompt 片段、示例、可用工具和风险等级。
+- LangGraph 类运行时只用于长任务、复杂状态流、可暂停恢复流程和多 Agent 协作，不进入普通 QQ 短回复默认路径。
+- Agent 运行记录至少应包含事件 ID、人格版本、策略版本、Skill 版本、工具权限、工具调用、模型结果、候选输出、成本、耗时和错误信息。
 
 ## 设计模式约束
 
