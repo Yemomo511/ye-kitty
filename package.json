@@ -1,0 +1,24 @@
+{
+  "name": "ye-kitty",
+  "version": "0.0.1",
+  "description": "叶墨沫想要一个叶猫猫服务,他能处理互联网中的大量信息并进行回应.",
+  "keywords": [
+    "Agent",
+    "MultiService"
+  ],
+  "homepage": "https://github.com/Yemomo511/ye-kitty#readme",
+  "bugs": {
+    "url": "https://github.com/Yemomo511/ye-kitty/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/Yemomo511/ye-kitty.git"
+  },
+  "license": "ISC",
+  "author": "Yemomo511",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  }
+}
