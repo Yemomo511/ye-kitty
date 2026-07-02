@@ -9,17 +9,37 @@ import {
   type QqAccountExperimentChannelConfig,
 } from './qq-account-experiment-channel';
 
+/**
+ * QQ账号实验通道运行配置
+ *
+ * 同时包含 WebSocket 监听配置和 QQ 消息来源白名单。
+ */
 export interface QqAccountExperimentRuntimeConfig
   extends OneBotReverseWebSocketConfig,
     QqAccountExperimentChannelConfig {}
 
+/**
+ * QQ账号实验通道运行时
+ *
+ * 暴露通道实例、事件总线和生命周期方法。
+ * 调用 start 后会占用本地 WebSocket 端口。
+ */
 export interface QqAccountExperimentRuntime {
+  /** 实验通道实例 */
   readonly channel: QqAccountExperimentChannel;
+  /** 消息事件总线 */
   readonly eventBus: RxjsEventBus;
+  /** 启动通道 */
   start(): Promise<void>;
+  /** 停止通道 */
   stop(): Promise<void>;
 }
 
+/**
+ * 创建QQ账号实验通道
+ * @param config 运行配置
+ * @returns 通道运行时
+ */
 export function createQqAccountExperimentChannel(
   config: QqAccountExperimentRuntimeConfig,
 ): QqAccountExperimentRuntime {
@@ -40,6 +60,11 @@ export function createQqAccountExperimentChannel(
   };
 }
 
+/**
+ * 读取QQ账号实验配置
+ * @param env 环境变量
+ * @returns 运行配置
+ */
 export function loadQqAccountExperimentConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): QqAccountExperimentRuntimeConfig {
@@ -62,6 +87,7 @@ export function loadQqAccountExperimentConfig(
   };
 }
 
+// 读取 WebSocket 监听端口
 function readPort(rawPort: string | undefined): number {
   const port = Number(rawPort ?? '3001');
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
@@ -71,6 +97,7 @@ function readPort(rawPort: string | undefined): number {
   return port;
 }
 
+// 解析 [123, 456] 或逗号分隔ID
 function parseIdList(rawList: string): readonly string[] {
   const trimmedList = rawList.trim();
   if (trimmedList.length === 0) return [];

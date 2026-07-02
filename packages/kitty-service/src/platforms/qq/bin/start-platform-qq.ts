@@ -5,8 +5,10 @@ import {
   loadQqAccountExperimentConfig,
 } from '../application/qq-account-experiment.factory';
 
+// 1. 从当前目录向上查找 .env
 loadNearestEnvFile();
 
+// 2. 创建并启动 QQ 实验通道
 const config = loadQqAccountExperimentConfig();
 const runtime = createQqAccountExperimentChannel(config);
 
@@ -25,12 +27,14 @@ process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
 
+// 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
   console.log(`收到 ${signal}，正在关闭叶猫猫 QQ 账号实验通道。`);
   await runtime.stop();
   process.exit(0);
 }
 
+// 读取最近的 .env 文件
 function loadNearestEnvFile(): void {
   const envPath = findNearestFile(process.cwd(), '.env');
   if (!envPath) return;
@@ -45,6 +49,7 @@ function loadNearestEnvFile(): void {
   }
 }
 
+// 从启动目录向父级查找文件
 function findNearestFile(startDirectory: string, fileName: string): string | undefined {
   let currentDirectory = startDirectory;
   const rootDirectory = parse(startDirectory).root;
@@ -58,6 +63,7 @@ function findNearestFile(startDirectory: string, fileName: string): string | und
   }
 }
 
+// 解析单行环境变量
 function parseEnvLine(line: string): readonly [string, string] | undefined {
   const trimmedLine = line.trim();
   if (trimmedLine.length === 0 || trimmedLine.startsWith('#')) return undefined;
@@ -70,6 +76,7 @@ function parseEnvLine(line: string): readonly [string, string] | undefined {
   return [key, unwrapEnvValue(rawValue)];
 }
 
+// 去掉包裹引号
 function unwrapEnvValue(rawValue: string): string {
   const quote = rawValue[0];
   const shouldUnwrap = (quote === '"' || quote === "'") && rawValue.endsWith(quote);
