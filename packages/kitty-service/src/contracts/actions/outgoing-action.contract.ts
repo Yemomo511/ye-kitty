@@ -1,9 +1,4 @@
-import type {
-  ActionId,
-  ChatEventId,
-  ConversationId,
-  Platform,
-} from '@kitty/shared/types/ids';
+import type { ActionId, ChatEventId, ConversationId, Platform } from '@kitty/shared/types/ids';
 
 export type OutgoingActionType = 'send_message';
 export type OutgoingActionStatus = 'pending' | 'sent' | 'failed' | 'blocked';

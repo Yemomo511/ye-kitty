@@ -35,9 +35,7 @@ export interface OneBotV11UnknownMessageSegment {
 
 /** Ye-Kitty当前识别的消息段集合 */
 export type OneBotV11MessageSegment =
-  | OneBotV11TextMessageSegment
-  | OneBotV11AtMessageSegment
-  | OneBotV11UnknownMessageSegment;
+  OneBotV11TextMessageSegment | OneBotV11AtMessageSegment | OneBotV11UnknownMessageSegment;
 
 /** OneBot消息发送者信息 */
 export interface OneBotV11GroupMessageSender {
@@ -89,8 +87,7 @@ export interface OneBotV11PrivateMessageEvent extends OneBotV11BaseMessageEvent 
 
 /** 当前实验通道支持的消息事件 */
 export type OneBotV11SupportedMessageEvent =
-  | OneBotV11GroupMessageEvent
-  | OneBotV11PrivateMessageEvent;
+  OneBotV11GroupMessageEvent | OneBotV11PrivateMessageEvent;
 
 /** OneBot动作请求 */
 export interface OneBotV11ActionRequest {
@@ -130,7 +127,9 @@ export function isOneBotV11GroupMessageEvent(input: unknown): input is OneBotV11
 }
 
 // 判断事件是否为好友消息
-export function isOneBotV11PrivateMessageEvent(input: unknown): input is OneBotV11PrivateMessageEvent {
+export function isOneBotV11PrivateMessageEvent(
+  input: unknown,
+): input is OneBotV11PrivateMessageEvent {
   if (!isOneBotV11BaseMessageEvent(input)) return false;
   return input.message_type === 'private';
 }

@@ -38,7 +38,10 @@ describe('QqAccountExperimentChannel', () => {
 
   test('处理白名单好友私聊消息并回复默认文本', async () => {
     const eventBus = new RxjsEventBus();
-    const replies: Array<{ readonly text: string; readonly conversationType: 'private' | 'group' }> = [];
+    const replies: Array<{
+      readonly text: string;
+      readonly conversationType: 'private' | 'group';
+    }> = [];
     const botClient: QqBotClientPort = {
       async sendTextMessage(input) {
         replies.push({

@@ -1,8 +1,4 @@
-import type {
-  ConversationId,
-  MessageId,
-  ParticipantId,
-} from '@kitty/shared/types/ids';
+import type { ConversationId, MessageId, ParticipantId } from '@kitty/shared/types/ids';
 
 export type MessageDirection = 'incoming' | 'outgoing';
 

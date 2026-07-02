@@ -7,9 +7,10 @@
   "main": "src/index.ts",
   "scripts": {
     "start-platform:qq": "tsx scripts/start-platform-qq.ts",
+    "lint": "eslint .",
     "validate:architecture": "node scripts/validate-architecture.mjs",
     "typecheck": "tsc --noEmit",
-    "test": "npm run validate:architecture && npm run typecheck && vitest run"
+    "test": "pnpm run validate:architecture && pnpm run typecheck && vitest run"
   },
   "keywords": [
     "ye-kitty",

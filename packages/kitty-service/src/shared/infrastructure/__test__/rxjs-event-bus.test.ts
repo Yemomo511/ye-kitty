@@ -35,10 +35,12 @@ describe('RxjsEventBus', () => {
     const eventBus = new RxjsEventBus();
     let receivedChannel = '';
 
-    await eventBus.subscribe<{ readonly channel: string; readonly connected: boolean }>(async (event) => {
-      if (!event.connected) return;
-      receivedChannel = event.channel;
-    });
+    await eventBus.subscribe<{ readonly channel: string; readonly connected: boolean }>(
+      async (event) => {
+        if (!event.connected) return;
+        receivedChannel = event.channel;
+      },
+    );
 
     await eventBus.publish({
       channel: 'onebot',
@@ -50,7 +52,9 @@ describe('RxjsEventBus', () => {
 });
 
 // 判断是否为消息接收信封事件，测试里用它模拟订阅方自行筛选事件流。
-function isMessageReceivedEnvelope(event: unknown): event is EventEnvelope<{ readonly text: string }> {
+function isMessageReceivedEnvelope(
+  event: unknown,
+): event is EventEnvelope<{ readonly text: string }> {
   return (
     typeof event === 'object' &&
     event !== null &&

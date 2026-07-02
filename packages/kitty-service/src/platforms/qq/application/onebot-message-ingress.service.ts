@@ -1,8 +1,5 @@
 import type { QqTextMessagePayload } from '../domain/qq-message';
-import type {
-  OneBotV11MessageSegment,
-  OneBotV11SupportedMessageEvent,
-} from '../domain/onebot-v11';
+import type { OneBotV11MessageSegment, OneBotV11SupportedMessageEvent } from '../domain/onebot-v11';
 
 /**
  * OneBot消息入口转换器
@@ -49,9 +46,13 @@ export class OneBotMessageIngressService {
 
     // 2. 结构化消息只拼接 text 段，图片、表情等非文本段暂不参与默认回复。
     return message
-      .filter((segment): segment is OneBotV11MessageSegment & { readonly data: { readonly text: string } } => {
-        return segment.type === 'text' && typeof segment.data?.text === 'string';
-      })
+      .filter(
+        (
+          segment,
+        ): segment is OneBotV11MessageSegment & { readonly data: { readonly text: string } } => {
+          return segment.type === 'text' && typeof segment.data?.text === 'string';
+        },
+      )
       .map((segment) => segment.data.text)
       .join('')
       .trim();
@@ -68,9 +69,13 @@ export class OneBotMessageIngressService {
 
     // 2. 只收集 at 段里的 QQ 号，供后续自主回复决策使用。
     return message
-      .filter((segment): segment is OneBotV11MessageSegment & { readonly data: { readonly qq: string } } => {
-        return segment.type === 'at' && typeof segment.data?.qq === 'string';
-      })
+      .filter(
+        (
+          segment,
+        ): segment is OneBotV11MessageSegment & { readonly data: { readonly qq: string } } => {
+          return segment.type === 'at' && typeof segment.data?.qq === 'string';
+        },
+      )
       .map((segment) => segment.data.qq);
   }
 

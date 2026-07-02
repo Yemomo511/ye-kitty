@@ -15,8 +15,7 @@ import {
  * 同时包含 WebSocket 监听配置和 QQ 消息来源白名单。
  */
 export interface QqAccountExperimentRuntimeConfig
-  extends OneBotReverseWebSocketConfig,
-    QqAccountExperimentChannelConfig {}
+  extends OneBotReverseWebSocketConfig, QqAccountExperimentChannelConfig {}
 
 /**
  * QQ账号实验通道运行时

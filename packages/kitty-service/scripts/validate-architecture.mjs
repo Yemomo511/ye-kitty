@@ -23,7 +23,7 @@ const requiredPaths = [
   'src/services/policy/ports/policy-evaluator.port.ts',
   'src/services/llm/ports/llm-provider.port.ts',
   'src/services/risk/ports/risk-guard.port.ts',
-  'src/services/actions/ports/action-dispatcher.port.ts'
+  'src/services/actions/ports/action-dispatcher.port.ts',
 ];
 
 const missing = requiredPaths.filter((path) => !existsSync(join(root, path)));

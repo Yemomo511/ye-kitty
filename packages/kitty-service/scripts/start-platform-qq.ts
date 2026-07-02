@@ -15,9 +15,7 @@ const runtime = createQqAccountExperimentChannel(config);
 // 3. 启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
 await runtime.start();
 
-console.log(
-  `叶猫猫 QQ 账号实验通道已启动：ws://${config.host}:${config.port}${config.path}`,
-);
+console.log(`叶猫猫 QQ 账号实验通道已启动：ws://${config.host}:${config.port}${config.path}`);
 console.log('请在 NapCat Websocket客户端中配置同一路径，并通过 access_token 完成连接鉴权。');
 
 process.once('SIGINT', () => {
