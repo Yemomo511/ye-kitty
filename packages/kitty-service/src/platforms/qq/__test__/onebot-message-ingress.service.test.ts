@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { OneBotMessageIngressService } from './onebot-message-ingress.service';
+import { OneBotMessageIngressService } from '../application/onebot-message-ingress.service';
 import type { OneBotV11GroupMessageEvent } from '../domain/onebot-v11';
 
 describe('OneBotMessageIngressService', () => {

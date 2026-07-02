@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { QqAccountExperimentChannel } from './qq-account-experiment-channel';
+import { QqAccountExperimentChannel } from '../application/qq-account-experiment-channel';
 import { RxjsEventBus } from '@kitty/shared/infrastructure/rxjs-event-bus';
 import type { QqBotClientPort } from '../ports/qq-bot-client.port';
 import type { OneBotFastifyReverseWsServer } from '../infrastructure/onebot-fastify-reverse-ws.server';

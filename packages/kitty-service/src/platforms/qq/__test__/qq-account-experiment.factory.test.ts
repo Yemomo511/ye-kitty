@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { loadQqAccountExperimentConfig } from './qq-account-experiment.factory';
+import { loadQqAccountExperimentConfig } from '../application/qq-account-experiment.factory';
 
 describe('loadQqAccountExperimentConfig', () => {
   test('支持空群列表和数组形式的好友列表', () => {

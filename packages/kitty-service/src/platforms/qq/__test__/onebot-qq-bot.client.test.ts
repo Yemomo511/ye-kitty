@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
-import { OneBotQqBotClient } from './onebot-qq-bot.client';
+import { OneBotQqBotClient } from '../infrastructure/onebot-qq-bot.client';
 import type { OneBotV11ActionRequest } from '../domain/onebot-v11';
-import type { OneBotFastifyReverseWsServer } from './onebot-fastify-reverse-ws.server';
+import type { OneBotFastifyReverseWsServer } from '../infrastructure/onebot-fastify-reverse-ws.server';
 
 describe('OneBotQqBotClient', () => {
   test('发送群文本消息时生成 send_group_msg 动作', async () => {

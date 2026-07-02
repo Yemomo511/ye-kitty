@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest';
 import { firstValueFrom } from 'rxjs';
 import { filter } from 'rxjs/operators';
-import { RxjsEventBus } from './rxjs-event-bus';
+import { RxjsEventBus } from '../rxjs-event-bus';
 
 describe('RxjsEventBus', () => {
   test('通过 publish 同时驱动 subscribe 和 events$', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { WebSocket } from 'ws';
-import { OneBotFastifyReverseWsServer } from './onebot-fastify-reverse-ws.server';
+import { OneBotFastifyReverseWsServer } from '../infrastructure/onebot-fastify-reverse-ws.server';
 
 function waitForOpen(socket: WebSocket): Promise<void> {
   return new Promise((resolve, reject) => {
