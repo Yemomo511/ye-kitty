@@ -1,0 +1,20 @@
+{
+  "name": "@ye-kitty/kitty-service",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Ye-Kitty service layer for platform events, persona policies, LLM decisions, and social actions.",
+  "type": "module",
+  "main": "src/index.ts",
+  "scripts": {
+    "validate:architecture": "node scripts/validate-architecture.mjs",
+    "test": "npm run validate:architecture"
+  },
+  "keywords": [
+    "ye-kitty",
+    "qq",
+    "llm",
+    "persona",
+    "event-driven"
+  ],
+  "license": "ISC"
+}
