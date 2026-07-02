@@ -1,4 +1,5 @@
 import { RxjsEventBus } from '@kitty/shared/infrastructure/rxjs-event-bus';
+import type { QqBotClientPort } from '../ports/qq-bot-client.port';
 import { OneBotQqBotClient } from '../infrastructure/onebot-qq-bot.client';
 import {
   OneBotFastifyReverseWsServer,
@@ -20,7 +21,7 @@ export interface QqAccountExperimentRuntimeConfig
 /**
  * QQ账号实验通道运行时
  *
- * 暴露通道实例、事件总线和生命周期方法。
+ * 暴露通道实例、事件总线、QQ 发送端口和生命周期方法。
  * 调用 start 后会占用本地 WebSocket 端口。
  */
 export interface QqAccountExperimentRuntime {
@@ -28,6 +29,8 @@ export interface QqAccountExperimentRuntime {
   readonly channel: QqAccountExperimentChannel;
   /** 消息事件总线 */
   readonly eventBus: RxjsEventBus;
+  /** QQ消息发送端口 */
+  readonly botClient: QqBotClientPort;
   /** 启动通道 */
   start(): Promise<void>;
   /** 停止通道 */
@@ -45,11 +48,12 @@ export function createQqAccountExperimentChannel(
   const eventBus = new RxjsEventBus();
   const server = new OneBotFastifyReverseWsServer(config);
   const botClient = new OneBotQqBotClient(server);
-  const channel = new QqAccountExperimentChannel(config, server, eventBus, botClient);
+  const channel = new QqAccountExperimentChannel(config, server, eventBus);
 
   return {
     channel,
     eventBus,
+    botClient,
     async start() {
       await channel.start();
     },

@@ -1,21 +1,21 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import {
-  createQqAccountExperimentChannel,
-  loadQqAccountExperimentConfig,
-} from '../src/platforms/qq/application/qq-account-experiment.factory';
+  createMessageAdapterRuntime,
+  loadMessageAdapterRuntimeConfig,
+} from '../src/platforms/messageAdapter/application/message-adapter.runtime';
 
 // 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
 loadNearestEnvFile();
 
-// 2. 创建 QQ 实验通道，把 WebSocket、消息总线和回复客户端组装起来。
-const config = loadQqAccountExperimentConfig();
-const runtime = createQqAccountExperimentChannel(config);
+// 2. 创建消息调度层，把 QQ 实验通道和 Agent Runtime 组装起来。
+const config = loadMessageAdapterRuntimeConfig();
+const runtime = createMessageAdapterRuntime(config);
 
-// 3. 启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+// 3. 先注册消息订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
 await runtime.start();
 
-console.log(`叶猫猫 QQ 账号实验通道已启动：ws://${config.host}:${config.port}${config.path}`);
+console.log(`叶猫猫 QQ 消息调度层已启动：ws://${config.host}:${config.port}${config.path}`);
 console.log('请在 NapCat Websocket客户端中配置同一路径，并通过 access_token 完成连接鉴权。');
 
 process.once('SIGINT', () => {
@@ -29,7 +29,7 @@ process.once('SIGTERM', () => {
 
 // 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
-  console.log(`收到 ${signal}，正在关闭叶猫猫 QQ 账号实验通道。`);
+  console.log(`收到 ${signal}，正在关闭叶猫猫 QQ 消息调度层。`);
   await runtime.stop();
   process.exit(0);
 }

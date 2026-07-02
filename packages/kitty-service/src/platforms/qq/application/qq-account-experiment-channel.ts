@@ -1,12 +1,10 @@
 import type { EventBusPort } from '@kitty/shared/types/event-bus';
-import type { ConversationId } from '@kitty/shared/types/ids';
 import { QqMessageIngressService } from './qq-message-ingress.service';
 import { OneBotMessageIngressService } from './onebot-message-ingress.service';
 import {
   isOneBotV11SupportedMessageEvent,
   type OneBotV11SupportedMessageEvent,
 } from '../domain/onebot-v11';
-import type { QqBotClientPort } from '../ports/qq-bot-client.port';
 import type { OneBotFastifyReverseWsServer } from '../infrastructure/onebot-fastify-reverse-ws.server';
 
 /**
@@ -27,8 +25,9 @@ export interface QqAccountExperimentChannelConfig {
 /**
  * QQ账号实验通道
  *
- * 编排 NapCat/OneBot 事件接收、白名单过滤、统一事件发布和默认回复。
- * 该通道属于非官方 QQ 账号实验链路，启动后会监听 WebSocket 连接并可能发送 QQ 消息。
+ * 编排 NapCat/OneBot 事件接收、白名单过滤和统一事件发布。
+ * 该通道属于非官方 QQ 账号实验链路，启动后会监听 WebSocket 连接。
+ * 回复动作交给上层 MessageAdapter，避免平台通道直接绑定 Agent 策略。
  */
 export class QqAccountExperimentChannel {
   // OneBot事件转换器
@@ -40,7 +39,6 @@ export class QqAccountExperimentChannel {
     private readonly config: QqAccountExperimentChannelConfig,
     private readonly server: OneBotFastifyReverseWsServer,
     private readonly eventBus: EventBusPort,
-    private readonly botClient: QqBotClientPort,
   ) {}
 
   /**
@@ -83,22 +81,12 @@ export class QqAccountExperimentChannel {
     const qqPayload = this.oneBotIngress.toQqTextMessagePayload(rawMessage);
     const normalized = await this.qqIngress.normalize(qqPayload);
 
-    // 4. 发布到 RxJS 消息总线，后续 LLM 或知识库都可以订阅这里。
+    // 4. 发布到 RxJS 消息总线，后续 MessageAdapter 会接管回复链路。
     await this.eventBus.publish({
       eventId: normalized.event.id,
       eventType: normalized.event.eventType,
       occurredAt: normalized.event.receivedAt,
       payload: normalized.event,
-    });
-
-    // 5. 无文本消息只进入消息总线，不主动给 QQ 回复。
-    if (qqPayload.text.length === 0) return;
-
-    // 6. MVP 阶段回写默认文本，验证 QQ 收发闭环可用。
-    await this.botClient.sendTextMessage({
-      conversationExternalId: this.stripQqConversationPrefix(normalized.event.conversationId),
-      conversationType: qqPayload.conversationType,
-      text: `叶猫猫收到：${qqPayload.text}`,
     });
   }
 
@@ -114,10 +102,5 @@ export class QqAccountExperimentChannel {
 
     // 3. 好友私聊只允许配置在 YE_KITTY_QQ_FRIEND_ALLOWLIST 的 QQ 号。
     return this.config.allowedFriendIds.includes(String(message.user_id));
-  }
-
-  // 还原 OneBot 发送动作需要的平台会话ID
-  private stripQqConversationPrefix(conversationId: ConversationId): string {
-    return String(conversationId).replace('qq:conversation:', '');
   }
 }
