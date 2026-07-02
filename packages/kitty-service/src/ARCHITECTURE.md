@@ -17,6 +17,8 @@ bootstrap
 
 - `shared` 不依赖任何服务模块或平台模块。
 - `shared/types` 统一存放跨模块共享的类型、接口和结构体定义。
+- `shared/abstracts` 存放可继承的共同抽象，例如模板方法用例和能力基类。
+- `shared/strategies` 存放策略模式相关的通用注册、选择和执行能力。
 - `contracts` 只包含跨服务共享的事件和动作 DTO。
 - `services/*/domain` 存放业务对象和服务内局部值类型。
 - `services/*/application` 编排单个服务边界内的用例流程。
@@ -53,3 +55,10 @@ QQ 原始载荷
 - `actions`：持久化并执行对外社交动作。
 
 每个边界都优先暴露端口。后续可以在不修改调用方的情况下补充基础设施实现。
+
+## 设计模式约束
+
+- 具有固定处理流程的应用服务优先继承 `TemplateUseCase`，只覆写 `executeCore` 和必要的钩子方法。
+- 具有多种可替换算法或决策路径的能力优先实现 `Strategy`，并通过 `StrategyRegistry` 完成选择和执行。
+- 新能力优先抽象为接口或抽象类，具体子类通过实现接口或继承基类获得能力。
+- 服务内的差异化逻辑应收敛到 `application`、`ports`、`infrastructure` 的边界中，不直接污染共享层。
