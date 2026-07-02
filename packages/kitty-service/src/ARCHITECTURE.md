@@ -1,8 +1,8 @@
-# Kitty Service MVP Architecture
+# Kitty Service MVP 架构
 
-This package owns the Ye-Kitty service layer. The MVP is a modular monolith with microservice-shaped boundaries so each module can later move behind HTTP, RPC, queue, or worker processes without changing the domain contracts.
+该包承载 Ye-Kitty 的服务层。MVP 阶段采用模块化单体架构，但以微服务形态划分边界，确保后续可以在不修改领域契约的前提下，将模块迁移到 HTTP、RPC、队列或 Worker 进程之后。
 
-## Dependency Direction
+## 依赖方向
 
 ```text
 bootstrap
@@ -13,22 +13,22 @@ bootstrap
   -> shared
 ```
 
-Rules:
+规则：
 
-- `shared` has no dependency on service or platform modules.
-- `contracts` contains cross-service event and action DTOs only.
-- `services/*/domain` contains business objects and local value types.
-- `services/*/application` orchestrates use cases inside one service boundary.
-- `services/*/ports` defines inbound and outbound interfaces.
-- `services/*/infrastructure` adapts databases, queues, SDKs, and model providers.
-- `platforms/*` converts platform-specific payloads into contracts and executes platform actions.
-- `control-plane` reads service state and changes configuration; it does not bypass service ports.
-- `bootstrap` is the only place that wires concrete implementations together.
+- `shared` 不依赖任何服务模块或平台模块。
+- `contracts` 只包含跨服务共享的事件和动作 DTO。
+- `services/*/domain` 存放业务对象和服务内局部值类型。
+- `services/*/application` 编排单个服务边界内的用例流程。
+- `services/*/ports` 定义入站接口和出站接口。
+- `services/*/infrastructure` 适配数据库、队列、SDK 和模型提供方。
+- `platforms/*` 将平台特定载荷转换为统一契约，并执行平台动作。
+- `control-plane` 读取服务状态并修改配置，但不能绕过服务端口直接访问基础设施。
+- `bootstrap` 是唯一负责组装具体实现的地方。
 
-## MVP Message Flow
+## MVP 消息流
 
 ```text
-QQ raw payload
+QQ 原始载荷
   -> platforms/qq
   -> services/event-gateway
   -> contracts/events
@@ -41,14 +41,14 @@ QQ raw payload
   -> platforms/qq
 ```
 
-## Service Boundaries
+## 服务边界
 
-- `event-gateway`: receives raw ingress, normalizes events, deduplicates, and publishes chat events.
-- `conversation`: owns conversations, participants, and recent message context.
-- `persona`: owns Ye-Kitty persona versions and activation rules.
-- `policy`: decides whether an event should become a reply, refusal, human review, or silence.
-- `llm`: builds model requests and returns structured generation results.
-- `risk`: checks generated content before external delivery.
-- `actions`: persists and executes outbound social actions.
+- `event-gateway`：接收原始入口数据，标准化事件，执行去重，并发布聊天事件。
+- `conversation`：负责会话、参与者和近期消息上下文。
+- `persona`：负责 Ye-Kitty 人格版本和启用规则。
+- `policy`：判断事件应当触发回复、拒绝、人工审核还是静默处理。
+- `llm`：构造模型请求，并返回结构化生成结果。
+- `risk`：在对外发送前检查生成内容。
+- `actions`：持久化并执行对外社交动作。
 
-Each boundary exposes ports first. Infrastructure implementations can be added later without changing callers.
+每个边界都优先暴露端口。后续可以在不修改调用方的情况下补充基础设施实现。
