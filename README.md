@@ -230,9 +230,10 @@ services/{service-name}
 - 修改架构时同步更新 `packages/kitty-service/src/ARCHITECTURE.md`。
 - 修改架构约束或跨模块共享能力时同步更新本 README。
 - 每个服务优先通过 `ports` 暴露能力，不让调用方直接依赖基础设施。
-- 每次修改后运行服务包验证：
+- 依赖统一在仓库根目录执行 `pnpm install`，`pnpm-workspace.yaml` 会递归安装 `packages/*` 下所有 workspace 包依赖。
+- 新增 package 时必须放入 `packages/*`，并同时确认根 `package.json` 的 `workspaces` 与 `pnpm-workspace.yaml` 能覆盖该目录。
+- 每次修改后优先运行根目录验证：
 
 ```bash
-cd packages/kitty-service
-npm test
+pnpm check
 ```

@@ -1,4 +1,7 @@
 packages:
   - 'packages/*'
+recursiveInstall: true
+sharedWorkspaceLockfile: true
+linkWorkspacePackages: true
 allowBuilds:
   esbuild: true
