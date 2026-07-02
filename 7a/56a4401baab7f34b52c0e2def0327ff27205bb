@@ -1,0 +1,18 @@
+package.json
+  h_b866b1ed626949 5
+AGENTS.md
+  h_b866b1ed626949 20-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "7a56a4401baab7f34b52c0e2def0327ff27205bb",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
