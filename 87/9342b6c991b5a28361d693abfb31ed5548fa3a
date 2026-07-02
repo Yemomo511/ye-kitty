@@ -1,0 +1,16 @@
+README.md
+  h_b866b1ed626949 46,53-54,110,115-117,198-204,207-208,225,232,240-245
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "879342b6c991b5a28361d693abfb31ed5548fa3a",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
