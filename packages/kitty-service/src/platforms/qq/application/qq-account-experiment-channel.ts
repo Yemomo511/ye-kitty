@@ -50,10 +50,12 @@ export class QqAccountExperimentChannel {
    * 调用后 NapCat 可以连接并开始推送 QQ 消息。
    */
   async start(): Promise<void> {
+    // 1. 把 WebSocket 收到的 OneBot 原始事件接入当前通道。
     this.server.registerRawMessageHandler(async (rawMessage) => {
       await this.handleRawMessage(rawMessage);
     });
 
+    // 2. 启动反向 WebSocket 服务，等待 NapCat 推送 QQ 消息。
     await this.server.start();
   }
 
@@ -71,16 +73,17 @@ export class QqAccountExperimentChannel {
    * @param rawMessage OneBot原始事件
    */
   async handleRawMessage(rawMessage: unknown): Promise<void> {
-    // 1. 丢弃非消息事件
+    // 1. 只处理 OneBot v11 的群聊和好友消息事件。
     if (!isOneBotV11SupportedMessageEvent(rawMessage)) return;
-    // 2. 白名单过滤
+
+    // 2. 过滤非白名单来源和机器人自己发出的消息。
     if (!this.shouldAcceptMessage(rawMessage)) return;
 
-    // 3. 转为统一聊天事件
+    // 3. 转成 QQ 平台载荷，再标准化为项目内部聊天事件。
     const qqPayload = this.oneBotIngress.toQqTextMessagePayload(rawMessage);
     const normalized = await this.qqIngress.normalize(qqPayload);
 
-    // 4. 发布给内部订阅方
+    // 4. 发布到 RxJS 消息总线，后续 LLM 或知识库都可以订阅这里。
     await this.eventBus.publish({
       eventId: normalized.event.id,
       eventType: normalized.event.eventType,
@@ -88,10 +91,10 @@ export class QqAccountExperimentChannel {
       payload: normalized.event,
     });
 
-    // 5. 空文本只入总线
+    // 5. 无文本消息只进入消息总线，不主动给 QQ 回复。
     if (qqPayload.text.length === 0) return;
 
-    // 6. MVP默认回复
+    // 6. MVP 阶段回写默认文本，验证 QQ 收发闭环可用。
     await this.botClient.sendTextMessage({
       conversationExternalId: this.stripQqConversationPrefix(normalized.event.conversationId),
       conversationType: qqPayload.conversationType,
@@ -101,12 +104,15 @@ export class QqAccountExperimentChannel {
 
   // 判断消息来源是否允许进入实验通道
   private shouldAcceptMessage(message: OneBotV11SupportedMessageEvent): boolean {
+    // 1. 忽略机器人自己发出的消息，避免自己回复自己形成循环。
     if (String(message.user_id) === this.config.selfQqId) return false;
 
+    // 2. 群聊只允许配置在 YE_KITTY_QQ_GROUP_ALLOWLIST 的群号。
     if (message.message_type === 'group') {
       return this.config.allowedGroupIds.includes(String(message.group_id));
     }
 
+    // 3. 好友私聊只允许配置在 YE_KITTY_QQ_FRIEND_ALLOWLIST 的 QQ 号。
     return this.config.allowedFriendIds.includes(String(message.user_id));
   }
 

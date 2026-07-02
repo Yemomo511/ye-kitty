@@ -54,24 +54,28 @@ export class OneBotFastifyReverseWsServer {
    * 连接必须携带正确 access_token，否则会在握手阶段拒绝。
    */
   async start(): Promise<void> {
+    // 1. 注册 Fastify WebSocket 插件，让 HTTP 服务具备升级能力。
     await this.fastify.register(websocketPlugin);
 
+    // 2. 暴露 OneBot 反向 WebSocket 路径，NapCat 会连接这里。
     this.fastify.get(
       this.config.path,
       {
         websocket: true,
         preValidation: async (request, reply) => {
+          // 3. 握手前校验 access_token，拒绝未知客户端。
           if (!this.isAuthorized(request)) {
             return reply.code(401).send('未授权的 OneBot 连接');
           }
         },
       },
       (socket) => {
+        // 4. 接管通过鉴权的 NapCat 连接，开始收发 OneBot 消息。
         this.handleConnection(socket);
       },
     );
 
-    // 监听端口后，NapCat Websocket客户端才能建立反向连接。
+    // 5. 监听端口后，NapCat Websocket客户端才能建立反向连接。
     await this.fastify.listen({
       host: this.config.host,
       port: this.config.port,
@@ -116,13 +120,15 @@ export class OneBotFastifyReverseWsServer {
 
   // 接管新的 NapCat 连接
   private handleConnection(socket: WebSocket): void {
+    // 1. 记录当前连接，后续回复动作会从这里选择可用通道。
     this.sockets.add(socket);
 
-    // OneBot 事件可能在连接建立后立刻到达，因此监听器必须同步注册。
+    // 2. 同步注册消息监听，避免连接初期的 OneBot 事件丢失。
     socket.on('message', (data) => {
       void this.handleRawSocketMessage(data, socket);
     });
 
+    // 3. 连接关闭时清理缓存，防止向失效 WebSocket 发送回复。
     socket.on('close', () => {
       this.sockets.delete(socket);
     });
@@ -137,10 +143,14 @@ export class OneBotFastifyReverseWsServer {
     if (!this.rawMessageHandler) return;
 
     try {
+      // 1. NapCat 发来的是 JSON 文本，先解析成 OneBot 原始事件。
       const rawText = data.toString('utf8');
       const rawMessage = JSON.parse(rawText) as unknown;
+
+      // 2. 交给 QQ 实验通道做白名单过滤、事件发布和回复编排。
       await this.rawMessageHandler(rawMessage);
     } catch {
+      // 3. 解析或处理失败时关闭连接，避免继续处理未知状态消息。
       socket.close(1011, 'OneBot 消息处理失败');
     }
   }

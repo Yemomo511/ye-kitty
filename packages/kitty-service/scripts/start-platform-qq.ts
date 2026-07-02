@@ -5,13 +5,14 @@ import {
   loadQqAccountExperimentConfig,
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
 
-// 1. 从当前目录向上查找 .env
+// 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
 loadNearestEnvFile();
 
-// 2. 创建并启动 QQ 实验通道
+// 2. 创建 QQ 实验通道，把 WebSocket、消息总线和回复客户端组装起来。
 const config = loadQqAccountExperimentConfig();
 const runtime = createQqAccountExperimentChannel(config);
 
+// 3. 启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
 await runtime.start();
 
 console.log(
@@ -23,6 +24,7 @@ process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
 });
 
+// 4. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
 process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });

@@ -17,10 +17,14 @@ export class OneBotMessageIngressService {
    * @returns QQ文本载荷
    */
   toQqTextMessagePayload(event: OneBotV11SupportedMessageEvent): QqTextMessagePayload {
+    // 1. 从 OneBot 消息段中提取 Ye-Kitty 当前关心的文本和@信息。
     const text = this.extractText(event.message);
     const mentions = this.extractMentions(event.message);
+
+    // 2. 识别群聊或好友私聊，决定后续回复使用的会话类型。
     const conversationType = event.message_type === 'group' ? 'group' : 'private';
 
+    // 3. 封装为 QQ 平台载荷，交给统一聊天事件转换器继续标准化。
     return {
       messageId: String(event.message_id),
       conversationExternalId: this.getConversationExternalId(event),
@@ -40,8 +44,10 @@ export class OneBotMessageIngressService {
    * @returns 纯文本
    */
   extractText(message: string | readonly OneBotV11MessageSegment[]): string {
+    // 1. NapCat 可能直接给字符串消息，此时可直接作为文本内容。
     if (typeof message === 'string') return message;
 
+    // 2. 结构化消息只拼接 text 段，图片、表情等非文本段暂不参与默认回复。
     return message
       .filter((segment): segment is OneBotV11MessageSegment & { readonly data: { readonly text: string } } => {
         return segment.type === 'text' && typeof segment.data?.text === 'string';
@@ -57,8 +63,10 @@ export class OneBotMessageIngressService {
    * @returns QQ号列表
    */
   extractMentions(message: string | readonly OneBotV11MessageSegment[]): readonly string[] {
+    // 1. 字符串消息不携带结构化@信息。
     if (typeof message === 'string') return [];
 
+    // 2. 只收集 at 段里的 QQ 号，供后续自主回复决策使用。
     return message
       .filter((segment): segment is OneBotV11MessageSegment & { readonly data: { readonly qq: string } } => {
         return segment.type === 'at' && typeof segment.data?.qq === 'string';

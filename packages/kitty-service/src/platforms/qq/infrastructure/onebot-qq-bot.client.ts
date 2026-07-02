@@ -22,13 +22,17 @@ export class OneBotQqBotClient implements QqBotClientPort {
     readonly conversationType: 'private' | 'group';
     readonly text: string;
   }): Promise<void> {
+    // 1. 群聊和好友消息在 OneBot 中对应不同动作名。
     const action = input.conversationType === 'group' ? 'send_group_msg' : 'send_private_msg';
 
-    // OneBot 群聊和私聊使用不同目标字段。
+    // 2. 群聊使用 group_id，好友私聊使用 user_id。
+    const targetField = input.conversationType === 'group' ? 'group_id' : 'user_id';
+
+    // 3. 通过当前 WebSocket 连接把回复动作交给 NapCat 执行。
     await this.server.sendAction({
       action,
       params: {
-        [input.conversationType === 'group' ? 'group_id' : 'user_id']: input.conversationExternalId,
+        [targetField]: input.conversationExternalId,
         message: input.text,
       },
       echo: `${action}:${Date.now()}:${this.nextEchoId++}`,
