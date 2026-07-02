@@ -19,6 +19,7 @@ bootstrap
 - `shared/types` 统一存放跨模块共享的类型、接口和结构体定义。
 - `shared/abstracts` 存放可继承的共同抽象，例如模板方法用例和能力基类。
 - `shared/strategies` 存放策略模式相关的通用注册、选择和执行能力。
+- `shared/infrastructure` 存放跨模块可复用的轻量基础设施，例如 RxJS 消息总线实现。
 - `contracts` 只包含跨服务共享的事件和动作 DTO。
 - `services/*/domain` 存放业务对象和服务内局部值类型。
 - `services/*/application` 编排单个服务边界内的用例流程。
@@ -33,6 +34,7 @@ bootstrap
 ```text
 QQ 原始载荷
   -> platforms/qq
+  -> shared/infrastructure RxJS 消息总线
   -> services/event-gateway
   -> contracts/events
   -> services/conversation
@@ -53,6 +55,7 @@ QQ 原始载荷
 - `llm`：构造模型请求，并返回结构化生成结果。
 - `risk`：在对外发送前检查生成内容。
 - `actions`：持久化并执行对外社交动作。
+- `platforms/qq`：MVP 阶段提供 QQ 官方契约占位，并新增 OneBot v11 + NapCat 的 QQ 账号实验通道；实验通道只负责接收白名单群消息、发布统一聊天事件，并通过 OneBot 动作发送默认回复。
 
 每个边界都优先暴露端口。后续可以在不修改调用方的情况下补充基础设施实现。
 

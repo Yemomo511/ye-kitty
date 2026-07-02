@@ -7,7 +7,8 @@
   "main": "src/index.ts",
   "scripts": {
     "validate:architecture": "node scripts/validate-architecture.mjs",
-    "test": "npm run validate:architecture"
+    "typecheck": "tsc --noEmit",
+    "test": "npm run validate:architecture && npm run typecheck && vitest run"
   },
   "keywords": [
     "ye-kitty",
@@ -16,5 +17,18 @@
     "persona",
     "event-driven"
   ],
-  "license": "ISC"
+  "license": "ISC",
+  "dependencies": {
+    "@fastify/websocket": "^11.0.2",
+    "fastify": "^5.4.0",
+    "rxjs": "^7.8.2",
+    "ws": "^8.18.3"
+  },
+  "devDependencies": {
+    "@types/node": "^24.0.10",
+    "@types/ws": "^8.18.1",
+    "typescript": "^5.8.3",
+    "vite-tsconfig-paths": "^5.1.4",
+    "vitest": "^3.2.4"
+  }
 }
