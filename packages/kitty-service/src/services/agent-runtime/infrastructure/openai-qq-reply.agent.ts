@@ -1,4 +1,4 @@
-import { Agent, run } from '@openai/agents';
+import { Agent, OpenAIProvider, Runner } from '@openai/agents';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   QqReplyAgentInput,
@@ -12,6 +12,10 @@ import type {
  * 控制 Agents SDK 的展示名称、模型和单次回复超时时间。
  */
 export interface OpenAiQqReplyAgentConfig {
+  /** OpenAI API Key */
+  readonly apiKey: string;
+  /** OpenAI兼容服务地址 */
+  readonly baseURL?: string;
   /** Agent展示名称 */
   readonly agentName: string;
   /** OpenAI模型名称 */
@@ -28,8 +32,14 @@ export interface OpenAiQqReplyAgentConfig {
  */
 export class OpenAiQqReplyAgent implements QqReplyAgentPort {
   private readonly agent: Agent;
+  private readonly runner: Runner;
 
   constructor(private readonly config: OpenAiQqReplyAgentConfig) {
+    const modelProvider = new OpenAIProvider({
+      apiKey: config.apiKey,
+      baseURL: config.baseURL,
+    });
+    this.runner = new Runner({ modelProvider });
     this.agent = new Agent({
       name: config.agentName,
       model: config.model,
@@ -44,7 +54,7 @@ export class OpenAiQqReplyAgent implements QqReplyAgentPort {
    */
   async generateReply(input: QqReplyAgentInput): Promise<QqReplyAgentResult> {
     const result = await withTimeout(
-      run(this.agent, buildAgentInput(input.event)),
+      this.runner.run(this.agent, buildAgentInput(input.event)),
       this.config.timeoutMs,
     );
     const text = String(result.finalOutput ?? '').trim();

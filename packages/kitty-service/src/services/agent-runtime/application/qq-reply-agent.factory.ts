@@ -11,6 +11,8 @@ import { OpenAiQqReplyAgent } from '../infrastructure/openai-qq-reply.agent';
 export interface QqReplyAgentRuntimeConfig {
   /** OpenAI API Key是否存在 */
   readonly openAiApiKey?: string;
+  /** OpenAI兼容服务地址 */
+  readonly openAiBaseUrl?: string;
   /** OpenAI模型名称 */
   readonly agentModel: string;
   /** Agent展示名称 */
@@ -29,6 +31,8 @@ export function createQqReplyAgent(config: QqReplyAgentRuntimeConfig): QqReplyAg
   if (!config.openAiApiKey) return fallbackAgent;
 
   const openAiAgent = new OpenAiQqReplyAgent({
+    apiKey: config.openAiApiKey,
+    baseURL: config.openAiBaseUrl,
     agentName: config.agentName,
     model: config.agentModel,
     timeoutMs: config.replyTimeoutMs,
@@ -47,6 +51,7 @@ export function loadQqReplyAgentConfig(
 ): QqReplyAgentRuntimeConfig {
   return {
     openAiApiKey: normalizeOptionalValue(env.OPENAI_API_KEY),
+    openAiBaseUrl: normalizeOptionalValue(env.OPENAI_BASE_URL),
     agentModel: normalizeOptionalValue(env.YE_KITTY_AGENT_MODEL) ?? 'gpt-4.1-mini',
     agentName: normalizeOptionalValue(env.YE_KITTY_AGENT_NAME) ?? '叶猫猫',
     replyTimeoutMs: readPositiveInteger(env.YE_KITTY_AGENT_REPLY_TIMEOUT_MS, 30000),

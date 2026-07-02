@@ -46,6 +46,7 @@ describe('QQ回复Agent', () => {
 
     expect(config).toEqual({
       openAiApiKey: undefined,
+      openAiBaseUrl: undefined,
       agentModel: 'gpt-4.1-mini',
       agentName: '叶猫猫',
       replyTimeoutMs: 15000,
@@ -56,6 +57,7 @@ describe('QQ回复Agent', () => {
   test('有OPENAI_API_KEY时使用OpenAI Agent包装配置', () => {
     const config = loadQqReplyAgentConfig({
       OPENAI_API_KEY: 'sk-test',
+      OPENAI_BASE_URL: 'https://relay.example.com',
       YE_KITTY_AGENT_MODEL: 'gpt-4.1-mini',
       YE_KITTY_AGENT_NAME: '测试叶猫猫',
       YE_KITTY_AGENT_REPLY_TIMEOUT_MS: '20000',
@@ -64,6 +66,7 @@ describe('QQ回复Agent', () => {
 
     expect(config).toEqual({
       openAiApiKey: 'sk-test',
+      openAiBaseUrl: 'https://relay.example.com',
       agentModel: 'gpt-4.1-mini',
       agentName: '测试叶猫猫',
       replyTimeoutMs: 20000,
