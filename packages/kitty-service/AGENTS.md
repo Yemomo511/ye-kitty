@@ -5,9 +5,8 @@
 
 - 修改项目架构时，需要及时更新 `src/ARCHITECTURE.md` 文件。
 - 共享结构体、接口和类型统一放在 `src/shared/types`。
-- 共同抽象类统一放在 `src/shared/abstracts`。
-- 共同模板和模板方法基类优先放在 `src/shared/abstracts` 或 `src/shared/application`。
-- 策略模式相关的注册、选择和执行能力统一放在 `src/shared/strategies`。
-- 具有固定处理流程的应用服务优先继承 `TemplateUseCase`，子类只实现必要钩子或核心步骤。
-- 具有多种可替换算法或决策路径的模块优先实现 `Strategy` 接口，并通过 `StrategyRegistry` 选择执行。
+- 模板方法模式和策略模式按需使用，不建立统筹所有服务的统一抽象类或统一策略注册器。
+- 某个服务内出现稳定流程复用时，优先在该服务的 `application` 或 `domain` 中建立局部抽象类。
+- 某个服务内出现多种可替换算法或决策路径时，优先在该服务的 `ports` 或 `domain` 中建立局部策略接口。
+- 只有抽象、模板或策略被多个服务稳定复用时，才允许上沉到 `src/shared`。
 - 包内局部运行命令统一放在包级 `scripts/` 目录下，避免在业务源码目录中继续新增 `bin/` 启动入口。
