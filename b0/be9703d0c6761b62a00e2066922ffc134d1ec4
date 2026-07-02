@@ -1,0 +1,59 @@
+.env.template
+  s_d3dede3de25d8f::t_e07436080be6b7 21-32
+.prettierignore
+  s_d3dede3de25d8f::t_5a43cf807eb95f 6
+packages/kitty-service/package.json
+  s_d3dede3de25d8f::t_6827dbbad1e38c 25
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_d3dede3de25d8f::t_78c50ba507b3d7 4-6,11-13,15,18,32
+packages/kitty-service/src/platforms/messageAdapter/__test__/qq-message-adapter.test.ts
+  s_d3dede3de25d8f::t_63840c5266517a 1-154
+packages/kitty-service/src/platforms/messageAdapter/application/message-adapter.runtime.ts
+  s_d3dede3de25d8f::t_ca1975dfdc7c2e 1-82
+packages/kitty-service/src/platforms/messageAdapter/application/qq-message-adapter.ts
+  s_d3dede3de25d8f::t_e99bbe477d115f 1-87
+packages/kitty-service/src/platforms/messageAdapter/index.ts
+  s_d3dede3de25d8f::t_8fd528fb676c13 1-7
+packages/kitty-service/src/platforms/qq/__test__/qq-account-experiment-channel.test.ts
+  s_d3dede3de25d8f::t_1d81373bac07a0 4-5,9,11-14,34-41,44,46-49,68-75,80-83,114,119-122,141-170
+packages/kitty-service/src/platforms/qq/application/qq-account-experiment-channel.ts
+  s_d3dede3de25d8f::t_1f6c281ff79628 28-30,84
+packages/kitty-service/src/platforms/qq/application/qq-account-experiment.factory.ts
+  s_d3dede3de25d8f::t_c1ed2b839ea615 2,24,32-33,51,56
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-agent.test.ts
+  s_d3dede3de25d8f::t_4a8ce76fb0ae20 1-92
+packages/kitty-service/src/services/agent-runtime/application/fallback-qq-reply.agent.ts
+  s_d3dede3de25d8f::t_ca6ea474fcf396 1-22
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_d3dede3de25d8f::t_fdd31d3ede4353 1-70
+packages/kitty-service/src/services/agent-runtime/application/safe-qq-reply.agent.ts
+  s_d3dede3de25d8f::t_ebcde14e440a26 1-49
+packages/kitty-service/src/services/agent-runtime/domain/.gitkeep
+  s_d3dede3de25d8f::t_7987442d9ef8f6 1
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_d3dede3de25d8f::t_a3f977c6ec2ab8 1-16
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-qq-reply.agent.ts
+  s_d3dede3de25d8f::t_4398419a41a0d6 1-102
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_d3dede3de25d8f::t_bf2c68d602f9e7 1-36
+pnpm-lock.yaml
+  s_d3dede3de25d8f::t_43b84663ca9a07 35-37,285-290,314-346,600-603,643-646,651-654,659-666,675-694,699-702,723-726,731-734,738-744,748-755,759-762,768-770,826-837,842-851,895-898,914-921,927-937,949-972,988-995,1008-1010,1014-1016,1032-1034,1058-1077,1093-1104,1109-1112,1116-1135,1148-1151,1160-1162,1187-1190,1210-1213,1218-1221,1225-1232,1264-1267,1282-1284,1293-1300,1304-1306,1315-1330,1348-1351,1394-1397,1427-1430,1446-1449,1456-1459,1574-1581,1728-1732,1751-1836,2070-2075,2111-2125,2130-2132,2135-2146,2157-2171,2174-2179,2194-2196,2199-2205,2213-2218,2223-2228,2231-2235,2265-2267,2342-2352,2355-2394,2450-2461,2480-2485,2489-2511,2520-2547,2556-2561,2570-2572,2575-2577,2590-2592,2620-2636,2647-2655,2658-2662,2667-2671,2689-2691,2696-2698,2727-2729,2744-2749,2752-2757,2760-2770,2820-2830,2843-2845,2850-2876,2879-2881,2888-2919,2932-2934,2968-2970,2991-2997,3013-3015,3022-3024,3127-3133
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "b0be9703d0c6761b62a00e2066922ffc134d1ec4",
+  "prompts": {},
+  "sessions": {
+    "s_d3dede3de25d8f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f225a-ff20-7763-a9d3-0c3a1a85abc9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
