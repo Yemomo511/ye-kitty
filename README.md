@@ -43,11 +43,14 @@ QQ 原始载荷
   -> services/conversation
   -> services/persona
   -> services/policy
+  -> services/agent-runtime
   -> services/llm
   -> services/risk
   -> services/actions
   -> platforms/qq
 ```
+
+`agent-runtime` 是 Ye-Kitty 自研的可审计 Agent Harness。它负责把人格、会话、策略、工具权限和能力包组装成一次可追踪的 Agent 运行，并将底层执行委托给 OpenAI Agents SDK 等可替换运行时。详细设计见 [Agent Runtime Harness 设计知识](knowledge/Agent/agent-runtime-harness.md)。
 
 核心依赖方向：
 
@@ -104,9 +107,14 @@ services/{service-name}
 - `conversation`：负责会话、参与者和近期消息上下文。
 - `persona`：负责叶猫猫人格版本和启用规则。
 - `policy`：判断事件应当回复、拒绝、转人工还是静默。
+- `agent-runtime`：承载可审计 Agent Harness，负责上下文组装、Skill 选择、MCP 工具授权、运行记录和底层 Agent Runner 调用。
 - `llm`：构造模型请求并返回结构化生成结果。
 - `risk`：在外部发送前检查生成内容。
 - `actions`：持久化并执行对外社交动作。
+
+### agent-runtime
+
+`agent-runtime` 是连接业务规则和 Agent 执行引擎的边界。它不拥有最终对外动作权限，只负责生成可审计的候选结果。目录结构、端口设计、运行记录和权限治理约束沉淀在 [Agent Runtime Harness 设计知识](knowledge/Agent/agent-runtime-harness.md)。
 
 ### platforms
 
@@ -187,12 +195,16 @@ services/{service-name}
 4. conversation 读取会话和近期上下文
 5. persona 选择当前人格版本
 6. policy 判断是否回复、拒绝、转人工或静默
-7. llm 构造模型请求并生成候选回复
-8. risk 检查回复内容
-9. actions 创建并执行 OutgoingAction
-10. platforms/qq 发送消息
-11. 全链路记录事件、决策、动作和执行结果
+7. agent-runtime 基于策略结果选择 Skill、授权 MCP 工具并准备 Agent 上下文
+8. OpenAI Agents SDK Runner 执行短链路 Agent loop，生成候选回复或候选动作
+9. agent-runtime 记录 Agent 步骤、工具调用、模型结果和候选输出
+10. risk 检查候选回复或候选动作
+11. actions 创建并执行 OutgoingAction
+12. platforms/qq 发送消息
+13. 全链路记录事件、决策、Agent 运行、风险检查、动作和执行结果
 ```
+
+普通 QQ 回复应保持短链路：`policy -> agent-runtime -> risk -> actions`。长任务和多 Agent 协作约束见 [Agent Runtime Harness 设计知识](knowledge/Agent/agent-runtime-harness.md)。
 
 ## 建设路线
 
@@ -210,12 +222,14 @@ services/{service-name}
 - 增加事件处理链路追踪。
 - 支持按历史事件重新执行策略和生成流程。
 - 支持查看人格版本、策略版本和模型结果。
+- 增加 `agent-runtime` 运行记录和回放能力，细节见 [Agent Runtime Harness 设计知识](knowledge/Agent/agent-runtime-harness.md)。
 
 ### 第三阶段：多平台扩展
 
 - 新增小红书、飞书等平台适配器。
 - 保持平台输入输出只通过 `contracts` 进入核心服务。
 - 复用 `services` 中的人格、策略、风险和动作能力。
+- 为不同平台选择不同 Skills 和 MCP 工具集合，保持平台行为差异可审计。
 
 ### 第四阶段：风险管控增强
 
@@ -223,6 +237,12 @@ services/{service-name}
 - 增加敏感内容检测。
 - 增加平台限流和用户信任等级。
 - 增加人工审核和高风险动作拦截。
+- 对高风险 MCP 工具、平台发布动作、外部私有数据读取和自动运营动作增加人工确认。
+
+### 第五阶段：Agent 能力平台
+
+- 接入 OpenAI Agents SDK、MCP、中文 Skills 和 LangGraph 类长任务 Runner。
+- 在控制面展示 Agent 运行、Skill 版本、MCP 工具调用、人工确认和回放入口。
 
 ## 开发约定
 
