@@ -1,0 +1,16 @@
+AGENTS.md
+  h_617bb30fd7c65b 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7c70194ef59e5a71cba92726181a93860663f119",
+  "prompts": {},
+  "humans": {
+    "h_617bb30fd7c65b": {
+      "author": "ByteDance <yanyuhang.ymm511@bytedance.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
