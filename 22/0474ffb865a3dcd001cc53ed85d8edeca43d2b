@@ -1,0 +1,54 @@
+packages/kitty-service/src/shared/types/event-bus.ts
+  h_b866b1ed626949 1,9-13,15,17
+packages/kitty-service/src/shared/infrastructure/rxjs-event-bus.ts
+  s_ec3a3206c035f3::t_5f951a13dafa9f 5-8 gitai:{"mixed_line_ranges":[{"Single":5},{"Range":[7,8]}],"operations":[]}
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "220474ffb865a3dcd001cc53ed85d8edeca43d2b",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_ec3a3206c035f3": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-bc732d9c-5895-4825-bee6-fb4dc6bbf73a",
+        "model": "default"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {
+    "packages/kitty-service/src/shared/infrastructure/rxjs-event-bus.ts": [
+      {
+        "hash": "s_ec3a3206c035f3::t_5f951a13dafa9f",
+        "line_ranges": [
+          {
+            "Range": [
+              5,
+              8
+            ]
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 5
+          },
+          {
+            "Range": [
+              7,
+              8
+            ]
+          }
+        ],
+        "operations": []
+      }
+    ]
+  },
+  "remote_transcripts": {}
+}
