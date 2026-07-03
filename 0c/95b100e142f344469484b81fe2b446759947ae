@@ -1,0 +1,31 @@
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_d3dede3de25d8f::t_6c3547c22021f3 23
+packages/kitty-service/src/platforms/qq/application/qq-account-experiment-channel.ts
+  s_d3dede3de25d8f::t_7798e0c5976af2 1-2,32,34,43-45,95-96
+packages/kitty-service/src/platforms/qq/application/qq-account-experiment.factory.ts
+  s_d3dede3de25d8f::t_d147667669cde6 23,47
+packages/kitty-service/src/platforms/shared/application/platform-message.service.ts
+  s_d3dede3de25d8f::t_e858432cbcc301 1-37
+packages/kitty-service/src/platforms/shared/index.ts
+  s_d3dede3de25d8f::t_26e597cda71aa4 1-4
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_d3dede3de25d8f::t_ccd270467caee7 2,11,16,28-29,34-35,37-38,40,42-43,50-52,54,57-58,62-63,69-71
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "0c95b100e142f344469484b81fe2b446759947ae",
+  "prompts": {},
+  "sessions": {
+    "s_d3dede3de25d8f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f225a-ff20-7763-a9d3-0c3a1a85abc9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
