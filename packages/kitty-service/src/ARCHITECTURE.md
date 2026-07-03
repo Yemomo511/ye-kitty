@@ -25,8 +25,10 @@ bootstrap
 - `services/*/ports` 定义入站接口和出站接口。
 - `services/*/infrastructure` 适配数据库、队列、SDK 和模型提供方。
 - `platforms/*` 将平台特定载荷转换为统一契约，并执行平台动作。
-- RxJS 事件订阅只能由上层模块订阅下层模块发布的事件，禁止下层平台模块订阅后反向调用上层服务。
-- 下层模块不能依赖上层模块；例如 QQ 平台模块不能 import `agent-runtime`，应由 `agent-runtime` 主动订阅 QQ runtime 暴露的事件总线。
+- 全局 `EventBus` 只用于项目配置、并发策略等通用系统消息，不承载 QQ 消息、Agent 回复等具体业务通信。
+- 每个 `platforms/*` 服务各自持有 RxJS `Subject`，并通过统一 public `subscribe` 暴露平台标准消息。
+- 具体业务订阅只能由上层应用模块订阅下层平台服务，禁止下层平台模块订阅后反向调用上层服务。
+- 下层模块不能依赖上层模块；例如 QQ 平台模块不能 import `agent-runtime`，应由 `agent-runtime` 主动订阅 QQ 服务。
 - `control-plane` 读取服务状态并修改配置，但不能绕过服务端口直接访问基础设施。
 - `bootstrap` 是唯一负责组装具体实现的地方。
 
@@ -35,7 +37,6 @@ bootstrap
 ```text
 QQ 原始载荷
   -> platforms/qq
-  -> shared/infrastructure RxJS 消息总线
   -> contracts/events
   -> services/agent-runtime
   -> platforms/qq
@@ -68,7 +69,7 @@ contracts/events
 - `llm`：构造模型请求，并返回结构化生成结果。
 - `risk`：在对外发送前检查生成内容。
 - `actions`：持久化并执行对外社交动作。
-- `platforms/qq`：MVP 阶段提供 QQ 官方契约占位，并新增 OneBot v11 + NapCat 的 QQ 账号实验通道；实验通道只负责接收白名单消息、发布统一聊天事件，并提供 OneBot 发送端口。
+- `platforms/qq`：MVP 阶段提供 QQ 官方契约占位，并新增 OneBot v11 + NapCat 的 QQ 账号实验通道；实验通道只负责接收白名单消息、通过自身 `subscribe` 发布统一聊天事件，并提供 OneBot 发送端口。
 
 每个边界都优先暴露端口。后续可以在不修改调用方的情况下补充基础设施实现。
 

@@ -1,6 +1,6 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessageService } from '@kitty/platforms/shared';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
-import type { EventBusPort, EventEnvelope } from '@kitty/shared/types/event-bus';
 import type { ConversationId } from '@kitty/shared/types/ids';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
@@ -8,12 +8,12 @@ import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 /**
  * QQ回复事件订阅器
  *
- * Agent Runtime 的 RxJS 入口。它订阅下层 QQ runtime 发布的标准消息事件，
+ * Agent Runtime 的 RxJS 入口。它订阅下层 QQ 服务发布的标准消息事件，
  * 调用 QQ 回复 Agent 生成文本，并通过 QQ 发送端口完成 MVP 回写。
  */
 export class QqReplyEventSubscriber {
   constructor(
-    private readonly eventBus: EventBusPort,
+    private readonly qqMessageService: PlatformMessageService<ChatEventContract>,
     private readonly botClient: QqBotClientPort,
     private readonly replyAgent: QqReplyAgentPort,
   ) {}
@@ -25,61 +25,50 @@ export class QqReplyEventSubscriber {
    */
   async start(): Promise<void> {
     console.info('✅ [AgentRuntime-QQReplySubscriber] 已注册QQ消息订阅');
-    await this.eventBus.subscribe<EventEnvelope<unknown>>(async (event) => {
-      await this.handleEvent(event);
+    await this.qqMessageService.subscribe(async (message) => {
+      await this.handleMessage(message);
     });
   }
 
   /**
-   * 处理总线事件
-   * @param event 标准事件信封
+   * 处理QQ消息
+   * @param message 标准消息
    */
-  async handleEvent(event: EventEnvelope<unknown>): Promise<void> {
-    if (!isQqReceivedMessageEvent(event)) return;
+  async handleMessage(message: ChatEventContract): Promise<void> {
+    if (!isQqReceivedMessage(message)) return;
 
-    const chatEvent = event.payload;
-    if (chatEvent.message.text.trim().length === 0) {
+    if (message.message.text.trim().length === 0) {
       writeDebugLog(
-        `⏭️ [AgentRuntime-QQReplySubscriber-handleEvent] 跳过空文本消息 conversationType=${chatEvent.conversationType} messageId=${maskId(
-          chatEvent.message.id,
+        `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 跳过空文本消息 conversationType=${message.conversationType} messageId=${maskId(
+          message.message.id,
         )}`,
       );
       return;
     }
 
     writeDebugLog(
-      `🚧 [AgentRuntime-QQReplySubscriber-handleEvent] 开始生成QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
-        chatEvent.message.id,
-      )} textLength=${chatEvent.message.text.length}`,
+      `🚧 [AgentRuntime-QQReplySubscriber-handleMessage] 开始生成QQ回复 conversationType=${message.conversationType} messageId=${maskId(
+        message.message.id,
+      )} textLength=${message.message.text.length}`,
     );
-    const reply = await this.replyAgent.generateReply({ event: chatEvent });
+    const reply = await this.replyAgent.generateReply({ event: message });
 
     await this.botClient.sendTextMessage({
-      conversationExternalId: stripQqConversationPrefix(chatEvent.conversationId),
-      conversationType: chatEvent.conversationType,
+      conversationExternalId: stripQqConversationPrefix(message.conversationId),
+      conversationType: message.conversationType,
       text: reply.text,
     });
     console.info(
-      `✅ [AgentRuntime-QQReplySubscriber-handleEvent] 已发送QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
-        chatEvent.message.id,
+      `✅ [AgentRuntime-QQReplySubscriber-handleMessage] 已发送QQ回复 conversationType=${message.conversationType} messageId=${maskId(
+        message.message.id,
       )} replyLength=${reply.text.length}`,
     );
   }
 }
 
-// 识别 QQ 标准收信事件，避免 Agent Runtime 误处理其他平台事件。
-function isQqReceivedMessageEvent(
-  event: EventEnvelope<unknown>,
-): event is EventEnvelope<ChatEventContract> {
-  if (event.eventType !== 'message.received') return false;
-  if (!isRecord(event.payload)) return false;
-
-  return event.payload.platform === 'qq' && event.payload.eventType === 'message.received';
-}
-
-// 判断未知对象是否可安全读取字段。
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null;
+// 识别 QQ 标准收信事件，避免 Agent Runtime 处理非目标消息。
+function isQqReceivedMessage(message: ChatEventContract): boolean {
+  return message.platform === 'qq' && message.eventType === 'message.received';
 }
 
 // 还原 OneBot 发送动作需要的平台会话ID。

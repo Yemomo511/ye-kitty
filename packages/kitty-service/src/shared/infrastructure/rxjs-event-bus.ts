@@ -4,7 +4,8 @@ import type { EventBusPort, EventHandler } from '@kitty/shared/types/event-bus';
 /**
  * RxJS 泛型事件总线
  *
- * 用于在模块之间传递任意结构事件。
+ * 用于在模块之间传递项目配置、并发策略等通用系统消息。
+ * QQ、飞书等平台业务消息必须由各平台服务自己的 Subject 对外发布。
  * 订阅方通过泛型声明自己关心的事件类型，必要时在 handler 内自行做类型守卫。
  */
 export class RxjsEventBus implements EventBusPort {

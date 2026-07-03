@@ -1,4 +1,4 @@
-// 标准事件信封，适合需要事件ID、类型和发生时间的业务事件。
+// 通用事件信封，适合项目配置、并发策略等系统级消息。
 export interface EventEnvelope<TEvent> {
   readonly eventId: string;
   readonly eventType: string;
@@ -12,13 +12,13 @@ export type EventHandler<TEvent> = (event: TEvent) => Promise<void>;
 /**
  * 事件总线接口
  *
- * 只约束“发布一个事件”和“订阅一个事件流”的能力。
- * 事件本身不强制使用 EventEnvelope，便于后续接入外部协议事件或轻量内部信号。
+ * 只用于跨模块通用系统消息，例如项目配置、并发策略或轻量内部信号。
+ * 具体平台业务消息由各 platform service 自持 Subject 并通过 subscribe 暴露。
  */
 export interface EventBusPort {
-  // 发布任意结构事件
+  // 发布系统级通用事件
   publish<TEvent>(event: TEvent): Promise<void>;
 
-  // 订阅任意结构事件
+  // 订阅系统级通用事件
   subscribe<TEvent>(handler: EventHandler<TEvent>): Promise<void>;
 }

@@ -20,7 +20,7 @@ const qqRuntime = createQqAccountExperimentChannel(qqConfig);
 // 3. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
 const qqReplySubscriber = new QqReplyEventSubscriber(
-  qqRuntime.eventBus,
+  qqRuntime.channel,
   qqRuntime.botClient,
   createQqReplyAgent(agentConfig),
 );

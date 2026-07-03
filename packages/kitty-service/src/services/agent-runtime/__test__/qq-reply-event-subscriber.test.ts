@@ -3,7 +3,7 @@ import { QqReplyEventSubscriber } from '../application/qq-reply-event-subscriber
 import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { EventBusPort, EventEnvelope, EventHandler } from '@kitty/shared/types/event-bus';
+import { PlatformMessageService } from '@kitty/platforms/shared';
 import type {
   ChatEventId,
   ConversationId,
@@ -19,11 +19,11 @@ describe('QqReplyEventSubscriber', () => {
   });
 
   test('订阅QQ消息后调用Agent并发送回复', async () => {
-    const eventBus = new FakeEventBus();
+    const messageService = new TestQqMessageService();
     const agentInputs: QqReplyAgentInput[] = [];
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
     const subscriber = new QqReplyEventSubscriber(
-      eventBus,
+      messageService,
       {
         async sendTextMessage(input) {
           replies.push(input);
@@ -38,7 +38,7 @@ describe('QqReplyEventSubscriber', () => {
     );
 
     await subscriber.start();
-    await eventBus.publish(createEnvelope(createChatEvent()));
+    await messageService.publish(createChatEvent());
 
     expect(agentInputs).toHaveLength(1);
     expect(agentInputs[0]?.event).toMatchObject({
@@ -65,7 +65,7 @@ describe('QqReplyEventSubscriber', () => {
       },
     };
     const subscriber = new QqReplyEventSubscriber(
-      new FakeEventBus(),
+      new TestQqMessageService(),
       {
         async sendTextMessage(input) {
           replies.push(input);
@@ -74,7 +74,7 @@ describe('QqReplyEventSubscriber', () => {
       new SafeQqReplyAgent(failedAgent, new FallbackQqReplyAgent()),
     );
 
-    await subscriber.handleEvent(createEnvelope(createChatEvent({ text: '模型失败后的消息' })));
+    await subscriber.handleMessage(createChatEvent({ text: '模型失败后的消息' }));
 
     expect(replies[0]?.text).toBe('叶猫猫收到：模型失败后的消息');
   });
@@ -87,7 +87,7 @@ describe('QqReplyEventSubscriber', () => {
       },
     };
     const subscriber = new QqReplyEventSubscriber(
-      new FakeEventBus(),
+      new TestQqMessageService(),
       {
         async sendTextMessage(input) {
           replies.push(input);
@@ -96,45 +96,28 @@ describe('QqReplyEventSubscriber', () => {
       replyAgent,
     );
 
-    await subscriber.handleEvent({
-      eventId: 'event-other',
-      eventType: 'message.received',
-      occurredAt: new Date('2026-07-02T00:00:00.000Z'),
-      payload: { platform: 'feishu', eventType: 'message.received' },
-    });
-    await subscriber.handleEvent(createEnvelope(createChatEvent({ text: '   ' })));
+    await subscriber.handleMessage(createChatEvent({ platform: 'feishu' }));
+    await subscriber.handleMessage(createChatEvent({ text: '   ' }));
 
     expect(replies).toEqual([]);
   });
 });
 
-class FakeEventBus implements EventBusPort {
-  private handlers: Array<EventHandler<unknown>> = [];
-
-  async publish<TEvent>(event: TEvent): Promise<void> {
-    for (const handler of this.handlers) {
-      await handler(event);
-    }
-  }
-
-  async subscribe<TEvent>(handler: EventHandler<TEvent>): Promise<void> {
-    this.handlers.push(handler as EventHandler<unknown>);
+class TestQqMessageService extends PlatformMessageService<ChatEventContract> {
+  async publish(message: ChatEventContract): Promise<void> {
+    await this.publishMessage(message);
   }
 }
 
-function createEnvelope(event: ChatEventContract): EventEnvelope<ChatEventContract> {
-  return {
-    eventId: event.id,
-    eventType: event.eventType,
-    occurredAt: event.receivedAt,
-    payload: event,
-  };
-}
-
-function createChatEvent(options: { readonly text?: string } = {}): ChatEventContract {
+function createChatEvent(
+  options: {
+    readonly text?: string;
+    readonly platform?: ChatEventContract['platform'] | 'feishu';
+  } = {},
+): ChatEventContract {
   return {
     id: 'chat-event-1' as ChatEventId,
-    platform: 'qq',
+    platform: (options.platform ?? 'qq') as ChatEventContract['platform'],
     eventType: 'message.received',
     conversationId: 'qq:conversation:123456' as ConversationId,
     conversationType: 'group',

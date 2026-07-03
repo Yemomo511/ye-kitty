@@ -1,4 +1,5 @@
-import type { EventBusPort } from '@kitty/shared/types/event-bus';
+import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import { PlatformMessageService } from '@kitty/platforms/shared';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 import { QqMessageIngressService } from './qq-message-ingress.service';
 import { OneBotMessageIngressService } from './onebot-message-ingress.service';
@@ -28,9 +29,9 @@ export interface QqAccountExperimentChannelConfig {
  *
  * 编排 NapCat/OneBot 事件接收、白名单过滤和统一事件发布。
  * 该通道属于非官方 QQ 账号实验链路，启动后会监听 WebSocket 连接。
- * 回复动作交给上层 MessageAdapter，避免平台通道直接绑定 Agent 策略。
+ * 回复动作交给上层 Agent Runtime，避免平台通道直接绑定业务策略。
  */
-export class QqAccountExperimentChannel {
+export class QqAccountExperimentChannel extends PlatformMessageService<ChatEventContract> {
   // OneBot事件转换器
   private readonly oneBotIngress = new OneBotMessageIngressService();
   // QQ统一事件转换器
@@ -39,8 +40,9 @@ export class QqAccountExperimentChannel {
   constructor(
     private readonly config: QqAccountExperimentChannelConfig,
     private readonly server: OneBotFastifyReverseWsServer,
-    private readonly eventBus: EventBusPort,
-  ) {}
+  ) {
+    super();
+  }
 
   /**
    * 启动实验通道
@@ -90,13 +92,8 @@ export class QqAccountExperimentChannel {
     const qqPayload = this.oneBotIngress.toQqTextMessagePayload(rawMessage);
     const normalized = await this.qqIngress.normalize(qqPayload);
 
-    // 4. 发布到 RxJS 消息总线，后续 MessageAdapter 会接管回复链路。
-    await this.eventBus.publish({
-      eventId: normalized.event.id,
-      eventType: normalized.event.eventType,
-      occurredAt: normalized.event.receivedAt,
-      payload: normalized.event,
-    });
+    // 4. 发布到 QQ 平台自己的消息流，后续由上层 Agent Runtime 订阅。
+    await this.publishMessage(normalized.event);
     writeDebugLog(
       `🔍 [QQExperimentChannel-publish] 已发布QQ消息事件 conversationType=${qqPayload.conversationType} messageId=${maskId(
         qqPayload.messageId,

@@ -1,23 +1,19 @@
 import { describe, expect, test } from 'vitest';
 import { QqAccountExperimentChannel } from '../application/qq-account-experiment-channel';
-import { RxjsEventBus } from '@kitty/shared/infrastructure/rxjs-event-bus';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { EventEnvelope } from '@kitty/shared/types/event-bus';
 import type { OneBotFastifyReverseWsServer } from '../infrastructure/onebot-fastify-reverse-ws.server';
 
 describe('QqAccountExperimentChannel', () => {
   test('处理白名单群消息后只发布标准事件', async () => {
-    const eventBus = new RxjsEventBus();
-    const events: Array<EventEnvelope<ChatEventContract>> = [];
-    await eventBus.subscribe<EventEnvelope<ChatEventContract>>(async (event) => {
-      events.push(event);
-    });
     const server = {} as OneBotFastifyReverseWsServer;
     const channel = new QqAccountExperimentChannel(
       { selfQqId: '10000', allowedGroupIds: ['123456'], allowedFriendIds: [] },
       server,
-      eventBus,
     );
+    const events: ChatEventContract[] = [];
+    await channel.subscribe(async (event) => {
+      events.push(event);
+    });
 
     await channel.handleRawMessage({
       time: 1782921600,
@@ -32,7 +28,7 @@ describe('QqAccountExperimentChannel', () => {
     });
 
     expect(events).toHaveLength(1);
-    expect(events[0]?.payload).toMatchObject({
+    expect(events[0]).toMatchObject({
       platform: 'qq',
       eventType: 'message.received',
       conversationType: 'group',
@@ -42,17 +38,15 @@ describe('QqAccountExperimentChannel', () => {
   });
 
   test('处理白名单好友私聊消息后只发布标准事件', async () => {
-    const eventBus = new RxjsEventBus();
-    const events: Array<EventEnvelope<ChatEventContract>> = [];
-    await eventBus.subscribe<EventEnvelope<ChatEventContract>>(async (event) => {
-      events.push(event);
-    });
     const server = {} as OneBotFastifyReverseWsServer;
     const channel = new QqAccountExperimentChannel(
       { selfQqId: '10000', allowedGroupIds: [], allowedFriendIds: ['1463645455'] },
       server,
-      eventBus,
     );
+    const events: ChatEventContract[] = [];
+    await channel.subscribe(async (event) => {
+      events.push(event);
+    });
 
     await channel.handleRawMessage({
       time: 1782921600,
@@ -66,7 +60,7 @@ describe('QqAccountExperimentChannel', () => {
     });
 
     expect(events).toHaveLength(1);
-    expect(events[0]?.payload).toMatchObject({
+    expect(events[0]).toMatchObject({
       platform: 'qq',
       eventType: 'message.received',
       conversationType: 'private',
@@ -76,17 +70,15 @@ describe('QqAccountExperimentChannel', () => {
   });
 
   test('忽略非白名单群和自身消息', async () => {
-    const eventBus = new RxjsEventBus();
-    const events: Array<EventEnvelope<ChatEventContract>> = [];
-    await eventBus.subscribe<EventEnvelope<ChatEventContract>>(async (event) => {
-      events.push(event);
-    });
     const server = {} as OneBotFastifyReverseWsServer;
     const channel = new QqAccountExperimentChannel(
       { selfQqId: '10000', allowedGroupIds: ['123456'], allowedFriendIds: ['1463645455'] },
       server,
-      eventBus,
     );
+    const events: ChatEventContract[] = [];
+    await channel.subscribe(async (event) => {
+      events.push(event);
+    });
 
     await channel.handleRawMessage({
       time: 1782921600,
@@ -115,17 +107,15 @@ describe('QqAccountExperimentChannel', () => {
   });
 
   test('忽略非白名单好友私聊消息', async () => {
-    const eventBus = new RxjsEventBus();
-    const events: Array<EventEnvelope<ChatEventContract>> = [];
-    await eventBus.subscribe<EventEnvelope<ChatEventContract>>(async (event) => {
-      events.push(event);
-    });
     const server = {} as OneBotFastifyReverseWsServer;
     const channel = new QqAccountExperimentChannel(
       { selfQqId: '10000', allowedGroupIds: [], allowedFriendIds: ['1463645455'] },
       server,
-      eventBus,
     );
+    const events: ChatEventContract[] = [];
+    await channel.subscribe(async (event) => {
+      events.push(event);
+    });
 
     await channel.handleRawMessage({
       time: 1782921600,
@@ -142,17 +132,15 @@ describe('QqAccountExperimentChannel', () => {
   });
 
   test('白名单空文本消息仍发布事件', async () => {
-    const eventBus = new RxjsEventBus();
-    const events: Array<EventEnvelope<ChatEventContract>> = [];
-    await eventBus.subscribe<EventEnvelope<ChatEventContract>>(async (event) => {
-      events.push(event);
-    });
     const server = {} as OneBotFastifyReverseWsServer;
     const channel = new QqAccountExperimentChannel(
       { selfQqId: '10000', allowedGroupIds: ['123456'], allowedFriendIds: [] },
       server,
-      eventBus,
     );
+    const events: ChatEventContract[] = [];
+    await channel.subscribe(async (event) => {
+      events.push(event);
+    });
 
     await channel.handleRawMessage({
       time: 1782921600,
@@ -167,6 +155,6 @@ describe('QqAccountExperimentChannel', () => {
     });
 
     expect(events).toHaveLength(1);
-    expect(events[0]?.payload.message.text).toBe('');
+    expect(events[0]?.message.text).toBe('');
   });
 });
