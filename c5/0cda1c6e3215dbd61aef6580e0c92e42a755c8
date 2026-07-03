@@ -1,0 +1,38 @@
+AGENTS.md
+  s_e7fa9be61973f6::t_ee44dc2ebe851f 20,22
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_e7fa9be61973f6::t_a25952ab58bd56 16-18,21-26,39,41
+packages/kitty-service/src/platforms/messageAdapter/application/qq-message-adapter.ts
+  s_e7fa9be61973f6::t_fd56dcb56ce429 6,27,41-48,50-51,53,63,65
+packages/kitty-service/src/platforms/qq/application/qq-account-experiment-channel.ts
+  s_e7fa9be61973f6::t_6e77b3fa01a359 2,56,80-87,100-104,121-133
+packages/kitty-service/src/platforms/qq/infrastructure/onebot-fastify-reverse-ws.server.ts
+  s_e7fa9be61973f6::t_10645024f9c9c1 4,69-73,89-91,105-107,117-119,124-128,145-147,155,157-159,162,164-168,183,185-187,207-226
+packages/kitty-service/src/services/agent-runtime/application/safe-qq-reply.agent.ts
+  s_e7fa9be61973f6::t_71917524c7a035 29
+packages/kitty-service/src/shared/infrastructure/logging.ts
+  s_e7fa9be61973f6::t_e560d51cfd2054 1-11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "c50cda1c6e3215dbd61aef6580e0c92e42a755c8",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_e7fa9be61973f6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f21ad-63fd-7d71-971b-5474d300d56a",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
