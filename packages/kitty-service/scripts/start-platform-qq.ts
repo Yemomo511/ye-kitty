@@ -1,25 +1,39 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import {
-  createMessageAdapterRuntime,
-  loadMessageAdapterRuntimeConfig,
-} from '../src/platforms/messageAdapter/application/message-adapter.runtime';
+  createQqAccountExperimentChannel,
+  loadQqAccountExperimentConfig,
+} from '../src/platforms/qq/application/qq-account-experiment.factory';
+import {
+  createQqReplyAgent,
+  loadQqReplyAgentConfig,
+  QqReplyEventSubscriber,
+} from '../src/services/agent-runtime';
 
 // 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
 loadNearestEnvFile();
 
-// 2. 创建消息调度层，把 QQ 实验通道和 Agent Runtime 组装起来。
-const config = loadMessageAdapterRuntimeConfig();
-const runtime = createMessageAdapterRuntime(config);
+// 2. 创建 QQ 实验通道，下层平台只负责发布事件和提供发送端口。
+const qqConfig = loadQqAccountExperimentConfig();
+const qqRuntime = createQqAccountExperimentChannel(qqConfig);
 
-// 3. 先注册消息订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
-console.info(
-  `🚧 [QQPlatform-Start] 正在启动QQ消息调度层 host=${config.host} port=${config.port} path=${config.path}`,
+// 3. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
+const agentConfig = loadQqReplyAgentConfig();
+const qqReplySubscriber = new QqReplyEventSubscriber(
+  qqRuntime.eventBus,
+  qqRuntime.botClient,
+  createQqReplyAgent(agentConfig),
 );
-await runtime.start();
+
+// 4. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+console.info(
+  `🚧 [QQPlatform-Start] 正在启动QQ实验通道 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
+);
+await qqReplySubscriber.start();
+await qqRuntime.start();
 
 console.info(
-  `✅ [QQPlatform-Start] QQ消息调度层已启动 host=${config.host} port=${config.port} path=${config.path}`,
+  `✅ [QQPlatform-Start] QQ实验通道已启动 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
 );
 console.info(
   '🔍 [QQPlatform-Start] 请在NapCat Websocket客户端中配置同一路径，并通过access_token连接',
@@ -29,16 +43,16 @@ process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
 });
 
-// 4. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
+// 5. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
 process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
 
 // 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
-  console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ消息调度层 signal=${signal}`);
-  await runtime.stop();
-  console.info(`✅ [QQPlatform-Stop] QQ消息调度层已关闭 signal=${signal}`);
+  console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ实验通道 signal=${signal}`);
+  await qqRuntime.stop();
+  console.info(`✅ [QQPlatform-Stop] QQ实验通道已关闭 signal=${signal}`);
   process.exit(0);
 }
 

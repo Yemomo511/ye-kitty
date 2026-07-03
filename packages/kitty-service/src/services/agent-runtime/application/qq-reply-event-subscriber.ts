@@ -1,17 +1,17 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { QqReplyAgentPort } from '@kitty/services/agent-runtime';
+import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { EventBusPort, EventEnvelope } from '@kitty/shared/types/event-bus';
 import type { ConversationId } from '@kitty/shared/types/ids';
-import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
+import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 
 /**
- * QQ消息适配器
+ * QQ回复事件订阅器
  *
- * 订阅平台标准消息事件，把 QQ 文本消息实时交给 Agent Runtime。
- * 回复生成后通过 QQ 发送端口回写，平台通道自身不再持有回复策略。
+ * Agent Runtime 的 RxJS 入口。它订阅下层 QQ runtime 发布的标准消息事件，
+ * 调用 QQ 回复 Agent 生成文本，并通过 QQ 发送端口完成 MVP 回写。
  */
-export class QqMessageAdapter {
+export class QqReplyEventSubscriber {
   constructor(
     private readonly eventBus: EventBusPort,
     private readonly botClient: QqBotClientPort,
@@ -21,10 +21,10 @@ export class QqMessageAdapter {
   /**
    * 注册QQ消息订阅
    *
-   * 调用后会持续监听事件总线，直到进程或底层总线关闭。
+   * 订阅必须由上层 Agent Runtime 发起，避免 QQ 平台模块反向依赖业务服务。
    */
   async start(): Promise<void> {
-    console.info('✅ [MessageAdapter-QQ] 已注册QQ消息订阅');
+    console.info('✅ [AgentRuntime-QQReplySubscriber] 已注册QQ消息订阅');
     await this.eventBus.subscribe<EventEnvelope<unknown>>(async (event) => {
       await this.handleEvent(event);
     });
@@ -40,7 +40,7 @@ export class QqMessageAdapter {
     const chatEvent = event.payload;
     if (chatEvent.message.text.trim().length === 0) {
       writeDebugLog(
-        `⏭️ [MessageAdapter-QQ-handleEvent] 跳过空文本消息 conversationType=${chatEvent.conversationType} messageId=${maskId(
+        `⏭️ [AgentRuntime-QQReplySubscriber-handleEvent] 跳过空文本消息 conversationType=${chatEvent.conversationType} messageId=${maskId(
           chatEvent.message.id,
         )}`,
       );
@@ -48,7 +48,7 @@ export class QqMessageAdapter {
     }
 
     writeDebugLog(
-      `🚧 [MessageAdapter-QQ-handleEvent] 开始生成QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
+      `🚧 [AgentRuntime-QQReplySubscriber-handleEvent] 开始生成QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
         chatEvent.message.id,
       )} textLength=${chatEvent.message.text.length}`,
     );
@@ -60,14 +60,14 @@ export class QqMessageAdapter {
       text: reply.text,
     });
     console.info(
-      `✅ [MessageAdapter-QQ-handleEvent] 已发送QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
+      `✅ [AgentRuntime-QQReplySubscriber-handleEvent] 已发送QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
         chatEvent.message.id,
       )} replyLength=${reply.text.length}`,
     );
   }
 }
 
-// 识别 QQ 标准收信事件，避免调度层误处理其他平台事件。
+// 识别 QQ 标准收信事件，避免 Agent Runtime 误处理其他平台事件。
 function isQqReceivedMessageEvent(
   event: EventEnvelope<unknown>,
 ): event is EventEnvelope<ChatEventContract> {
