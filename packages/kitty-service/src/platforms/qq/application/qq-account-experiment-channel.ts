@@ -1,4 +1,5 @@
 import type { EventBusPort } from '@kitty/shared/types/event-bus';
+import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 import { QqMessageIngressService } from './qq-message-ingress.service';
 import { OneBotMessageIngressService } from './onebot-message-ingress.service';
 import {
@@ -52,6 +53,7 @@ export class QqAccountExperimentChannel {
     this.server.registerRawMessageHandler(async (rawMessage) => {
       await this.handleRawMessage(rawMessage);
     });
+    console.info('✅ [QQExperimentChannel-start] OneBot原始消息处理器已注册');
 
     // 2. 启动反向 WebSocket 服务，等待 NapCat 推送 QQ 消息。
     await this.server.start();
@@ -75,7 +77,14 @@ export class QqAccountExperimentChannel {
     if (!isOneBotV11SupportedMessageEvent(rawMessage)) return;
 
     // 2. 过滤非白名单来源和机器人自己发出的消息。
-    if (!this.shouldAcceptMessage(rawMessage)) return;
+    if (!this.shouldAcceptMessage(rawMessage)) {
+      writeDebugLog(
+        `⏭️ [QQExperimentChannel-filter] 跳过非目标QQ消息 messageType=${rawMessage.message_type} conversationId=${getConversationId(
+          rawMessage,
+        )} senderId=${maskId(String(rawMessage.user_id))}`,
+      );
+      return;
+    }
 
     // 3. 转成 QQ 平台载荷，再标准化为项目内部聊天事件。
     const qqPayload = this.oneBotIngress.toQqTextMessagePayload(rawMessage);
@@ -88,6 +97,11 @@ export class QqAccountExperimentChannel {
       occurredAt: normalized.event.receivedAt,
       payload: normalized.event,
     });
+    writeDebugLog(
+      `🔍 [QQExperimentChannel-publish] 已发布QQ消息事件 conversationType=${qqPayload.conversationType} messageId=${maskId(
+        qqPayload.messageId,
+      )} textLength=${qqPayload.text.length}`,
+    );
   }
 
   // 判断消息来源是否允许进入实验通道
@@ -103,4 +117,17 @@ export class QqAccountExperimentChannel {
     // 3. 好友私聊只允许配置在 YE_KITTY_QQ_FRIEND_ALLOWLIST 的 QQ 号。
     return this.config.allowedFriendIds.includes(String(message.user_id));
   }
+}
+
+// 提取日志中的会话ID，并对尾部以外内容脱敏。
+function getConversationId(message: OneBotV11SupportedMessageEvent): string {
+  if (message.message_type === 'group') return maskId(String(message.group_id));
+  return maskId(String(message.user_id));
+}
+
+// 脱敏QQ号或消息ID，仅保留排障所需的尾部特征。
+function maskId(value: string): string {
+  const text = String(value);
+  if (text.length <= 4) return '****';
+  return `****${text.slice(-4)}`;
 }

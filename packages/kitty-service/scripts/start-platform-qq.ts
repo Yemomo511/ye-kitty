@@ -13,10 +13,17 @@ const config = loadMessageAdapterRuntimeConfig();
 const runtime = createMessageAdapterRuntime(config);
 
 // 3. 先注册消息订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+console.info(
+  `🚧 [QQPlatform-Start] 正在启动QQ消息调度层 host=${config.host} port=${config.port} path=${config.path}`,
+);
 await runtime.start();
 
-console.log(`叶猫猫 QQ 消息调度层已启动：ws://${config.host}:${config.port}${config.path}`);
-console.log('请在 NapCat Websocket客户端中配置同一路径，并通过 access_token 完成连接鉴权。');
+console.info(
+  `✅ [QQPlatform-Start] QQ消息调度层已启动 host=${config.host} port=${config.port} path=${config.path}`,
+);
+console.info(
+  '🔍 [QQPlatform-Start] 请在NapCat Websocket客户端中配置同一路径，并通过access_token连接',
+);
 
 process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
@@ -29,8 +36,9 @@ process.once('SIGTERM', () => {
 
 // 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
-  console.log(`收到 ${signal}，正在关闭叶猫猫 QQ 消息调度层。`);
+  console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ消息调度层 signal=${signal}`);
   await runtime.stop();
+  console.info(`✅ [QQPlatform-Stop] QQ消息调度层已关闭 signal=${signal}`);
   process.exit(0);
 }
 

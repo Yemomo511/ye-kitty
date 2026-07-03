@@ -3,6 +3,7 @@ import type { QqReplyAgentPort } from '@kitty/services/agent-runtime';
 import type { EventBusPort, EventEnvelope } from '@kitty/shared/types/event-bus';
 import type { ConversationId } from '@kitty/shared/types/ids';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
+import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 
 /**
  * QQ消息适配器
@@ -23,7 +24,7 @@ export class QqMessageAdapter {
    * 调用后会持续监听事件总线，直到进程或底层总线关闭。
    */
   async start(): Promise<void> {
-    console.info('[MessageAdapter-QQ] 已注册QQ消息订阅');
+    console.info('✅ [MessageAdapter-QQ] 已注册QQ消息订阅');
     await this.eventBus.subscribe<EventEnvelope<unknown>>(async (event) => {
       await this.handleEvent(event);
     });
@@ -37,12 +38,19 @@ export class QqMessageAdapter {
     if (!isQqReceivedMessageEvent(event)) return;
 
     const chatEvent = event.payload;
-    if (chatEvent.message.text.trim().length === 0) return;
+    if (chatEvent.message.text.trim().length === 0) {
+      writeDebugLog(
+        `⏭️ [MessageAdapter-QQ-handleEvent] 跳过空文本消息 conversationType=${chatEvent.conversationType} messageId=${maskId(
+          chatEvent.message.id,
+        )}`,
+      );
+      return;
+    }
 
-    console.info(
-      `[MessageAdapter-QQ] 开始生成QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
+    writeDebugLog(
+      `🚧 [MessageAdapter-QQ-handleEvent] 开始生成QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
         chatEvent.message.id,
-      )}`,
+      )} textLength=${chatEvent.message.text.length}`,
     );
     const reply = await this.replyAgent.generateReply({ event: chatEvent });
 
@@ -52,9 +60,9 @@ export class QqMessageAdapter {
       text: reply.text,
     });
     console.info(
-      `[MessageAdapter-QQ] 已发送QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
+      `✅ [MessageAdapter-QQ-handleEvent] 已发送QQ回复 conversationType=${chatEvent.conversationType} messageId=${maskId(
         chatEvent.message.id,
-      )}`,
+      )} replyLength=${reply.text.length}`,
     );
   }
 }

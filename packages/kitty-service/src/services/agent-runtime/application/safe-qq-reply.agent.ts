@@ -26,7 +26,7 @@ export class SafeQqReplyAgent implements QqReplyAgentPort {
       return await this.primaryAgent.generateReply(input);
     } catch (error) {
       console.warn(
-        `[AgentRuntime-SafeQqReplyAgent] Agent回复失败，已降级默认回复 conversationType=${input.event.conversationType} messageId=${maskId(
+        `⚠️ [AgentRuntime-SafeQqReplyAgent] Agent回复失败，已降级默认回复 conversationType=${input.event.conversationType} messageId=${maskId(
           input.event.message.id,
         )} reason=${formatError(error)}`,
       );

@@ -1,6 +1,7 @@
 import websocketPlugin from '@fastify/websocket';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { WebSocket } from 'ws';
+import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 import type { OneBotV11ActionRequest } from '../domain/onebot-v11';
 
 /**
@@ -65,6 +66,11 @@ export class OneBotFastifyReverseWsServer {
         preValidation: async (request, reply) => {
           // 3. 握手前校验 access_token，拒绝未知客户端。
           if (!this.isAuthorized(request)) {
+            console.warn(
+              `⚠️ [OneBotReverseWs-auth] 拒绝未授权连接 path=${this.config.path} tokenSource=${getTokenSource(
+                request,
+              )}`,
+            );
             return reply.code(401).send('未授权的 OneBot 连接');
           }
         },
@@ -80,6 +86,9 @@ export class OneBotFastifyReverseWsServer {
       host: this.config.host,
       port: this.config.port,
     });
+    console.info(
+      `✅ [OneBotReverseWs-start] WebSocket服务已监听 host=${this.config.host} port=${this.config.port} path=${this.config.path}`,
+    );
   }
 
   /**
@@ -93,6 +102,9 @@ export class OneBotFastifyReverseWsServer {
     }
 
     await this.fastify.close();
+    console.info(
+      `✅ [OneBotReverseWs-stop] WebSocket服务已停止 activeConnections=${this.sockets.size}`,
+    );
   }
 
   /**
@@ -102,10 +114,18 @@ export class OneBotFastifyReverseWsServer {
   async sendAction(action: OneBotV11ActionRequest): Promise<void> {
     const activeSocket = [...this.sockets].find((socket) => socket.readyState === WebSocket.OPEN);
     if (!activeSocket) {
+      console.error(
+        `❌ [OneBotReverseWs-sendAction] 没有可用连接，OneBot动作发送失败 action=${action.action}`,
+      );
       throw new Error('没有可用的 OneBot 反向 WebSocket 连接');
     }
 
     activeSocket.send(JSON.stringify(action));
+    writeDebugLog(
+      `🔍 [OneBotReverseWs-sendAction] 已发送OneBot动作 action=${action.action} echo=${maskId(
+        action.echo ?? '',
+      )} activeConnections=${this.sockets.size}`,
+    );
   }
 
   /**
@@ -122,6 +142,9 @@ export class OneBotFastifyReverseWsServer {
   private handleConnection(socket: WebSocket): void {
     // 1. 记录当前连接，后续回复动作会从这里选择可用通道。
     this.sockets.add(socket);
+    console.info(
+      `✅ [OneBotReverseWs-connection] NapCat连接已建立 activeConnections=${this.sockets.size}`,
+    );
 
     // 2. 同步注册消息监听，避免连接初期的 OneBot 事件丢失。
     socket.on('message', (data) => {
@@ -129,12 +152,20 @@ export class OneBotFastifyReverseWsServer {
     });
 
     // 3. 连接关闭时清理缓存，防止向失效 WebSocket 发送回复。
-    socket.on('close', () => {
+    socket.on('close', (code) => {
       this.sockets.delete(socket);
+      console.info(
+        `⏭️ [OneBotReverseWs-connection] NapCat连接已关闭 code=${code} activeConnections=${this.sockets.size}`,
+      );
     });
 
-    socket.on('error', () => {
+    socket.on('error', (error) => {
       this.sockets.delete(socket);
+      console.warn(
+        `⚠️ [OneBotReverseWs-connection] NapCat连接异常已移除 activeConnections=${this.sockets.size} reason=${formatError(
+          error,
+        )}`,
+      );
     });
   }
 
@@ -149,8 +180,11 @@ export class OneBotFastifyReverseWsServer {
 
       // 2. 交给 QQ 实验通道做白名单过滤、事件发布和回复编排。
       await this.rawMessageHandler(rawMessage);
-    } catch {
+    } catch (error) {
       // 3. 解析或处理失败时关闭连接，避免继续处理未知状态消息。
+      console.error(
+        `❌ [OneBotReverseWs-message] OneBot消息处理失败，连接将关闭 reason=${formatError(error)}`,
+      );
       socket.close(1011, 'OneBot 消息处理失败');
     }
   }
@@ -169,4 +203,24 @@ export class OneBotFastifyReverseWsServer {
     if (header?.startsWith('Bearer ')) return header.slice('Bearer '.length);
     return undefined;
   }
+}
+
+// 标记令牌来源，不输出令牌本身。
+function getTokenSource(request: FastifyRequest): string {
+  const query = request.query as { readonly access_token?: string };
+  if (query.access_token) return 'query';
+  if (request.headers.authorization?.startsWith('Bearer ')) return 'bearer';
+  return 'missing';
+}
+
+// 脱敏动作回执ID，仅保留尾部特征用于排障。
+function maskId(value: string): string {
+  if (value.length <= 4) return '****';
+  return `****${value.slice(-4)}`;
+}
+
+// 压缩错误内容，避免日志输出大对象或敏感上下文。
+function formatError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
