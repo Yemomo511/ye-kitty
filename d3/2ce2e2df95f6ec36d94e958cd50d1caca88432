@@ -1,0 +1,44 @@
+.codex/skills/agent-harness-eval/SKILL.md
+  s_02ed9ba539426c::t_03041e8276ecdf 49
+packages/kitty-service/src/platforms/qq/infrastructure/api/onebot-ws-external-action.api.ts
+  s_02ed9ba539426c::t_4d1a0cdcfe9b8a 144
+packages/kitty-service/src/platforms/qq/infrastructure/api/qq-external-action.api.ts
+  s_02ed9ba539426c::t_5a57dbad2a45f0 39
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_02ed9ba539426c::t_0b3d0fc759c1ed 111,118
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_02ed9ba539426c::t_bc7aca8a5fad9e 257
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-harness-agent-runner.ts
+  s_02ed9ba539426c::t_35ea32f44bc311 4,115-116,138-168
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-qq-reply.agent.ts
+  s_02ed9ba539426c::t_9734cf3314276a 3,89-90,97-127
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  s_02ed9ba539426c::t_4102ce9603c57c 130
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/qq-reply.prompt.ts
+  s_02ed9ba539426c::t_23f5c2d3cd0a85 12
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_02ed9ba539426c::t_d88711b19ee72c 18-51
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "d32ce2e2df95f6ec36d94e958cd50d1caca88432",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_02ed9ba539426c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f373b-fa98-7540-977b-74338c0b2fde",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
