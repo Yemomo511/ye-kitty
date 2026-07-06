@@ -1,4 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { SkillContent } from '../domain/skill';
 
 /**
  * QQ回复Agent输入
@@ -8,6 +9,8 @@ import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contr
 export interface QqReplyAgentInput {
   /** QQ标准消息事件 */
   readonly event: ChatEventContract;
+  /** 本轮启用Skill */
+  readonly skills?: readonly SkillContent[];
 }
 
 /**

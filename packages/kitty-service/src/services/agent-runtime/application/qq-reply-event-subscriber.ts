@@ -4,6 +4,7 @@ import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.po
 import type { ConversationId } from '@kitty/shared/types/ids';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
+import type { SkillRuntimeService } from './skill-runtime.service';
 
 /**
  * QQ回复事件订阅器
@@ -16,6 +17,7 @@ export class QqReplyEventSubscriber {
     private readonly qqMessageService: PlatformMessageService<ChatEventContract>,
     private readonly botClient: QqBotClientPort,
     private readonly replyAgent: QqReplyAgentPort,
+    private readonly skillRuntime?: SkillRuntimeService,
   ) {}
 
   /**
@@ -51,7 +53,8 @@ export class QqReplyEventSubscriber {
         message.message.id,
       )} textLength=${message.message.text.length}`,
     );
-    const reply = await this.replyAgent.generateReply({ event: message });
+    const skills = await this.skillRuntime?.loadSkillsForQqReply(message);
+    const reply = await this.replyAgent.generateReply({ event: message, skills });
 
     await this.botClient.sendTextMessage({
       conversationExternalId: stripQqConversationPrefix(message.conversationId),

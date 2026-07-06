@@ -6,8 +6,12 @@ import {
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
 import {
   createQqReplyAgent,
+  FilesystemSkillMarket,
   loadQqReplyAgentConfig,
+  MarkdownSkillContentLoader,
+  QqReplySkillSelector,
   QqReplyEventSubscriber,
+  SkillRuntimeService,
 } from '../src/services/agent-runtime';
 
 // 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
@@ -17,15 +21,30 @@ loadNearestEnvFile();
 const qqConfig = loadQqAccountExperimentConfig();
 const qqRuntime = createQqAccountExperimentChannel(qqConfig);
 
-// 3. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
+// 3. 启动期只扫描 Skill 元信息，正文留到消息命中后渐进读取。
+const skillsRoot = findNearestDirectory(process.cwd(), 'skills');
+if (!skillsRoot) throw new Error('未找到根目录 skills 资产目录');
+const skillMarket = new FilesystemSkillMarket(skillsRoot);
+const skillMetadataList = await skillMarket.listSkillMetadata();
+const skillRuntime = new SkillRuntimeService(
+  skillMetadataList,
+  new QqReplySkillSelector(),
+  new MarkdownSkillContentLoader(skillMetadataList),
+);
+console.info(
+  `✅ [AgentRuntime-SkillBootstrap] 已加载Skill元信息 count=${skillMetadataList.length}`,
+);
+
+// 4. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
   createQqReplyAgent(agentConfig),
+  skillRuntime,
 );
 
-// 4. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+// 5. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
 console.info(
   `🚧 [QQPlatform-Start] 正在启动QQ实验通道 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
 );
@@ -43,7 +62,7 @@ process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
 });
 
-// 5. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
+// 6. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
 process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
@@ -78,6 +97,20 @@ function findNearestFile(startDirectory: string, fileName: string): string | und
 
   while (true) {
     const candidate = join(currentDirectory, fileName);
+    if (existsSync(candidate)) return candidate;
+    if (currentDirectory === rootDirectory) return undefined;
+
+    currentDirectory = dirname(currentDirectory);
+  }
+}
+
+// 从启动目录向父级查找目录
+function findNearestDirectory(startDirectory: string, directoryName: string): string | undefined {
+  let currentDirectory = startDirectory;
+  const rootDirectory = parse(startDirectory).root;
+
+  while (true) {
+    const candidate = join(currentDirectory, directoryName);
     if (existsSync(candidate)) return candidate;
     if (currentDirectory === rootDirectory) return undefined;
 

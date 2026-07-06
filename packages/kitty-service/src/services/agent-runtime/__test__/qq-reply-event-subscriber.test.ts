@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { QqReplyEventSubscriber } from '../application/qq-reply-event-subscriber';
 import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
+import { SkillRuntimeService } from '../application/skill-runtime.service';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import { PlatformMessageService } from '@kitty/platforms/shared';
 import type {
@@ -12,6 +13,7 @@ import type {
 } from '@kitty/shared/types/ids';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { QqReplyAgentInput, QqReplyAgentPort } from '../ports/qq-reply-agent.port';
+import type { SkillMetadata } from '../domain/skill';
 
 describe('QqReplyEventSubscriber', () => {
   afterEach(() => {
@@ -20,6 +22,7 @@ describe('QqReplyEventSubscriber', () => {
 
   test('订阅QQ消息后调用Agent并发送回复', async () => {
     const messageService = new TestQqMessageService();
+    const skillMetadata = createSkillMetadata();
     const agentInputs: QqReplyAgentInput[] = [];
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
     const subscriber = new QqReplyEventSubscriber(
@@ -35,10 +38,27 @@ describe('QqReplyEventSubscriber', () => {
           return { text: 'Agent回复：你好' };
         },
       },
+      new SkillRuntimeService(
+        [skillMetadata],
+        {
+          async selectSkills() {
+            return [skillMetadata];
+          },
+        },
+        {
+          async loadSkillContent() {
+            return {
+              metadata: skillMetadata,
+              body: '群聊回复短一点。',
+            };
+          },
+        },
+      ),
     );
 
     await subscriber.start();
     await messageService.publish(createChatEvent());
+    await waitForAsyncSubscriber();
 
     expect(agentInputs).toHaveLength(1);
     expect(agentInputs[0]?.event).toMatchObject({
@@ -47,6 +67,12 @@ describe('QqReplyEventSubscriber', () => {
       senderDisplayName: '测试用户',
       message: { text: '你好' },
     });
+    expect(agentInputs[0]?.skills).toEqual([
+      {
+        metadata: skillMetadata,
+        body: '群聊回复短一点。',
+      },
+    ]);
     expect(replies).toEqual([
       {
         conversationExternalId: '123456',
@@ -101,6 +127,45 @@ describe('QqReplyEventSubscriber', () => {
 
     expect(replies).toEqual([]);
   });
+
+  test('Skill加载失败时不阻断回复并传入空Skill列表', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const skillMetadata = createSkillMetadata();
+    const agentInputs: QqReplyAgentInput[] = [];
+    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      {
+        async sendTextMessage(input) {
+          replies.push(input);
+        },
+      },
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: 'Skill失败也能回复' };
+        },
+      },
+      new SkillRuntimeService(
+        [skillMetadata],
+        {
+          async selectSkills() {
+            return [skillMetadata];
+          },
+        },
+        {
+          async loadSkillContent() {
+            throw new Error('SKILL.md不可读');
+          },
+        },
+      ),
+    );
+
+    await subscriber.handleMessage(createChatEvent());
+
+    expect(agentInputs[0]?.skills).toEqual([]);
+    expect(replies[0]?.text).toBe('Skill失败也能回复');
+  });
 });
 
 class TestQqMessageService extends PlatformMessageService<ChatEventContract> {
@@ -131,4 +196,18 @@ function createChatEvent(
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
   };
+}
+
+function createSkillMetadata(): SkillMetadata {
+  return {
+    name: 'qq-chat',
+    description: '用于 QQ 群聊和私聊中的自然中文回复。',
+    rootPath: '/tmp/skills/qq-chat',
+  };
+}
+
+function waitForAsyncSubscriber(): Promise<void> {
+  return new Promise((resolve) => {
+    setImmediate(resolve);
+  });
 }
