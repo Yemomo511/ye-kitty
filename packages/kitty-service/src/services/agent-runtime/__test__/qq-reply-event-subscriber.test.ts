@@ -25,13 +25,10 @@ describe('QqReplyEventSubscriber', () => {
     const skillMetadata = createSkillMetadata();
     const agentInputs: QqReplyAgentInput[] = [];
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const botClient = createTestBotClient({ replies });
     const subscriber = new QqReplyEventSubscriber(
       messageService,
-      {
-        async sendTextMessage(input) {
-          replies.push(input);
-        },
-      },
+      botClient,
       {
         async generateReply(input) {
           agentInputs.push(input);
@@ -85,6 +82,7 @@ describe('QqReplyEventSubscriber', () => {
   test('Agent失败时由安全Agent回落默认回复', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const botClient = createTestBotClient({ replies });
     const failedAgent: QqReplyAgentPort = {
       async generateReply() {
         throw new Error('模型不可用');
@@ -92,11 +90,7 @@ describe('QqReplyEventSubscriber', () => {
     };
     const subscriber = new QqReplyEventSubscriber(
       new TestQqMessageService(),
-      {
-        async sendTextMessage(input) {
-          replies.push(input);
-        },
-      },
+      botClient,
       new SafeQqReplyAgent(failedAgent, new FallbackQqReplyAgent()),
     );
 
@@ -107,6 +101,7 @@ describe('QqReplyEventSubscriber', () => {
 
   test('非QQ事件或空文本事件不触发回复', async () => {
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const botClient = createTestBotClient({ replies });
     const replyAgent: QqReplyAgentPort = {
       async generateReply() {
         return { text: '不应该触发' };
@@ -114,11 +109,7 @@ describe('QqReplyEventSubscriber', () => {
     };
     const subscriber = new QqReplyEventSubscriber(
       new TestQqMessageService(),
-      {
-        async sendTextMessage(input) {
-          replies.push(input);
-        },
-      },
+      botClient,
       replyAgent,
     );
 
@@ -133,13 +124,10 @@ describe('QqReplyEventSubscriber', () => {
     const skillMetadata = createSkillMetadata();
     const agentInputs: QqReplyAgentInput[] = [];
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const botClient = createTestBotClient({ replies });
     const subscriber = new QqReplyEventSubscriber(
       new TestQqMessageService(),
-      {
-        async sendTextMessage(input) {
-          replies.push(input);
-        },
-      },
+      botClient,
       {
         async generateReply(input) {
           agentInputs.push(input);
@@ -165,6 +153,87 @@ describe('QqReplyEventSubscriber', () => {
 
     expect(agentInputs[0]?.skills).toEqual([]);
     expect(replies[0]?.text).toBe('Skill失败也能回复');
+  });
+
+  test('执行Agent返回的QQ互动动作', async () => {
+    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const pokes: Array<Parameters<QqBotClientPort['sendPoke']>[0]> = [];
+    const reactions: Array<Parameters<QqBotClientPort['reactToMessage']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ replies, segments, pokes, reactions }),
+      {
+        async generateReply() {
+          return {
+            text: '先用文字接住你',
+            actions: [
+              { type: 'send_face', faceId: '66' },
+              { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+              { type: 'poke_sender' },
+              { type: 'react_to_message', emojiId: '128512' },
+            ],
+          };
+        },
+      },
+    );
+
+    await subscriber.handleMessage(createChatEvent());
+
+    expect(replies[0]?.text).toBe('先用文字接住你');
+    expect(segments).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [{ type: 'face', id: '66' }],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
+      },
+    ]);
+    expect(pokes).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        userExternalId: '20000',
+      },
+    ]);
+    expect(reactions).toEqual([
+      {
+        messageExternalId: 'message-1',
+        emojiId: '128512',
+      },
+    ]);
+  });
+
+  test('QQ动作执行失败时记录警告并继续后续动作', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const reactions: Array<Parameters<QqBotClientPort['reactToMessage']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({
+        replies,
+        reactions,
+        async sendPoke() {
+          throw new Error('NapCat暂不可用');
+        },
+      }),
+      {
+        async generateReply() {
+          return {
+            actions: [{ type: 'poke_sender' }, { type: 'react_to_message', emojiId: '128512' }],
+          };
+        },
+      },
+    );
+
+    await subscriber.handleMessage(createChatEvent());
+
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('QQ动作执行失败'));
+    expect(reactions).toEqual([{ messageExternalId: 'message-1', emojiId: '128512' }]);
   });
 });
 
@@ -203,6 +272,30 @@ function createSkillMetadata(): SkillMetadata {
     name: 'qq-chat',
     description: '用于 QQ 群聊和私聊中的自然中文回复。',
     rootPath: '/tmp/skills/qq-chat',
+  };
+}
+
+function createTestBotClient(options: {
+  readonly replies?: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]>;
+  readonly segments?: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]>;
+  readonly pokes?: Array<Parameters<QqBotClientPort['sendPoke']>[0]>;
+  readonly reactions?: Array<Parameters<QqBotClientPort['reactToMessage']>[0]>;
+  readonly sendPoke?: QqBotClientPort['sendPoke'];
+}): QqBotClientPort {
+  return {
+    async sendTextMessage(input) {
+      options.replies?.push(input);
+    },
+    async sendMessageSegments(input) {
+      options.segments?.push(input);
+    },
+    async sendPoke(input) {
+      if (options.sendPoke) return await options.sendPoke(input);
+      options.pokes?.push(input);
+    },
+    async reactToMessage(input) {
+      options.reactions?.push(input);
+    },
   };
 }
 

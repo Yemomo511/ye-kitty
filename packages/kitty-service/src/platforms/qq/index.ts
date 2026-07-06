@@ -4,6 +4,7 @@ export * from './application/qq-account-experiment.factory';
 export * from './application/qq-message-ingress.service';
 export * from './domain/onebot-v11';
 export * from './domain/qq-message';
+export * from './infrastructure/api';
 export * from './infrastructure/onebot-fastify-reverse-ws.server';
 export * from './infrastructure/onebot-qq-bot.client';
 export * from './ports/qq-bot-client.port';
