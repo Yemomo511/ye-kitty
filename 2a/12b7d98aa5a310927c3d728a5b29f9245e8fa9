@@ -1,0 +1,45 @@
+packages/kitty-service/src/platforms/qq/__test__/onebot-qq-bot.client.test.ts
+  s_d886012a49e29c::t_89359e800089f2 27,52-140
+packages/kitty-service/src/platforms/qq/index.ts
+  s_d886012a49e29c::t_7a3b7c1f335b27 7
+packages/kitty-service/src/platforms/qq/infrastructure/api/index.ts
+  s_d886012a49e29c::t_bf7406fe9def50 1-2
+packages/kitty-service/src/platforms/qq/infrastructure/api/onebot-ws-external-action.api.ts
+  s_d886012a49e29c::t_17180654f7af96 1-152
+packages/kitty-service/src/platforms/qq/infrastructure/api/qq-external-action.api.ts
+  s_d886012a49e29c::t_e04a422a934fcb 1-97
+packages/kitty-service/src/platforms/qq/infrastructure/onebot-qq-bot.client.ts
+  s_d886012a49e29c::t_b2538d5a6b430b 2-7,13-14,17,19-21,32-33,35-45,47-64
+packages/kitty-service/src/platforms/qq/ports/qq-bot-client.port.ts
+  s_d886012a49e29c::t_6fabf98a9705d0 1-5,9-11,26-57
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_d886012a49e29c::t_2c39d62e646891 1-47
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_d886012a49e29c::t_27011486e39a9b 28,31,85,93,104,112,127,130,157-237,278-301
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_d886012a49e29c::t_5f29af071cdc35 6,59,63,66-144,157-173,180-185
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-qq-reply.agent.ts
+  s_d886012a49e29c::t_038e75198515d6 3,32,65,69-132
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/qq-reply.prompt.ts
+  s_d886012a49e29c::t_88a5d6d7aac664 11-14
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_d886012a49e29c::t_0aa87ade624ea2 16-50,54,58-60,73
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "2a12b7d98aa5a310927c3d728a5b29f9245e8fa9",
+  "prompts": {},
+  "sessions": {
+    "s_d886012a49e29c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f355a-1c75-74b2-b2ba-b1d25c04c3b8",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
