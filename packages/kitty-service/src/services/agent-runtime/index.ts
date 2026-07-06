@@ -1,4 +1,5 @@
 export type {
+  QqReplyAction,
   QqReplyAgentInput,
   QqReplyAgentPort,
   QqReplyAgentResult,
@@ -9,6 +10,10 @@ export type { SkillContent, SkillMetadata } from './domain/skill';
 export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill-reference';
 export type { SkillSelectionContext } from './domain/skill-selection-context';
 export type { AgentConversationMessage } from './domain/agent-conversation-message';
+export type {
+  QqReplyActionCatalogItem,
+  QqReplyActionConversationScope,
+} from './domain/qq-reply-action';
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
 export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
@@ -65,3 +70,8 @@ export {
 } from './infrastructure/skill-market/filesystem-skill-reference-loader';
 export { composeQqReplyPrompt } from './infrastructure/prompt/prompt-composer';
 export { composeHarnessPrompt, type HarnessPrompt } from './infrastructure/prompt/harness.prompt';
+export {
+  buildQqReplyActionCatalogPrompt,
+  parseQqReplyAction,
+  QQ_REPLY_ACTION_CATALOG,
+} from './domain/qq-reply-action';

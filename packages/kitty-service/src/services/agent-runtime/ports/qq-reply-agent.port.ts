@@ -1,5 +1,6 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { SkillContent, SkillMetadata } from '../domain/skill';
+import type { QqReplyAction } from '../domain/qq-reply-action';
 
 /**
  * QQ回复Agent输入
@@ -15,40 +16,7 @@ export interface QqReplyAgentInput {
   readonly availableSkills?: readonly SkillMetadata[];
 }
 
-/**
- * QQ回复动作
- *
- * Agent 只能声明这些安全动作，真正的 NapCat 调用由 QQ 平台动作层执行。
- */
-export type QqReplyAction =
-  | {
-      /** 动作类型 */
-      readonly type: 'send_text';
-      /** 回复文本 */
-      readonly text: string;
-    }
-  | {
-      /** 动作类型 */
-      readonly type: 'send_face';
-      /** QQ商城表情ID */
-      readonly faceId: string;
-    }
-  | {
-      /** 动作类型 */
-      readonly type: 'send_custom_image';
-      /** 图片文件或URL */
-      readonly file: string;
-    }
-  | {
-      /** 动作类型 */
-      readonly type: 'poke_sender';
-    }
-  | {
-      /** 动作类型 */
-      readonly type: 'react_to_message';
-      /** 表情ID */
-      readonly emojiId: string;
-    };
+export type { QqReplyAction } from '../domain/qq-reply-action';
 
 /**
  * QQ回复Agent结果

@@ -136,6 +136,58 @@ export class QqReplyEventSubscriber {
         return;
       }
 
+      if (action.type === 'reply_to_message') {
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments: [
+            { type: 'reply', messageExternalId: String(message.message.id) },
+            { type: 'text', text: action.text },
+          ],
+        });
+        return;
+      }
+
+      if (action.type === 'mention_sender') {
+        const senderExternalId = stripQqParticipantPrefix(message.senderId);
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments:
+            message.conversationType === 'group'
+              ? [
+                  { type: 'at', userExternalId: senderExternalId },
+                  { type: 'text', text: action.text },
+                ]
+              : [{ type: 'text', text: action.text }],
+        });
+        return;
+      }
+
+      if (action.type === 'send_text_with_face') {
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments: [
+            { type: 'text', text: action.text },
+            { type: 'face', id: action.faceId },
+          ],
+        });
+        return;
+      }
+
+      if (action.type === 'send_text_with_image') {
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments: [
+            { type: 'text', text: action.text },
+            { type: 'image', file: action.file },
+          ],
+        });
+        return;
+      }
+
       await this.botClient.reactToMessage({
         messageExternalId: message.message.id,
         emojiId: action.emojiId,

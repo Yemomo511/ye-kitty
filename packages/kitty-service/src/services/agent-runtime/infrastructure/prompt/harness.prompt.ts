@@ -3,6 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AgentObservation } from '../../domain/agent-observation';
 import type { RuntimeTool } from '../../domain/tool';
+import { buildQqReplyActionCatalogPrompt } from '../../domain/qq-reply-action';
 import { buildBaseAgentPrompt } from './base-agent.prompt';
 import { renderConversationMessages } from './conversation-renderer';
 
@@ -35,6 +36,7 @@ export function composeHarnessPrompt(
     instructions: [
       buildBaseAgentPrompt(agentName),
       buildHarnessRuntimePrompt(),
+      buildQqReplyActionCatalogPrompt(),
       buildToolPrompt(observation.tools),
     ]
       .filter(Boolean)

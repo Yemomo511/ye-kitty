@@ -23,6 +23,7 @@ description: 当 Codex 需要为 Ye-Kitty 的 Agent Runtime Harness 编写、调
 - 断言只允许检查协议结构：`type`、`toolName`、`skillName`、`referencePath`、是否属于允许终态。
 - 不断言 `reply.text` 的具体文案，只允许验证 `reply` 类型存在且结构合法。
 - 如果新增 Harness 决策类型、工具、Skill 注入方式或 references 读取方式，必须同步新增或更新 eval case。
+- 如果新增 QQ 回复动作，必须同步更新动作目录、动作解析器、Harness Prompt、旧 QQ reply Prompt、平台映射、单元测试和真实模型 eval case。
 - 真实模型 eval 失败应输出中文报告，包含 case 名称、输入摘要、期望结构、实际决策或错误原因。
 - 缺少模型环境时不得伪装通过，应输出 `⚠️` 跳过原因；接入 `pnpm check` 时只能 warning-only。
 
@@ -46,4 +47,5 @@ description: 当 Codex 需要为 Ye-Kitty 的 Agent Runtime Harness 编写、调
 3. 对真实模型 eval，优先构造最小观察输入，让模型只能在少量合法决策之间选择。
 4. 写断言时只验证调用意图和结构，不验证自然语言内容。
 5. 将 eval 接入 warning-only 检查，避免模型波动、网络或环境缺失阻断普通工程校验。
-6. 运行 `pnpm --filter @ye-kitty/kitty-service eval:agent` 做严格验证，运行 `pnpm check` 验证 warning-only 接入。
+6. 对 QQ 动作 eval，只断言 `reply.actions` 是否包含期望动作类型，不断言 `reply.text`。
+7. 运行 `pnpm --filter @ye-kitty/kitty-service eval:agent` 做严格验证，运行 `pnpm check` 验证 warning-only 接入。

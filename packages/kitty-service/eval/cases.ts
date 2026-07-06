@@ -8,6 +8,7 @@ import type {
 import type {
   AgentDecision,
   AgentObservation,
+  QqReplyAction,
   SkillContent,
   SkillMetadata,
 } from '../src/services/agent-runtime';
@@ -38,6 +39,8 @@ export type AgentEvalExpectation =
   | {
       /** 期望终态 */
       readonly type: Extract<AgentDecision['type'], 'reply' | 'ignore' | 'human_review'>;
+      /** 期望动作类型 */
+      readonly actionTypes?: readonly QqReplyAction['type'][];
     };
 
 /** Agent评估用例 */
@@ -121,6 +124,16 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       tools: [],
     }),
     expectation: { type: 'reply' },
+  },
+  {
+    name: '低风险互动可自主选择动作',
+    inputSummary: '用户要求引用当前消息并@自己。',
+    observation: createObservation({
+      event: createChatEvent('叶猫猫，回我这条并@我一下。', 'group', 'action'),
+      availableSkills: [],
+      tools: [],
+    }),
+    expectation: { type: 'reply', actionTypes: ['reply_to_message', 'mention_sender'] },
   },
   {
     name: '旁人闲聊可保持静默',

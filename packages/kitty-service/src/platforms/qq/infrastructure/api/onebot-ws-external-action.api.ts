@@ -23,6 +23,14 @@ type OneBotSendMessageSegment =
   | {
       readonly type: 'image';
       readonly data: { readonly file: string };
+    }
+  | {
+      readonly type: 'reply';
+      readonly data: { readonly id: string };
+    }
+  | {
+      readonly type: 'at';
+      readonly data: { readonly qq: string };
     };
 
 /**
@@ -141,7 +149,15 @@ function toOneBotMessageSegment(segment: QqOutboundMessageSegment): OneBotSendMe
     return { type: 'face', data: { id: segment.id } };
   }
 
-  return { type: 'image', data: { file: segment.file } };
+  if (segment.type === 'image') {
+    return { type: 'image', data: { file: segment.file } };
+  }
+
+  if (segment.type === 'reply') {
+    return { type: 'reply', data: { id: segment.messageExternalId } };
+  }
+
+  return { type: 'at', data: { qq: segment.userExternalId } };
 }
 
 // 脱敏外部ID，仅保留排障所需尾部特征。

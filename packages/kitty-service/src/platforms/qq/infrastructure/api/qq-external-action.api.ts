@@ -34,9 +34,29 @@ export interface QqImageMessageSegment {
   readonly file: string;
 }
 
+/** QQ引用回复消息段 */
+export interface QqReplyMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'reply';
+  /** 被引用消息ID */
+  readonly messageExternalId: string;
+}
+
+/** QQ@消息段 */
+export interface QqAtMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'at';
+  /** 被@用户QQ号 */
+  readonly userExternalId: string;
+}
+
 /** Ye-Kitty首版允许发送的QQ消息段 */
 export type QqOutboundMessageSegment =
-  QqTextMessageSegment | QqFaceMessageSegment | QqImageMessageSegment;
+  | QqTextMessageSegment
+  | QqFaceMessageSegment
+  | QqImageMessageSegment
+  | QqReplyMessageSegment
+  | QqAtMessageSegment;
 
 /** 发送QQ消息输入 */
 export interface QqSendMessageInput extends QqActionTarget {

@@ -84,6 +84,38 @@ describe('OneBotQqBotClient', () => {
     });
   });
 
+  test('发送引用和@消息段时生成受控消息段动作', async () => {
+    const sentActions: OneBotV11ActionRequest[] = [];
+    const server = {
+      async sendAction(action: OneBotV11ActionRequest) {
+        sentActions.push(action);
+      },
+    } as OneBotFastifyReverseWsServer;
+
+    const client = new OneBotQqBotClient(server);
+    await client.sendMessageSegments({
+      conversationExternalId: '123456',
+      conversationType: 'group',
+      segments: [
+        { type: 'reply', messageExternalId: 'message-1' },
+        { type: 'at', userExternalId: '20000' },
+        { type: 'text', text: '我看到啦' },
+      ],
+    });
+
+    expect(sentActions[0]).toMatchObject({
+      action: 'send_group_msg',
+      params: {
+        group_id: '123456',
+        message: [
+          { type: 'reply', data: { id: 'message-1' } },
+          { type: 'at', data: { qq: '20000' } },
+          { type: 'text', data: { text: '我看到啦' } },
+        ],
+      },
+    });
+  });
+
   test('戳一戳按会话类型生成对应动作', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {

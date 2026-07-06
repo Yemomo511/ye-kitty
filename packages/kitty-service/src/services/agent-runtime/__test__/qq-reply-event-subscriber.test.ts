@@ -172,6 +172,10 @@ describe('QqReplyEventSubscriber', () => {
               { type: 'send_custom_image', file: 'https://example.com/cat.png' },
               { type: 'poke_sender' },
               { type: 'react_to_message', emojiId: '128512' },
+              { type: 'reply_to_message', text: '引用接住你' },
+              { type: 'mention_sender', text: '我看到啦' },
+              { type: 'send_text_with_face', text: '配个表情', faceId: '14' },
+              { type: 'send_text_with_image', text: '配张图', file: 'https://example.com/cat.png' },
             ],
           };
         },
@@ -192,6 +196,38 @@ describe('QqReplyEventSubscriber', () => {
         conversationType: 'group',
         segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
       },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'reply', messageExternalId: 'message-1' },
+          { type: 'text', text: '引用接住你' },
+        ],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'at', userExternalId: '20000' },
+          { type: 'text', text: '我看到啦' },
+        ],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'text', text: '配个表情' },
+          { type: 'face', id: '14' },
+        ],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'text', text: '配张图' },
+          { type: 'image', file: 'https://example.com/cat.png' },
+        ],
+      },
     ]);
     expect(pokes).toEqual([
       {
@@ -204,6 +240,29 @@ describe('QqReplyEventSubscriber', () => {
       {
         messageExternalId: 'message-1',
         emojiId: '128512',
+      },
+    ]);
+  });
+
+  test('私聊mention_sender降级为普通文本', async () => {
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ segments }),
+      {
+        async generateReply() {
+          return { actions: [{ type: 'mention_sender', text: '私聊不需要@' }] };
+        },
+      },
+    );
+
+    await subscriber.handleMessage(createChatEvent({ conversationType: 'private' }));
+
+    expect(segments).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'private',
+        segments: [{ type: 'text', text: '私聊不需要@' }],
       },
     ]);
   });
@@ -247,6 +306,7 @@ function createChatEvent(
   options: {
     readonly text?: string;
     readonly platform?: ChatEventContract['platform'] | 'feishu';
+    readonly conversationType?: ChatEventContract['conversationType'];
   } = {},
 ): ChatEventContract {
   return {
@@ -254,7 +314,7 @@ function createChatEvent(
     platform: (options.platform ?? 'qq') as ChatEventContract['platform'],
     eventType: 'message.received',
     conversationId: 'qq:conversation:123456' as ConversationId,
-    conversationType: 'group',
+    conversationType: options.conversationType ?? 'group',
     senderId: 'qq:participant:20000' as ParticipantId,
     senderDisplayName: '测试用户',
     message: {

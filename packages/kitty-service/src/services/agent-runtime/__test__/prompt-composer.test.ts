@@ -70,6 +70,9 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('你是叶猫猫');
     expect(prompt.instructions).toContain('已启用Skill正文');
     expect(prompt.instructions).toContain('保持自然、亲近。');
+    expect(prompt.input).toContain('可用低风险 QQ 动作目录');
+    expect(prompt.input).toContain('reply_to_message');
+    expect(prompt.input).toContain('禁止输出 curl、HTTP 请求、群管理');
     expect(prompt.input).toContain('平台：QQ');
     expect(prompt.input).toContain('用户消息文本：你好');
   });
@@ -128,6 +131,12 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('"type": "skill_call"');
     expect(prompt.instructions).toContain('"type": "skill_reference_call"');
     expect(prompt.instructions).toContain('"type": "tool_call"');
+    expect(prompt.instructions).toContain('可用低风险 QQ 动作目录');
+    expect(prompt.instructions).toContain('reply_to_message');
+    expect(prompt.instructions).toContain('mention_sender');
+    expect(prompt.instructions).toContain('send_text_with_face');
+    expect(prompt.instructions).toContain('send_text_with_image');
+    expect(prompt.instructions).toContain('群管理');
     expect(prompt.instructions).toContain('get_recent_messages');
     expect(prompt.input).toContain('当前轮次：1/4');
     expect(prompt.input).toContain('可请求Skill目录');
