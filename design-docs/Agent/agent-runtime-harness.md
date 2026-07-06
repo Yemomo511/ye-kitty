@@ -74,15 +74,15 @@ flowchart TD
 
 ### Prompt 三层治理
 
-MVP 的 Harness Prompt 采用三层描述，目标是让模型先理解输出协议，再理解 Skill 和 Tool 的用途，最后知道如何用 JSON 触发 Harness 行动。
+MVP 的 Harness System Prompt 采用三层描述，目标是让模型先接受系统级最高优先级约束，再理解外部环境、Skill 和 Tool 的用途，最后知道如何用 JSON 触发 Harness 行动。System Prompt 主要治理“何时感知外部环境、如何感知外部环境、风险不清时如何停止扩散”。
 
-1. JSON 输出契约层：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON。
-2. Skill 与 Tool 定义层：说明 Skill 是已启用的能力说明，Tool 是获取新观察的能力；当缺少上下文、历史消息或事实信息时，应优先请求 `tool_call`。
-3. JSON 调用方式层：给出 `tool_call`、`reply`、`ignore`、`human_review` 的具体 JSON 模板，特别标明 `get_recent_messages` 的触发场景。
+1. JSON 输出契约层：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `tool_call`、`reply`、`ignore`、`human_review` 四类决策。
+2. 外部环境感知与 Skill/Tool 定义层：明确外部环境只来自当前 QQ 消息、会话信息、已启用 Skill、可见 Tool 和工具观察；模型不得编造已经读取外部环境。当消息依赖上文、历史消息、指代关系、多人互动或 Skill 建议先查信息时，应优先请求 `get_recent_messages`。
+3. 决策规则与 JSON 调用方式层：先检查安全、合规、隐私、权限和平台边界风险，再判断信息是否充分，最后选择 `reply`、`ignore` 或 `human_review`；同时给出四类 JSON 模板和 `reply.actions` 允许范围。
 
-这套分层参考 Codex 类 Harness 的思路：系统提示先说明 Agent 能力和工具边界，再由工具 schema 或协议约束具体调用。Ye-Kitty 当前 MVP 还没有动态 `invoke_skill` 决策，模型只能使用“本轮已启用 Skill”，并通过 `tool_call` 请求 Harness 执行工具。
+这套分层参考 Codex 类 Harness 的思路：系统提示先说明 Agent 能力、工具边界和安全边界，再由工具 schema 或协议约束具体调用。Ye-Kitty 当前 MVP 还没有动态 `invoke_skill` 决策，模型只能使用“本轮已启用 Skill”，并通过 `tool_call` 请求 Harness 执行工具。
 
-三层运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md`，代码只负责读取 Markdown 并与基础身份、Skill、Tool 和 Observation 拼接，避免前置约束长期内嵌在 TypeScript 字符串中。
+三层运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md`，代码只负责读取 Markdown 并与基础身份、Skill、Tool 和 Observation 拼接，避免前置约束长期内嵌在 TypeScript 字符串中。后续新增系统约束时应优先修改 Markdown，而不是把长文本重新写回 TypeScript。
 
 ## 关键实现
 

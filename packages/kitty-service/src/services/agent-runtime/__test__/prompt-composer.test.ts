@@ -73,14 +73,15 @@ describe('Agent Runtime Prompt组织', () => {
       maxToolCalls: 3,
     });
 
-    expect(prompt.instructions).toContain('你运行在 Ye-Kitty Harness 循环中');
-    expect(prompt.instructions).toContain('【第一层：JSON 输出契约】');
-    expect(prompt.instructions).toContain('【第二层：Skill 与 Tool 定义】');
-    expect(prompt.instructions).toContain('【第三层：JSON 调用方式】');
+    expect(prompt.instructions).toContain('# Harness System Prompt');
+    expect(prompt.instructions).toContain('最高优先级系统约束');
+    expect(prompt.instructions).toContain('## 第一层：JSON 输出契约');
+    expect(prompt.instructions).toContain('## 第二层：外部环境感知与 Skill/Tool 定义');
+    expect(prompt.instructions).toContain('## 第三层：决策规则与 JSON 调用方式');
     expect(prompt.instructions).toContain('每一轮输出都必须是单个 JSON 对象');
-    expect(prompt.instructions).toContain('当你缺少会话上下文');
-    expect(prompt.instructions).toContain('"type":"tool_call"');
-    expect(prompt.instructions).toContain('如果用户明确要求你查看最近聊天');
+    expect(prompt.instructions).toContain('不得编造自己已经读取了外部环境');
+    expect(prompt.instructions).toContain('存在安全、合规、隐私或边界风险');
+    expect(prompt.instructions).toContain('"type": "tool_call"');
     expect(prompt.instructions).toContain('get_recent_messages');
     expect(prompt.input).toContain('当前轮次：1/4');
     expect(prompt.input).toContain('工具观察结果：暂无。');
