@@ -1,0 +1,4 @@
+interface:
+  display_name: '设计文档治理'
+  short_description: '规范设计文档与迭代进度同步'
+  default_prompt: '使用 $design-docs-governance 创建或更新本次功能迭代的设计文档与 Task 进度。'

@@ -1,7 +1,11 @@
 {
   "name": "ye-kitty",
   "version": "0.0.1",
-  "description": "叶墨沫想要一个叶猫猫服务,他能处理互联网中的大量信息并进行回应.",
+  "private": true,
+  "description": "叶墨沫想要一个叶猫猫虚拟人物服务,他能处理互联网中的大量信息并进行回应。",
+  "workspaces": [
+    "packages/*"
+  ],
   "keywords": [
     "Agent",
     "MultiService"
@@ -16,9 +20,23 @@
   },
   "license": "ISC",
   "author": "Yemomo511",
+  "packageManager": "pnpm@11.7.0",
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test",
+    "check": "pnpm lint && pnpm format:check && pnpm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.6.0",
+    "eslint-config-prettier": "^10.1.8",
+    "globals": "^17.7.0",
+    "prettier": "^3.9.4",
+    "typescript-eslint": "^8.62.1"
   }
 }
