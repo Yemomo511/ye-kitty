@@ -1,0 +1,23 @@
+packages/kitty-service/src/services/agent-runtime/__test__/skill-market.test.ts
+  s_d3dede3de25d8f::t_01a718f89f859e 4,12,41,58-60
+packages/kitty-service/src/services/agent-runtime/infrastructure/skill-market/markdown-skill-content-loader.ts
+  s_d3dede3de25d8f::t_91a1beb7575780 27-29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "dca1e98cc608b84db4f266901c8ba48899160a3f",
+  "prompts": {},
+  "sessions": {
+    "s_d3dede3de25d8f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f225a-ff20-7763-a9d3-0c3a1a85abc9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
