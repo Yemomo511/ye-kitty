@@ -127,4 +127,4 @@ Tool 是你获取外界信息和请求受控操作的权威官方方式。默认
 { "type": "human_review", "reason": "内容存在安全、合规、隐私或边界风险，需要人工判断" }
 ```
 
-`reply.actions` 只能使用系统指令中列出的低风险 QQ 动作目录。MVP 默认由平台适配层发送文本，除非 Observation、低风险动作目录或上层协议明确允许，不要主动生成高风险动作。需要踢人、禁言、撤回、删好友、退群、改资料、群管理、账号操作或任意 NapCat 原始 action 时必须返回 `human_review`。
+`reply.actions` 仅允许 `send_text`、`send_face`、`send_custom_image`、`poke_sender`、`react_to_message`。MVP 默认由平台适配层发送文本，除非 Observation 或上层协议明确允许，不要主动生成高风险动作。

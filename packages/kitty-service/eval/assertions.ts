@@ -59,13 +59,5 @@ function findDecisionMismatch(
       : `期望 referencePath=${expectation.referencePath}，实际 referencePath=${decision.referencePath}`;
   }
 
-  if (expectation.type === 'reply' && expectation.actionTypes && decision.type === 'reply') {
-    const actionTypes = new Set((decision.actions ?? []).map((action) => action.type));
-    const missingActionType = expectation.actionTypes.find(
-      (actionType) => !actionTypes.has(actionType),
-    );
-    return missingActionType ? `期望 reply.actions 包含 ${missingActionType}` : undefined;
-  }
-
   return undefined;
 }

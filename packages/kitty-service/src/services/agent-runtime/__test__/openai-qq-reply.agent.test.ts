@@ -16,10 +16,6 @@ describe('parseQqReplyAgentResult', () => {
           { type: 'send_custom_image', file: 'https://example.com/cat.png' },
           { type: 'poke_sender' },
           { type: 'react_to_message', emojiId: '128512' },
-          { type: 'reply_to_message', text: '引用回复' },
-          { type: 'mention_sender', text: '我在' },
-          { type: 'send_text_with_face', text: '配个表情', faceId: '14' },
-          { type: 'send_text_with_image', text: '配张图', file: 'https://example.com/cat.png' },
         ],
       }),
     );
@@ -31,10 +27,6 @@ describe('parseQqReplyAgentResult', () => {
         { type: 'send_custom_image', file: 'https://example.com/cat.png' },
         { type: 'poke_sender' },
         { type: 'react_to_message', emojiId: '128512' },
-        { type: 'reply_to_message', text: '引用回复' },
-        { type: 'mention_sender', text: '我在' },
-        { type: 'send_text_with_face', text: '配个表情', faceId: '14' },
-        { type: 'send_text_with_image', text: '配张图', file: 'https://example.com/cat.png' },
       ],
     });
   });
@@ -45,9 +37,6 @@ describe('parseQqReplyAgentResult', () => {
         actions: [
           { type: 'set_group_kick', userId: '20000' },
           { type: 'send_text', text: '安全回复' },
-          { type: 'reply_to_message', text: '   ' },
-          { type: 'send_text_with_face', text: '缺少表情' },
-          { type: 'send_text_with_image', text: '非法图片', file: '\n' },
         ],
       }),
     );
@@ -119,23 +108,14 @@ describe('parseAgentDecision', () => {
         JSON.stringify({
           type: 'reply',
           text: '安全回复',
-          actions: [
-            { type: 'set_group_kick' },
-            { type: 'poke_sender' },
-            { type: 'reply_to_message', text: '收到' },
-            { type: 'mention_sender', text: '看这里' },
-          ],
+          actions: [{ type: 'set_group_kick' }, { type: 'poke_sender' }],
           reason: '可以回复',
         }),
       ),
     ).toEqual({
       type: 'reply',
       text: '安全回复',
-      actions: [
-        { type: 'poke_sender' },
-        { type: 'reply_to_message', text: '收到' },
-        { type: 'mention_sender', text: '看这里' },
-      ],
+      actions: [{ type: 'poke_sender' }],
       reason: '可以回复',
     });
   });
