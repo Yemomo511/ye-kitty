@@ -40,6 +40,9 @@ flowchart TD
   SkillRuntime --> ToolRegistry["准备可见工具清单"]
   ToolRegistry --> Runner["AgentRunner 输出结构化决策"]
   Runner --> Decision{"决策类型"}
+  Decision -->|skill_call| SkillCheck["确认Skill状态"]
+  SkillCheck --> SkillObservation["Skill状态转Observation"]
+  SkillObservation --> Runner
   Decision -->|tool_call| Permission["PermissionPolicy 权限判断"]
   Permission -->|allow| ToolExecutor["ToolExecutor 执行工具"]
   ToolExecutor --> Observation["工具结果转 Observation"]
@@ -57,7 +60,7 @@ flowchart TD
 
 - 平台层只负责接收、标准化和发送，不实现 Agent 循环。
 - Skill 只声明能力、Prompt 片段、建议工具和风险元数据，不拥有工具执行权。
-- 模型只输出结构化决策，不直接执行工具。
+- 模型只输出结构化决策，不直接执行工具或读取 Skill 文件。
 - `ToolExecutor` 是唯一工具执行入口。
 - `PermissionPolicy` 是唯一权限判断入口。
 - Harness 只产出候选回复或候选动作，真正对外动作进入 `risk -> actions`。
@@ -76,11 +79,11 @@ flowchart TD
 
 MVP 的 Harness System Prompt 采用三层描述，目标是让模型先接受系统级最高优先级约束，再理解外部环境、Skill 和 Tool 的用途，最后知道如何用 JSON 触发 Harness 行动。System Prompt 主要治理“何时感知外部环境、如何感知外部环境、风险不清时如何停止扩散”。
 
-1. JSON 输出契约层：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `tool_call`、`reply`、`ignore`、`human_review` 四类决策。
-2. 外部环境感知与 Skill/Tool 定义层：明确外部环境只来自当前 QQ 消息、会话信息、已启用 Skill、可见 Tool 和工具观察；模型不得编造已经读取外部环境。当消息依赖上文、历史消息、指代关系、多人互动或 Skill 建议先查信息时，应优先请求 `get_recent_messages`。
-3. 决策规则与 JSON 调用方式层：先检查安全、合规、隐私、权限和平台边界风险，再判断信息是否充分，最后选择 `reply`、`ignore` 或 `human_review`；同时给出四类 JSON 模板和 `reply.actions` 允许范围。
+1. JSON 输出契约层：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`tool_call`、`reply`、`ignore`、`human_review` 五类决策。
+2. 外部环境感知与 Skill/Tool 定义层：明确外部环境只来自当前 QQ 消息、会话信息、已启用 Skill、可见 Tool 和工具观察；模型不得编造已经读取外部环境。当模型想使用某个方法论时，应先通过 `skill_call` 请求 Harness 确认 Skill 状态；当消息依赖上文、历史消息、指代关系、多人互动或 Skill 建议先查信息时，应优先请求 `get_recent_messages`。
+3. JSON 结构层：按“AI 想做什么”来选择结构化 JSON。想调用 Skill 返回 `skill_call`，想调用 Tool 返回 `tool_call`，想回复返回 `reply`，想静默返回 `ignore`，想转人工返回 `human_review`；同时给出五类 JSON 模板和 `reply.actions` 允许范围。
 
-这套分层参考 Codex 类 Harness 的思路：系统提示先说明 Agent 能力、工具边界和安全边界，再由工具 schema 或协议约束具体调用。Ye-Kitty 当前 MVP 还没有动态 `invoke_skill` 决策，模型只能使用“本轮已启用 Skill”，并通过 `tool_call` 请求 Harness 执行工具。
+这套分层参考 Codex 类 Harness 的思路：系统提示先说明 Agent 能力、工具边界和安全边界，再由工具 schema 或协议约束具体调用。Ye-Kitty 当前 MVP 支持 `skill_call` 作为结构化请求协议，但不动态读取磁盘 Skill；Harness 会把 Skill 是否已在本轮启用转成下一轮 Observation。模型只能使用“本轮已启用 Skill”，并通过 `tool_call` 请求 Harness 执行工具。
 
 三层运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md`，代码只负责读取 Markdown 并与基础身份、Skill、Tool 和 Observation 拼接，避免前置约束长期内嵌在 TypeScript 字符串中。后续新增系统约束时应优先修改 Markdown，而不是把长文本重新写回 TypeScript。
 
@@ -98,7 +101,7 @@ MVP 的 Harness System Prompt 采用三层描述，目标是让模型先接受�
 - 入口：`packages/kitty-service/src/services/agent-runtime/ports/agent-runner.port.ts`
 - 职责：屏蔽 OpenAI Agents SDK、测试桩和未来其他模型 SDK 的差异。
 - 重要细节：Runner 输入是 Harness 构造后的 Observation 和可见工具描述，输出必须是结构化 `AgentDecision`。
-- 边界：Runner 不拥有工具执行能力，只能提出 `tool_call`、`reply`、`ignore` 或 `human_review`。
+- 边界：Runner 不拥有工具执行能力，也不直接读取 Skill 文件，只能提出 `skill_call`、`tool_call`、`reply`、`ignore` 或 `human_review`。
 
 ### 模块三：RuntimeSkillLoader
 
@@ -154,15 +157,15 @@ packages/kitty-service/src/services/agent-runtime/
 
 ## 数据与接口
 
-| 名称                          | 方向 | 说明                                                  |
-| ----------------------------- | ---- | ----------------------------------------------------- |
-| `AgentRuntimeHarnessPort.run` | 输入 | 外部事件进入 Harness 的唯一运行入口。                 |
-| `AgentRuntimeRunResult`       | 输出 | MVP 返回 `reply`、`ignore` 或 `human_review`。        |
-| `AgentDecision`               | 双向 | Runner 输出给 Harness 的结构化决策。                  |
-| `RuntimeSkill`                | 输入 | 从市场 Skill 转换而来的运行时能力包。                 |
-| `RuntimeTool`                 | 输入 | Harness 暴露给 Runner 的工具描述，不包含直接执行权。  |
-| `PermissionDecision`          | 输出 | 权限策略返回 `allow`、`deny` 或 `human_review`。      |
-| `ToolExecutionResult`         | 输出 | 工具执行结果，供 RunTrace 和下一轮 Observation 使用。 |
+| 名称                          | 方向 | 说明                                                             |
+| ----------------------------- | ---- | ---------------------------------------------------------------- |
+| `AgentRuntimeHarnessPort.run` | 输入 | 外部事件进入 Harness 的唯一运行入口。                            |
+| `AgentRuntimeRunResult`       | 输出 | MVP 返回 `reply`、`ignore` 或 `human_review`。                   |
+| `AgentDecision`               | 双向 | Runner 输出给 Harness 的结构化决策，包含 Skill、工具和最终决策。 |
+| `RuntimeSkill`                | 输入 | 从市场 Skill 转换而来的运行时能力包。                            |
+| `RuntimeTool`                 | 输入 | Harness 暴露给 Runner 的工具描述，不包含直接执行权。             |
+| `PermissionDecision`          | 输出 | 权限策略返回 `allow`、`deny` 或 `human_review`。                 |
+| `ToolExecutionResult`         | 输出 | 工具执行结果，供 RunTrace 和下一轮 Observation 使用。            |
 
 推荐端口：
 
@@ -177,6 +180,12 @@ export type AgentRuntimeRunResult =
   | { readonly type: 'human_review'; readonly reason: string; readonly traceId: string };
 
 export type AgentDecision =
+  | {
+      readonly type: 'skill_call';
+      readonly skillName: string;
+      readonly input: unknown;
+      readonly reason: string;
+    }
   | {
       readonly type: 'tool_call';
       readonly toolName: string;
@@ -229,7 +238,7 @@ SKILL.md
   -> AgentRuntimeContext
 ```
 
-`allowed-tools` 只表示 Skill 建议工具。MVP 会把建议工具展示到 Prompt，但最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束。
+`allowed-tools` 只表示 Skill 建议工具。MVP 会把建议工具展示到 Prompt，并允许模型通过 `skill_call` 请求 Harness 确认某个 Skill 是否已在本轮启用；如果 Skill 未启用，Harness 会把“暂不支持动态加载”的结果写入 Observation。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束。
 
 ## 工具体系
 

@@ -66,6 +66,24 @@ describe('parseAgentDecision', () => {
     });
   });
 
+  test('解析Skill调用决策', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'skill_call',
+          skillName: 'qq-chat',
+          input: { goal: '判断是否需要参与群聊' },
+          reason: '需要群聊方法论',
+        }),
+      ),
+    ).toEqual({
+      type: 'skill_call',
+      skillName: 'qq-chat',
+      input: { goal: '判断是否需要参与群聊' },
+      reason: '需要群聊方法论',
+    });
+  });
+
   test('过滤回复决策中的未知动作', () => {
     expect(
       parseAgentDecision(

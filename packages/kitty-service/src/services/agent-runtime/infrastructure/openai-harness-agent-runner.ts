@@ -85,6 +85,17 @@ function toAgentDecision(input: unknown): AgentDecision | undefined {
     };
   }
 
+  if (input.type === 'skill_call') {
+    const skillName = typeof input.skillName === 'string' ? input.skillName.trim() : '';
+    if (!skillName) return undefined;
+    return {
+      type: 'skill_call',
+      skillName,
+      input: isRecord(input.input) ? input.input : {},
+      reason: readReason(input.reason),
+    };
+  }
+
   if (input.type === 'reply') {
     const text = typeof input.text === 'string' ? input.text.trim() : undefined;
     const actions = Array.isArray(input.actions)

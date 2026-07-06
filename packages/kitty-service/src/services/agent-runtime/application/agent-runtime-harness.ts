@@ -80,6 +80,11 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           return toRunResult(decision, traceId);
         }
 
+        if (decision.type === 'skill_call') {
+          toolResults.push(createSkillCallObservation(decision, input));
+          continue;
+        }
+
         if (toolCallCount >= this.config.maxToolCalls) {
           console.warn(
             `⚠️ [AgentRuntime-Harness-run] 工具调用已超出预算，执行降级 traceId=${traceId} maxToolCalls=${this.config.maxToolCalls}`,
@@ -198,6 +203,35 @@ function toRunResult(decision: AgentDecision, traceId: string): AgentRuntimeRunR
     reason: decision.reason,
     traceId,
   };
+}
+
+// 将Skill调用请求转成下一轮可读观察，避免模型误以为自己能直接读取磁盘Skill。
+function createSkillCallObservation(
+  decision: Extract<AgentDecision, { readonly type: 'skill_call' }>,
+  input: AgentRuntimeRunInput,
+): ToolExecutionResult {
+  const enabledSkill = input.skills?.find((skill) => skill.metadata.name === decision.skillName);
+  if (!enabledSkill) {
+    return {
+      toolName: `skill_call:${decision.skillName}`,
+      success: false,
+      observation: `Skill ${decision.skillName} 当前未启用，MVP 暂不支持动态加载 Skill。请基于已启用 Skill 或可见 Tool 重新决策。`,
+      errorMessage: 'Skill未启用',
+    };
+  }
+
+  return {
+    toolName: `skill_call:${decision.skillName}`,
+    success: true,
+    observation: `Skill ${decision.skillName} 已在本轮启用。描述：${enabledSkill.metadata.description}。建议工具：${formatAllowedTools(
+      enabledSkill.metadata.allowedTools,
+    )}。请直接遵守该 Skill 正文，必要时继续调用可见 Tool。`,
+  };
+}
+
+// 压缩Skill建议工具。
+function formatAllowedTools(tools: readonly string[] | undefined): string {
+  return tools && tools.length > 0 ? tools.join(', ') : '暂无';
 }
 
 // 生成轻量追踪ID。

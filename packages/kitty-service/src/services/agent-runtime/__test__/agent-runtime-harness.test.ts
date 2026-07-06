@@ -103,6 +103,54 @@ describe('AgentRuntimeHarness', () => {
     });
   });
 
+  test('Skill调用请求会转成下一轮观察', async () => {
+    const observations: AgentObservation[] = [];
+    const harness = createHarness({
+      async decide(observation) {
+        observations.push(observation);
+        if (observation.turnIndex === 1) {
+          return {
+            type: 'skill_call',
+            skillName: 'qq-chat',
+            input: { goal: '判断是否参与群聊' },
+            reason: '需要群聊方法论',
+          };
+        }
+
+        return {
+          type: 'reply',
+          text: '我会按群聊方法论来回。',
+          reason: 'Skill状态已确认',
+        };
+      },
+    });
+
+    const result = await harness.run({
+      event: createChatEvent('Skill测试'),
+      skills: [
+        {
+          metadata: {
+            name: 'qq-chat',
+            description: '用于 QQ 群聊回复',
+            rootPath: '/tmp/skills/qq-chat',
+            allowedTools: ['get_recent_messages'],
+          },
+          body: '保持自然。',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      type: 'reply',
+      text: '我会按群聊方法论来回。',
+    });
+    expect(observations[1]?.toolResults[0]).toMatchObject({
+      toolName: 'skill_call:qq-chat',
+      success: true,
+    });
+    expect(observations[1]?.toolResults[0]?.observation).toContain('Skill qq-chat 已在本轮启用');
+  });
+
   test('ignore和human_review通过旧端口适配为空动作', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const ignoreAgent = new HarnessQqReplyAgentAdapter(
