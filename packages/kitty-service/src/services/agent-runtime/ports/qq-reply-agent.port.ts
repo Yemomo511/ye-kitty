@@ -14,13 +14,50 @@ export interface QqReplyAgentInput {
 }
 
 /**
+ * QQ回复动作
+ *
+ * Agent 只能声明这些安全动作，真正的 NapCat 调用由 QQ 平台动作层执行。
+ */
+export type QqReplyAction =
+  | {
+      /** 动作类型 */
+      readonly type: 'send_text';
+      /** 回复文本 */
+      readonly text: string;
+    }
+  | {
+      /** 动作类型 */
+      readonly type: 'send_face';
+      /** QQ商城表情ID */
+      readonly faceId: string;
+    }
+  | {
+      /** 动作类型 */
+      readonly type: 'send_custom_image';
+      /** 图片文件或URL */
+      readonly file: string;
+    }
+  | {
+      /** 动作类型 */
+      readonly type: 'poke_sender';
+    }
+  | {
+      /** 动作类型 */
+      readonly type: 'react_to_message';
+      /** 表情ID */
+      readonly emojiId: string;
+    };
+
+/**
  * QQ回复Agent结果
  *
- * 第一版只返回可直接发送到 QQ 的纯文本。
+ * 兼容旧的纯文本回复，也允许 Agent 返回受控互动动作。
  */
 export interface QqReplyAgentResult {
   /** 回复文本 */
-  readonly text: string;
+  readonly text?: string;
+  /** 受控动作 */
+  readonly actions?: readonly QqReplyAction[];
 }
 
 /**
@@ -33,7 +70,7 @@ export interface QqReplyAgentPort {
   /**
    * 生成QQ回复
    * @param input 标准消息事件
-   * @returns 回复文本
+   * @returns 回复文本或动作
    */
   generateReply(input: QqReplyAgentInput): Promise<QqReplyAgentResult>;
 }

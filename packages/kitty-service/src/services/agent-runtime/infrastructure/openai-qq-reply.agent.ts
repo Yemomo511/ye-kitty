@@ -1,5 +1,6 @@
 import { Agent, OpenAIProvider, Runner } from '@openai/agents';
 import type {
+  QqReplyAction,
   QqReplyAgentInput,
   QqReplyAgentPort,
   QqReplyAgentResult,
@@ -28,7 +29,7 @@ export interface OpenAiQqReplyAgentConfig {
  * OpenAI QQ回复Agent
  *
  * 使用 OpenAI Agents SDK 生成叶猫猫身份回复。
- * 第一版不挂载 MCP、工具、长期记忆或正式 risk/actions 链路。
+ * 通过结构化 JSON 接收受控 QQ 动作，不允许模型直接调用 NapCat。
  */
 export class OpenAiQqReplyAgent implements QqReplyAgentPort {
   private readonly runner: Runner;
@@ -61,8 +62,72 @@ export class OpenAiQqReplyAgent implements QqReplyAgentPort {
     const text = String(result.finalOutput ?? '').trim();
     if (text.length === 0) throw new Error('OpenAI Agent 返回空回复');
 
-    return { text };
+    return parseQqReplyAgentResult(text);
   }
+}
+
+// 优先解析结构化动作，解析失败时兼容旧纯文本回复。
+export function parseQqReplyAgentResult(rawOutput: string): QqReplyAgentResult {
+  try {
+    const parsed = JSON.parse(rawOutput) as unknown;
+    const result = toQqReplyAgentResult(parsed);
+    if (result) return result;
+  } catch {
+    return { text: rawOutput };
+  }
+
+  return { text: rawOutput };
+}
+
+// 将模型 JSON 收敛为受控结果。
+function toQqReplyAgentResult(input: unknown): QqReplyAgentResult | undefined {
+  if (!isRecord(input)) return undefined;
+
+  const text = typeof input.text === 'string' ? input.text.trim() : undefined;
+  const actions = Array.isArray(input.actions)
+    ? input.actions
+        .map(toQqReplyAction)
+        .filter((action): action is QqReplyAction => Boolean(action))
+    : undefined;
+
+  if (!text && (!actions || actions.length === 0)) return undefined;
+  return { text: text || undefined, actions };
+}
+
+// 校验模型动作，过滤不在白名单内的内容。
+function toQqReplyAction(input: unknown): QqReplyAction | undefined {
+  if (!isRecord(input) || typeof input.type !== 'string') return undefined;
+
+  if (input.type === 'send_text' && typeof input.text === 'string' && input.text.trim()) {
+    return { type: 'send_text', text: input.text.trim() };
+  }
+
+  if (input.type === 'send_face' && typeof input.faceId === 'string' && input.faceId.trim()) {
+    return { type: 'send_face', faceId: input.faceId.trim() };
+  }
+
+  if (input.type === 'send_custom_image' && typeof input.file === 'string' && input.file.trim()) {
+    return { type: 'send_custom_image', file: input.file.trim() };
+  }
+
+  if (input.type === 'poke_sender') {
+    return { type: 'poke_sender' };
+  }
+
+  if (
+    input.type === 'react_to_message' &&
+    typeof input.emojiId === 'string' &&
+    input.emojiId.trim()
+  ) {
+    return { type: 'react_to_message', emojiId: input.emojiId.trim() };
+  }
+
+  return undefined;
+}
+
+// 判断普通对象。
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === 'object' && input !== null;
 }
 
 // 为 Agent 调用增加外层超时，超时后由 Safe Agent 接管降级。
