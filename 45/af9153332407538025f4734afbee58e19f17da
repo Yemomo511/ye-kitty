@@ -1,0 +1,79 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_54a728841601d0::t_b6de2e7b16de62 13,45,47-49,66,86-88,90,92,101,108-109,115,118-125,132,139,152,154-155,162,170,177-188,209-214,269,299,318,359,366,385,393,420
+design-docs/Task.md
+  s_54a728841601d0::t_f1a9377843fc15 17-19,25,46-53
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_54a728841601d0::t_20e3cae7c3dc84 9-10,32,34
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_54a728841601d0::t_a6c650373f56ba 15,165-172,321-538,589,598,601,603,623-635
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_54a728841601d0::t_37144545868e5b 87-104
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_54a728841601d0::t_26e3f162516fa6 30,46,49,71,97-109,123-124,129,133-135,138-139,141,161-184,191-197
+packages/kitty-service/src/services/agent-runtime/__test__/skill-market.test.ts
+  s_54a728841601d0::t_9737ad6b73ad63 1,5,7,138-251
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_5d7432c96e2afc::t_15a345ba611fb8 3,6,16,35-36,39-40,53,67-71,73,90,108-130,149-153,161-167,173,178-183,218,253,275-353
+packages/kitty-service/src/services/agent-runtime/application/default-skill-selector.ts
+  s_54a728841601d0::t_707697604f1d7d 2,5-6,9,11,13-14,17-18,20,23,26
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_54a728841601d0::t_1c9aa0437ac001 3,37,58-60,65
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_54a728841601d0::t_31b5ee185f96bb 56-62
+packages/kitty-service/src/services/agent-runtime/application/skill-runtime.service.ts
+  s_5d7432c96e2afc::t_11d4006ef81b35 2-3,5,16,18,22-23,26-27,38-51
+packages/kitty-service/src/services/agent-runtime/domain/agent-conversation-message.ts
+  s_5d7432c96e2afc::t_839d2d161e8399 1-49
+packages/kitty-service/src/services/agent-runtime/domain/agent-decision.ts
+  s_5d7432c96e2afc::t_29fca8057bcfa3 29-38,71-73
+packages/kitty-service/src/services/agent-runtime/domain/agent-observation.ts
+  s_5d7432c96e2afc::t_5dbb2c87fd2012 2,22-23
+packages/kitty-service/src/services/agent-runtime/domain/skill-reference.ts
+  s_5d7432c96e2afc::t_e764994c97e521 1-25
+packages/kitty-service/src/services/agent-runtime/domain/skill-selection-context.ts
+  s_54a728841601d0::t_b5ff64bd6bb29b 1-17
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_54a728841601d0::t_6c2a7507309eaf 9-11,22,35-37,62-65
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-harness-agent-runner.ts
+  s_54a728841601d0::t_42f5c06cfdca19 99-110
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/conversation-renderer.ts
+  s_54a728841601d0::t_bc8329103759ed 1-101
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  s_54a728841601d0::t_78eca65c68e081 7,78
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  s_54a728841601d0::t_a8b62dce4171da 19,48-52,66-69,101-111
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/skill.prompt.ts
+  s_54a728841601d0::t_6d29d369ae9d4c 1-2,4
+packages/kitty-service/src/services/agent-runtime/infrastructure/skill-market/filesystem-skill-reference-loader.ts
+  s_54a728841601d0::t_99bf9421aabdbd 1-78
+packages/kitty-service/src/services/agent-runtime/ports/skill-reference-loader.port.ts
+  s_54a728841601d0::t_9de719de44aa92 1-17
+packages/kitty-service/src/services/agent-runtime/ports/skill-selector.port.ts
+  s_5d7432c96e2afc::t_53ea72c296a3b0 6,13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "45af9153332407538025f4734afbee58e19f17da",
+  "prompts": {},
+  "sessions": {
+    "s_54a728841601d0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36d2-ac5d-7b42-90a0-c2e0afbddfc2",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    },
+    "s_5d7432c96e2afc": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36d3-3922-7610-bff5-e7a456bbe244",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
