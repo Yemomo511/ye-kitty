@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import { composeQqReplyPrompt } from '../infrastructure/prompt/prompt-composer';
+import { composeHarnessPrompt } from '../infrastructure/prompt/harness.prompt';
 import { buildSkillPrompt } from '../infrastructure/prompt/skill.prompt';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
@@ -17,6 +18,7 @@ describe('Agent Runtime Prompt组织', () => {
           name: 'qq-chat',
           description: '用于 QQ 回复',
           rootPath: '/tmp/skills/qq-chat',
+          allowedTools: ['get_recent_messages'],
         },
         body: '群聊回复短一点。',
       },
@@ -25,6 +27,7 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt).toContain('本轮启用 Skill');
     expect(prompt).toContain('## qq-chat');
     expect(prompt).toContain('用于 QQ 回复');
+    expect(prompt).toContain('建议工具：get_recent_messages');
     expect(prompt).toContain('群聊回复短一点。');
   });
 
@@ -49,6 +52,32 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('保持自然、亲近。');
     expect(prompt.input).toContain('平台：QQ');
     expect(prompt.input).toContain('用户消息文本：你好');
+  });
+
+  test('Harness Prompt包含循环协议和工具描述', () => {
+    const prompt = composeHarnessPrompt('叶猫猫', {
+      event: createChatEvent(),
+      skills: [],
+      tools: [
+        {
+          name: 'get_recent_messages',
+          description: '读取最近消息',
+          riskLevel: 'low',
+          inputSchemaDescription: '{ "limit": 可选数字 }',
+        },
+      ],
+      toolResults: [],
+      turnIndex: 1,
+      maxTurns: 4,
+      toolCallCount: 0,
+      maxToolCalls: 3,
+    });
+
+    expect(prompt.instructions).toContain('你运行在 Ye-Kitty Harness 循环中');
+    expect(prompt.instructions).toContain('只能返回 JSON 决策');
+    expect(prompt.instructions).toContain('get_recent_messages');
+    expect(prompt.input).toContain('当前轮次：1/4');
+    expect(prompt.input).toContain('工具观察结果：暂无。');
   });
 
   test('无Skill时仍能生成Prompt', () => {

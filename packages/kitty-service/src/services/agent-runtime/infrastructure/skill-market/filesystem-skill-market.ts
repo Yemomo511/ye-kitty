@@ -32,6 +32,8 @@ export class FilesystemSkillMarket implements SkillMarketPort {
       metadataList.push({
         name: parsedSkill.name,
         description: parsedSkill.description,
+        allowedTools: parsedSkill.allowedTools,
+        metadata: parsedSkill.metadata,
         rootPath,
       });
     }

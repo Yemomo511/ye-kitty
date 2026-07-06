@@ -54,7 +54,7 @@ describe('QQ回复Agent', () => {
     expect(agent).toBeInstanceOf(FallbackQqReplyAgent);
   });
 
-  test('有OPENAI_API_KEY时使用OpenAI Agent包装配置', () => {
+  test('有OPENAI_API_KEY时使用Harness包装配置', () => {
     const config = loadQqReplyAgentConfig({
       OPENAI_API_KEY: 'sk-test',
       OPENAI_BASE_URL: 'https://relay.example.com',

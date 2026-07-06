@@ -1,4 +1,5 @@
 import { describe, expect, test } from 'vitest';
+import { parseAgentDecision } from '../infrastructure/openai-harness-agent-runner';
 import { parseQqReplyAgentResult } from '../infrastructure/openai-qq-reply.agent';
 
 describe('parseQqReplyAgentResult', () => {
@@ -43,5 +44,47 @@ describe('parseQqReplyAgentResult', () => {
     expect(result).toEqual({
       actions: [{ type: 'send_text', text: '安全回复' }],
     });
+  });
+});
+
+describe('parseAgentDecision', () => {
+  test('解析工具调用决策', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'tool_call',
+          toolName: 'get_recent_messages',
+          input: { limit: 3 },
+          reason: '需要上下文',
+        }),
+      ),
+    ).toEqual({
+      type: 'tool_call',
+      toolName: 'get_recent_messages',
+      input: { limit: 3 },
+      reason: '需要上下文',
+    });
+  });
+
+  test('过滤回复决策中的未知动作', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'reply',
+          text: '安全回复',
+          actions: [{ type: 'set_group_kick' }, { type: 'poke_sender' }],
+          reason: '可以回复',
+        }),
+      ),
+    ).toEqual({
+      type: 'reply',
+      text: '安全回复',
+      actions: [{ type: 'poke_sender' }],
+      reason: '可以回复',
+    });
+  });
+
+  test('非法决策抛出错误', () => {
+    expect(() => parseAgentDecision('不是JSON')).toThrow();
   });
 });

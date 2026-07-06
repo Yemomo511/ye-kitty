@@ -32,9 +32,43 @@ describe('Skill文件系统资产', () => {
       {
         name: 'qq-chat',
         description: '用于 QQ 群聊和私聊中的自然中文回复。',
+        allowedTools: undefined,
+        metadata: undefined,
         rootPath: join(skillsRoot, 'qq-chat'),
       },
     ]);
+  });
+
+  test('解析allowed-tools和metadata扩展字段', async () => {
+    const skillsRoot = await createTempSkillsRoot();
+    await writeSkillFile(skillsRoot, 'qq-chat', [
+      '---',
+      'name: qq-chat',
+      'description: QQ回复',
+      'allowed-tools: get_recent_messages search_memory',
+      'metadata:',
+      '  ye-kitty.version: "1"',
+      "  ye-kitty.platforms: 'qq'",
+      '---',
+      '',
+      '# QQ中文聊天',
+    ]);
+
+    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
+    const content = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('qq-chat');
+
+    expect(metadataList[0]).toMatchObject({
+      allowedTools: ['get_recent_messages', 'search_memory'],
+      metadata: {
+        'ye-kitty.version': '1',
+        'ye-kitty.platforms': 'qq',
+      },
+    });
+    expect(content.metadata.allowedTools).toEqual(['get_recent_messages', 'search_memory']);
+    expect(content.metadata.metadata).toEqual({
+      'ye-kitty.version': '1',
+      'ye-kitty.platforms': 'qq',
+    });
   });
 
   test('按Skill名称渐进读取Markdown正文', async () => {

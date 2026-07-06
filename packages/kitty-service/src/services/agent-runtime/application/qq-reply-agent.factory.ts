@@ -1,7 +1,10 @@
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
+import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
+import { InMemoryConversationHistory } from './in-memory-conversation-history';
+import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtime-tools';
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
-import { OpenAiQqReplyAgent } from '../infrastructure/openai-qq-reply.agent';
+import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
 
 /**
  * QQ回复Agent运行配置
@@ -30,15 +33,29 @@ export function createQqReplyAgent(config: QqReplyAgentRuntimeConfig): QqReplyAg
   const fallbackAgent = new FallbackQqReplyAgent();
   if (!config.openAiApiKey) return fallbackAgent;
 
-  const openAiAgent = new OpenAiQqReplyAgent({
+  const conversationHistory = new InMemoryConversationHistory();
+  const toolRegistry = new BuiltinRuntimeToolRegistry();
+  const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory);
+  const runner = new OpenAiHarnessAgentRunner({
     apiKey: config.openAiApiKey,
     baseURL: config.openAiBaseUrl,
     agentName: config.agentName,
     model: config.agentModel,
     timeoutMs: config.replyTimeoutMs,
   });
+  const harness = new AgentRuntimeHarness(
+    runner,
+    toolRegistry,
+    toolExecutor,
+    conversationHistory,
+    fallbackAgent,
+    {
+      maxTurns: 4,
+      maxToolCalls: 3,
+    },
+  );
 
-  return new SafeQqReplyAgent(openAiAgent, fallbackAgent);
+  return new SafeQqReplyAgent(new HarnessQqReplyAgentAdapter(harness), fallbackAgent);
 }
 
 /**

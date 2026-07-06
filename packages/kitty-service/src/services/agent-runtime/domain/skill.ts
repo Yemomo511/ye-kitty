@@ -9,6 +9,10 @@ export interface SkillMetadata {
   readonly name: string;
   /** Skill描述 */
   readonly description: string;
+  /** 建议工具 */
+  readonly allowedTools?: readonly string[];
+  /** 扩展元信息 */
+  readonly metadata?: Readonly<Record<string, string>>;
   /** Skill目录 */
   readonly rootPath: string;
 }

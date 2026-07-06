@@ -32,6 +32,8 @@ export class MarkdownSkillContentLoader implements SkillContentLoaderPort {
       metadata: {
         ...metadata,
         description: parsedSkill.description,
+        allowedTools: parsedSkill.allowedTools ?? metadata.allowedTools,
+        metadata: parsedSkill.metadata ?? metadata.metadata,
       },
       body: parsedSkill.body,
     };
