@@ -1,0 +1,25 @@
+knowledge/Agent/agent-runtime-harness.md
+  s_ac70248b3b1c8a::t_7283a94622c5a8 1-97
+knowledge/README.md
+  s_ac70248b3b1c8a::t_0d0a6f7caa71d0 1-30
+knowledge/architecture-overview.md
+  s_ac70248b3b1c8a::t_b402cdb59426d3 1-165
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "00f51fe422778dd3076a460ffad1176512dc879c",
+  "prompts": {},
+  "sessions": {
+    "s_ac70248b3b1c8a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3621-8f37-72a3-acbb-33559c9dafca",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
