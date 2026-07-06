@@ -5,6 +5,7 @@ export type {
 } from './ports/qq-reply-agent.port';
 export type { AgentDecision } from './domain/agent-decision';
 export type { AgentObservation } from './domain/agent-observation';
+export type { QqReplyAction } from './domain/qq-reply-action';
 export type { SkillContent, SkillMetadata } from './domain/skill';
 export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill-reference';
 export type { SkillSelectionContext } from './domain/skill-selection-context';
@@ -42,6 +43,7 @@ export {
   BuiltinRuntimeToolRegistry,
   GET_RECENT_MESSAGES_TOOL_NAME,
 } from './application/runtime-tools';
+export { QqReplyActionExecutor } from './application/qq-reply-action-executor';
 export {
   createQqReplyAgent,
   loadQqReplyAgentConfig,
@@ -57,6 +59,7 @@ export {
   parseQqReplyAgentResult,
   type OpenAiQqReplyAgentConfig,
 } from './infrastructure/openai-qq-reply.agent';
+export { parseQqReplyAction } from './domain/qq-reply-action';
 export { FilesystemSkillMarket } from './infrastructure/skill-market/filesystem-skill-market';
 export { MarkdownSkillContentLoader } from './infrastructure/skill-market/markdown-skill-content-loader';
 export {
