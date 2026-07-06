@@ -1,0 +1,45 @@
+.codex/skills/agent-harness-eval/SKILL.md
+  s_e918054d9e7804::t_089987040a5e7e 1-49
+.codex/skills/agent-harness-eval/agents/openai.yaml
+  s_e918054d9e7804::t_891cc33cea0769 1-4
+package.json
+  s_e918054d9e7804::t_2d2b34a9175600 32
+packages/kitty-service/AGENTS.md
+  s_e918054d9e7804::t_7a20d337eb9b85 14,17,19,25,27-28,30-32,37-39,42-45
+packages/kitty-service/eval/assertions.ts
+  s_e918054d9e7804::t_e36306e577d2b6 1-63
+packages/kitty-service/eval/cases.ts
+  s_e918054d9e7804::t_d928c35b591765 1-193
+packages/kitty-service/eval/index.ts
+  s_e918054d9e7804::t_f26bf5f11d4dbf 1-6
+packages/kitty-service/eval/reporter.ts
+  s_e918054d9e7804::t_43a83374bb99eb 1-56
+packages/kitty-service/eval/run-agent-eval-warn.ts
+  s_e918054d9e7804::t_59bf9b0366a7fe 1-14
+packages/kitty-service/eval/runner.ts
+  s_e918054d9e7804::t_2075f5abac8726 1-107
+packages/kitty-service/package.json
+  s_e918054d9e7804::t_65e2ff9fc80431 12-13
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  s_e918054d9e7804::t_6870bc6d9b878d 4,9
+packages/kitty-service/tsconfig.json
+  s_e918054d9e7804::t_e2d0487d9d0a5b 18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "d0ed304aa2dbde1cfaa01a330682edd1cc9fbdf7",
+  "prompts": {},
+  "sessions": {
+    "s_e918054d9e7804": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f366f-8c8d-7b73-97de-def158e5a6fe",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
