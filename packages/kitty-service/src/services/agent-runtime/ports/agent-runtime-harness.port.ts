@@ -1,6 +1,6 @@
 import type { QqReplyAction } from './qq-reply-agent.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent } from '../domain/skill';
+import type { SkillMetadata } from '../domain/skill';
 
 /**
  * Harness运行输入
@@ -10,8 +10,8 @@ import type { SkillContent } from '../domain/skill';
 export interface AgentRuntimeRunInput {
   /** QQ标准消息 */
   readonly event: ChatEventContract;
-  /** 本轮启用Skill */
-  readonly skills?: readonly SkillContent[];
+  /** 本轮可请求的Skill目录 */
+  readonly availableSkills?: readonly SkillMetadata[];
 }
 
 /**

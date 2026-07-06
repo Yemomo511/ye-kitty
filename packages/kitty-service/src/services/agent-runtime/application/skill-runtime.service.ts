@@ -16,29 +16,20 @@ export class SkillRuntimeService {
   ) {}
 
   /**
-   * 为QQ消息加载本轮Skill
+   * 为QQ消息选择可用Skill
    * @param event QQ标准消息
-   * @returns 本轮Skill正文
+   * @returns 本轮可用Skill元信息
    */
-  async loadSkillsForQqReply(event: ChatEventContract): Promise<SkillContent[]> {
-    const selectedSkills = await this.selector.selectSkills(event, this.metadataList);
-    const contents: SkillContent[] = [];
-
-    for (const skill of selectedSkills) {
-      try {
-        contents.push(await this.contentLoader.loadSkillContent(skill.name));
-      } catch (error) {
-        console.warn(
-          `⚠️ [AgentRuntime-SkillRuntime] Skill加载失败，已跳过该Skill name=${skill.name} reason=${formatError(error)}`,
-        );
-      }
-    }
-
-    return contents;
+  async selectSkillsForQqReply(event: ChatEventContract): Promise<SkillMetadata[]> {
+    return await this.selector.selectSkills(event, this.metadataList);
   }
-}
 
-// 提取错误原因，避免日志输出完整异常对象。
-function formatError(error: unknown): string {
-  return error instanceof Error ? error.message : String(error);
+  /**
+   * 按需加载Skill正文
+   * @param skillName Skill名称
+   * @returns Skill正文
+   */
+  async loadSkillContent(skillName: string): Promise<SkillContent> {
+    return await this.contentLoader.loadSkillContent(skillName);
+  }
 }

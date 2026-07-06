@@ -11,6 +11,7 @@ import {
 import type { AgentObservation } from '../domain/agent-observation';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
+import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   ChatEventId,
@@ -103,39 +104,48 @@ describe('AgentRuntimeHarness', () => {
     });
   });
 
-  test('Skill调用请求会转成下一轮观察', async () => {
+  test('Skill调用请求会在下一轮注入正文', async () => {
     const observations: AgentObservation[] = [];
-    const harness = createHarness({
-      async decide(observation) {
-        observations.push(observation);
-        if (observation.turnIndex === 1) {
-          return {
-            type: 'skill_call',
-            skillName: 'qq-chat',
-            input: { goal: '判断是否参与群聊' },
-            reason: '需要群聊方法论',
-          };
-        }
-
-        return {
-          type: 'reply',
-          text: '我会按群聊方法论来回。',
-          reason: 'Skill状态已确认',
-        };
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: {
+        name: 'qq-chat',
+        description: '用于 QQ 群聊回复',
+        rootPath: '/tmp/skills/qq-chat',
+        allowedTools: ['get_recent_messages'],
       },
-    });
+      body: '保持自然。',
+    }));
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          if (observation.turnIndex === 1) {
+            return {
+              type: 'skill_call',
+              skillName: 'qq-chat',
+              input: { goal: '判断是否参与群聊' },
+              reason: '需要群聊方法论',
+            };
+          }
+
+          return {
+            type: 'reply',
+            text: '我会按群聊方法论来回。',
+            reason: 'Skill状态已确认',
+          };
+        },
+      },
+      { loadSkillContent },
+    );
 
     const result = await harness.run({
       event: createChatEvent('Skill测试'),
-      skills: [
+      availableSkills: [
         {
-          metadata: {
-            name: 'qq-chat',
-            description: '用于 QQ 群聊回复',
-            rootPath: '/tmp/skills/qq-chat',
-            allowedTools: ['get_recent_messages'],
-          },
-          body: '保持自然。',
+          name: 'qq-chat',
+          description: '用于 QQ 群聊回复',
+          rootPath: '/tmp/skills/qq-chat',
+          allowedTools: ['get_recent_messages'],
         },
       ],
     });
@@ -148,7 +158,155 @@ describe('AgentRuntimeHarness', () => {
       toolName: 'skill_call:qq-chat',
       success: true,
     });
-    expect(observations[1]?.toolResults[0]?.observation).toContain('Skill qq-chat 已在本轮启用');
+    expect(observations[0]?.availableSkills[0]?.name).toBe('qq-chat');
+    expect(observations[0]?.enabledSkills).toEqual([]);
+    expect(observations[1]?.enabledSkills[0]?.body).toBe('保持自然。');
+    expect(observations[1]?.toolResults[0]?.observation).toContain(
+      '正文将在下一轮模型上下文中生效',
+    );
+    expect(loadSkillContent).toHaveBeenCalledTimes(1);
+  });
+
+  test('不可用Skill请求不会读取正文', async () => {
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: {
+        name: 'missing-skill',
+        description: '不应读取',
+        rootPath: '/tmp/skills/missing-skill',
+      },
+      body: '不应注入。',
+    }));
+    const observations: AgentObservation[] = [];
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          if (observation.turnIndex === 1) {
+            return {
+              type: 'skill_call',
+              skillName: 'missing-skill',
+              input: {},
+              reason: '尝试不存在Skill',
+            };
+          }
+
+          return {
+            type: 'human_review',
+            reason: 'Skill不可用',
+          };
+        },
+      },
+      { loadSkillContent },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('不可用Skill测试'),
+      availableSkills: [
+        {
+          name: 'qq-chat',
+          description: '用于 QQ 群聊回复',
+          rootPath: '/tmp/skills/qq-chat',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({ type: 'human_review' });
+    expect(loadSkillContent).not.toHaveBeenCalled();
+    expect(observations[1]?.toolResults[0]).toMatchObject({
+      toolName: 'skill_call:missing-skill',
+      success: false,
+    });
+  });
+
+  test('重复请求已启用Skill不会重复加载正文', async () => {
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: {
+        name: 'qq-chat',
+        description: '用于 QQ 群聊回复',
+        rootPath: '/tmp/skills/qq-chat',
+      },
+      body: '保持自然。',
+    }));
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          if (observation.turnIndex < 3) {
+            return {
+              type: 'skill_call',
+              skillName: 'qq-chat',
+              input: {},
+              reason: '重复确认Skill',
+            };
+          }
+
+          return {
+            type: 'reply',
+            text: '不会重复加载。',
+            reason: '已确认',
+          };
+        },
+      },
+      { loadSkillContent },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('重复Skill测试'),
+      availableSkills: [
+        {
+          name: 'qq-chat',
+          description: '用于 QQ 群聊回复',
+          rootPath: '/tmp/skills/qq-chat',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({ type: 'reply', text: '不会重复加载。' });
+    expect(loadSkillContent).toHaveBeenCalledTimes(1);
+  });
+
+  test('Skill加载失败会进入下一轮观察并允许恢复', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          if (observation.turnIndex === 1) {
+            return {
+              type: 'skill_call',
+              skillName: 'qq-chat',
+              input: {},
+              reason: '需要Skill正文',
+            };
+          }
+
+          return {
+            type: 'reply',
+            text: 'Skill失败后改为直接回复。',
+            reason: '已收到失败观察',
+          };
+        },
+      },
+      {
+        async loadSkillContent() {
+          throw new Error('SKILL.md不可读');
+        },
+      },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('Skill失败测试'),
+      availableSkills: [
+        {
+          name: 'qq-chat',
+          description: '用于 QQ 群聊回复',
+          rootPath: '/tmp/skills/qq-chat',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      type: 'reply',
+      text: 'Skill失败后改为直接回复。',
+    });
   });
 
   test('ignore和human_review通过旧端口适配为空动作', async () => {
@@ -198,19 +356,38 @@ describe('AgentRuntimeHarness', () => {
   });
 });
 
-function createHarness(runner: AgentRunnerPort): AgentRuntimeHarness {
+function createHarness(
+  runner: AgentRunnerPort,
+  skillContentLoader: SkillContentLoaderPort | undefined = createSkillContentLoader(),
+): AgentRuntimeHarness {
   const history = new InMemoryConversationHistory();
   return new AgentRuntimeHarness(
     runner,
     new BuiltinRuntimeToolRegistry(),
     new BuiltinRuntimeToolExecutor(history),
     history,
+    skillContentLoader,
     createFallbackAgent(),
     {
       maxTurns: 4,
       maxToolCalls: 3,
     },
   );
+}
+
+function createSkillContentLoader(): SkillContentLoaderPort {
+  return {
+    async loadSkillContent(skillName) {
+      return {
+        metadata: {
+          name: skillName,
+          description: '测试Skill',
+          rootPath: `/tmp/skills/${skillName}`,
+        },
+        body: '测试正文。',
+      };
+    },
+  };
 }
 
 function createFallbackAgent(): QqReplyAgentPort {

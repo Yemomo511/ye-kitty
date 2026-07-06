@@ -1,6 +1,7 @@
 import { isFinalAgentDecision } from '../domain/agent-decision';
 import type { AgentDecision } from '../domain/agent-decision';
 import type { AgentObservation } from '../domain/agent-observation';
+import type { SkillContent } from '../domain/skill';
 import type { ToolExecutionResult } from '../domain/tool';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type {
@@ -9,9 +10,14 @@ import type {
   AgentRuntimeRunResult,
 } from '../ports/agent-runtime-harness.port';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
+import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
-import type { QqReplyAgentPort, QqReplyAgentResult } from '../ports/qq-reply-agent.port';
+import type {
+  QqReplyAgentInput,
+  QqReplyAgentPort,
+  QqReplyAgentResult,
+} from '../ports/qq-reply-agent.port';
 
 /**
  * Harness运行配置
@@ -36,6 +42,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     private readonly toolRegistry: RuntimeToolRegistryPort,
     private readonly toolExecutor: RuntimeToolExecutorPort,
     private readonly conversationHistory: ConversationHistoryPort,
+    private readonly skillContentLoader: SkillContentLoaderPort | undefined,
     private readonly fallbackAgent: QqReplyAgentPort,
     private readonly config: AgentRuntimeHarnessConfig,
   ) {}
@@ -48,6 +55,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
   async run(input: AgentRuntimeRunInput): Promise<AgentRuntimeRunResult> {
     const traceId = createTraceId(input.event.id);
     const toolResults: ToolExecutionResult[] = [];
+    const enabledSkills: SkillContent[] = [];
     let toolCallCount = 0;
 
     // 1. 先写入当前消息，让本轮工具也能读取到刚进入的上下文。
@@ -61,7 +69,8 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     for (let turnIndex = 1; turnIndex <= this.config.maxTurns; turnIndex += 1) {
       const observation: AgentObservation = {
         event: input.event,
-        skills: input.skills ?? [],
+        availableSkills: input.availableSkills ?? [],
+        enabledSkills: [...enabledSkills],
         tools: this.toolRegistry.listTools(),
         toolResults,
         turnIndex,
@@ -81,7 +90,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         }
 
         if (decision.type === 'skill_call') {
-          toolResults.push(createSkillCallObservation(decision, input));
+          toolResults.push(await this.enableSkill(decision, input, enabledSkills, traceId));
           continue;
         }
 
@@ -89,7 +98,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           console.warn(
             `⚠️ [AgentRuntime-Harness-run] 工具调用已超出预算，执行降级 traceId=${traceId} maxToolCalls=${this.config.maxToolCalls}`,
           );
-          return await this.fallback(input, traceId);
+          return await this.fallback(input, traceId, enabledSkills);
         }
 
         const tool = this.toolRegistry.getTool(decision.toolName);
@@ -131,17 +140,19 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     console.warn(
       `⚠️ [AgentRuntime-Harness-run] Harness达到最大轮次，执行降级 traceId=${traceId} maxTurns=${this.config.maxTurns}`,
     );
-    return await this.fallback(input, traceId);
+    return await this.fallback(input, traceId, enabledSkills);
   }
 
   // 调用旧降级Agent，确保循环失效时仍能产生可用回复。
   private async fallback(
     input: AgentRuntimeRunInput,
     traceId: string,
+    enabledSkills: readonly SkillContent[],
   ): Promise<AgentRuntimeRunResult> {
     const fallback = await this.fallbackAgent.generateReply({
       event: input.event,
-      skills: input.skills,
+      skills: enabledSkills,
+      availableSkills: input.availableSkills,
     });
     return {
       type: 'reply',
@@ -149,6 +160,67 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
       actions: fallback.actions,
       traceId,
     };
+  }
+
+  // 按需启用Skill正文，把方法论注入下一轮模型上下文。
+  private async enableSkill(
+    decision: Extract<AgentDecision, { readonly type: 'skill_call' }>,
+    input: AgentRuntimeRunInput,
+    enabledSkills: SkillContent[],
+    traceId: string,
+  ): Promise<ToolExecutionResult> {
+    const availableSkill = input.availableSkills?.find(
+      (skill) => skill.name === decision.skillName,
+    );
+    if (!availableSkill) {
+      return {
+        toolName: `skill_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill ${decision.skillName} 当前不在本轮可用目录中。请基于可用 Skill 或可见 Tool 重新决策。`,
+        errorMessage: 'Skill不可用',
+      };
+    }
+
+    if (enabledSkills.some((skill) => skill.metadata.name === decision.skillName)) {
+      return {
+        toolName: `skill_call:${decision.skillName}`,
+        success: true,
+        observation: `Skill ${decision.skillName} 已在本轮启用，正文已注入当前上下文。请直接遵守该 Skill 正文。`,
+      };
+    }
+
+    if (!this.skillContentLoader) {
+      return {
+        toolName: `skill_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill ${decision.skillName} 当前无法启用，原因：Skill正文加载器未配置。请改用可见 Tool 或转人工。`,
+        errorMessage: 'Skill正文加载器未配置',
+      };
+    }
+
+    try {
+      const content = await this.skillContentLoader.loadSkillContent(availableSkill.name);
+      enabledSkills.push(content);
+      console.info(
+        `✅ [AgentRuntime-Harness-skill] Skill正文已注入 traceId=${traceId} skill=${availableSkill.name} bodyLength=${content.body.length}`,
+      );
+      return {
+        toolName: `skill_call:${decision.skillName}`,
+        success: true,
+        observation: `Skill ${decision.skillName} 已启用，正文将在下一轮模型上下文中生效。`,
+      };
+    } catch (error) {
+      const reason = formatError(error);
+      console.warn(
+        `⚠️ [AgentRuntime-Harness-skill] Skill正文加载失败，已转为下一轮观察 skill=${availableSkill.name} reason=${reason}`,
+      );
+      return {
+        toolName: `skill_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill ${decision.skillName} 启用失败，原因：${reason}。请改用其他可用 Skill、可见 Tool 或转人工。`,
+        errorMessage: reason,
+      };
+    }
   }
 }
 
@@ -165,7 +237,7 @@ export class HarnessQqReplyAgentAdapter implements QqReplyAgentPort {
    * @param input 标准消息事件
    * @returns 旧端口结果
    */
-  async generateReply(input: AgentRuntimeRunInput): Promise<QqReplyAgentResult> {
+  async generateReply(input: QqReplyAgentInput): Promise<QqReplyAgentResult> {
     const result = await this.harness.run(input);
 
     if (result.type === 'reply') {
@@ -203,35 +275,6 @@ function toRunResult(decision: AgentDecision, traceId: string): AgentRuntimeRunR
     reason: decision.reason,
     traceId,
   };
-}
-
-// 将Skill调用请求转成下一轮可读观察，避免模型误以为自己能直接读取磁盘Skill。
-function createSkillCallObservation(
-  decision: Extract<AgentDecision, { readonly type: 'skill_call' }>,
-  input: AgentRuntimeRunInput,
-): ToolExecutionResult {
-  const enabledSkill = input.skills?.find((skill) => skill.metadata.name === decision.skillName);
-  if (!enabledSkill) {
-    return {
-      toolName: `skill_call:${decision.skillName}`,
-      success: false,
-      observation: `Skill ${decision.skillName} 当前未启用，MVP 暂不支持动态加载 Skill。请基于已启用 Skill 或可见 Tool 重新决策。`,
-      errorMessage: 'Skill未启用',
-    };
-  }
-
-  return {
-    toolName: `skill_call:${decision.skillName}`,
-    success: true,
-    observation: `Skill ${decision.skillName} 已在本轮启用。描述：${enabledSkill.metadata.description}。建议工具：${formatAllowedTools(
-      enabledSkill.metadata.allowedTools,
-    )}。请直接遵守该 Skill 正文，必要时继续调用可见 Tool。`,
-  };
-}
-
-// 压缩Skill建议工具。
-function formatAllowedTools(tools: readonly string[] | undefined): string {
-  return tools && tools.length > 0 ? tools.join(', ') : '暂无';
 }
 
 // 生成轻量追踪ID。

@@ -40,7 +40,7 @@ const agentConfig = loadQqReplyAgentConfig();
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
-  createQqReplyAgent(agentConfig),
+  createQqReplyAgent(agentConfig, skillRuntime),
   skillRuntime,
 );
 

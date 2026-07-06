@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { AgentObservation } from '../../domain/agent-observation';
 import type { RuntimeTool } from '../../domain/tool';
 import { buildBaseAgentPrompt } from './base-agent.prompt';
-import { buildSkillPrompt } from './skill.prompt';
+import { buildAvailableSkillCatalogPrompt, buildEnabledSkillPrompt } from './skill.prompt';
 
 const promptDirectory = dirname(fileURLToPath(import.meta.url));
 const harnessRuntimePromptPath = join(promptDirectory, 'markdown', 'harness-runtime.prompt.md');
@@ -35,7 +35,8 @@ export function composeHarnessPrompt(
     instructions: [
       buildBaseAgentPrompt(agentName),
       buildHarnessRuntimePrompt(),
-      buildSkillPrompt(observation.skills),
+      buildAvailableSkillCatalogPrompt(observation.availableSkills),
+      buildEnabledSkillPrompt(observation.enabledSkills),
       buildToolPrompt(observation.tools),
     ]
       .filter(Boolean)

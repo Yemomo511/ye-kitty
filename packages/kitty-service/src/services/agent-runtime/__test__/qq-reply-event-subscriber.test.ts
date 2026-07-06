@@ -64,12 +64,8 @@ describe('QqReplyEventSubscriber', () => {
       senderDisplayName: '测试用户',
       message: { text: '你好' },
     });
-    expect(agentInputs[0]?.skills).toEqual([
-      {
-        metadata: skillMetadata,
-        body: '群聊回复短一点。',
-      },
-    ]);
+    expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
+    expect(agentInputs[0]?.skills).toBeUndefined();
     expect(replies).toEqual([
       {
         conversationExternalId: '123456',
@@ -119,9 +115,13 @@ describe('QqReplyEventSubscriber', () => {
     expect(replies).toEqual([]);
   });
 
-  test('Skill加载失败时不阻断回复并传入空Skill列表', async () => {
+  test('订阅器只传入Skill目录，不提前读取正文', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const skillMetadata = createSkillMetadata();
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: skillMetadata,
+      body: '不应该提前读取。',
+    }));
     const agentInputs: QqReplyAgentInput[] = [];
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
     const botClient = createTestBotClient({ replies });
@@ -142,16 +142,16 @@ describe('QqReplyEventSubscriber', () => {
           },
         },
         {
-          async loadSkillContent() {
-            throw new Error('SKILL.md不可读');
-          },
+          loadSkillContent,
         },
       ),
     );
 
     await subscriber.handleMessage(createChatEvent());
 
-    expect(agentInputs[0]?.skills).toEqual([]);
+    expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
+    expect(agentInputs[0]?.skills).toBeUndefined();
+    expect(loadSkillContent).not.toHaveBeenCalled();
     expect(replies[0]?.text).toBe('Skill失败也能回复');
   });
 

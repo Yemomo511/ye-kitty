@@ -1,5 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent } from './skill';
+import type { SkillContent, SkillMetadata } from './skill';
 import type { RuntimeTool, ToolExecutionResult } from './tool';
 
 /**
@@ -10,8 +10,10 @@ import type { RuntimeTool, ToolExecutionResult } from './tool';
 export interface AgentObservation {
   /** QQ标准消息 */
   readonly event: ChatEventContract;
-  /** 本轮启用Skill */
-  readonly skills: readonly SkillContent[];
+  /** 本轮可请求的Skill目录 */
+  readonly availableSkills: readonly SkillMetadata[];
+  /** 已注入正文的Skill */
+  readonly enabledSkills: readonly SkillContent[];
   /** 可见工具 */
   readonly tools: readonly RuntimeTool[];
   /** 工具结果 */

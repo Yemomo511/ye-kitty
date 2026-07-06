@@ -53,8 +53,8 @@ export class QqReplyEventSubscriber {
         message.message.id,
       )} textLength=${message.message.text.length}`,
     );
-    const skills = await this.skillRuntime?.loadSkillsForQqReply(message);
-    const reply = await this.replyAgent.generateReply({ event: message, skills });
+    const availableSkills = await this.skillRuntime?.selectSkillsForQqReply(message);
+    const reply = await this.replyAgent.generateReply({ event: message, availableSkills });
 
     await this.executeReply(message, reply.text, reply.actions ?? []);
     console.info(
