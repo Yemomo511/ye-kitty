@@ -1,0 +1,99 @@
+packages/kitty-service/AGENTS.md
+  s_217ef4e957b5fd::t_19515811bfd660 27
+  h_b866b1ed626949 20-26,28-43
+  s_70f0cf9662ae56::t_1796c298d19d6f 17-19
+  s_70f0cf9662ae56::t_cf795ee7da0116 14-16
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  s_06f845f42f1955::t_33f0488bb5bd20 37
+  h_b866b1ed626949 31-32,35-36,40-41,43-44,46 gitai:{"mixed_line_ranges":[{"Single":32},{"Range":[35,36]},{"Single":44}],"operations":[]}
+  s_06f845f42f1955::t_0e9b3b4d588a79 38
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "388291ee7b68450e9bb7c021911bd04f8a4dd1c7",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_06f845f42f1955": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-f41773e1-ffe3-4f07-95e7-3ed7cbd6c904",
+        "model": "default"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    },
+    "s_217ef4e957b5fd": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-0201df64-7dc6-4252-b2d4-39ae78bc0bf1",
+        "model": "default"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    },
+    "s_70f0cf9662ae56": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-6b0c0844-7744-40d2-ae5f-1b3bd6c115f6",
+        "model": "default"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {
+    "packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md": [
+      {
+        "hash": "h_b866b1ed626949",
+        "line_ranges": [
+          {
+            "Range": [
+              31,
+              32
+            ]
+          },
+          {
+            "Range": [
+              35,
+              36
+            ]
+          },
+          {
+            "Range": [
+              40,
+              41
+            ]
+          },
+          {
+            "Range": [
+              43,
+              44
+            ]
+          },
+          {
+            "Single": 46
+          }
+        ],
+        "mixed_line_ranges": [
+          {
+            "Single": 32
+          },
+          {
+            "Range": [
+              35,
+              36
+            ]
+          },
+          {
+            "Single": 44
+          }
+        ],
+        "operations": []
+      }
+    ]
+  },
+  "remote_transcripts": {}
+}
