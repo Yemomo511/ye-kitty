@@ -1,7 +1,7 @@
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { FilesystemSkillMarket } from '../infrastructure/skill-market/filesystem-skill-market';
 import { MarkdownSkillContentLoader } from '../infrastructure/skill-market/markdown-skill-content-loader';
 
@@ -9,6 +9,7 @@ describe('Skill文件系统资产', () => {
   const tempDirectories: string[] = [];
 
   afterEach(async () => {
+    vi.restoreAllMocks();
     for (const directory of tempDirectories.splice(0)) {
       await rm(directory, { recursive: true, force: true });
     }
@@ -37,6 +38,7 @@ describe('Skill文件系统资产', () => {
   });
 
   test('按Skill名称渐进读取Markdown正文', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const skillsRoot = await createTempSkillsRoot();
     await writeSkillFile(skillsRoot, 'qq-chat', [
       '---',
@@ -53,6 +55,9 @@ describe('Skill文件系统资产', () => {
 
     expect(content.metadata.name).toBe('qq-chat');
     expect(content.body).toContain('使用中文自然回复。');
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[AgentRuntime-SkillContentLoader] 已读取Skill正文 name=qq-chat'),
+    );
   });
 
   test('缺少SKILL.md时抛出清晰错误', async () => {

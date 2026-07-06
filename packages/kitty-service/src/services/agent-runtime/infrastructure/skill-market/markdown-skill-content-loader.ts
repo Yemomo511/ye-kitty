@@ -24,6 +24,9 @@ export class MarkdownSkillContentLoader implements SkillContentLoaderPort {
     const skillPath = join(metadata.rootPath, 'SKILL.md');
     const content = await readFile(skillPath, 'utf8');
     const parsedSkill = parseSkillMarkdown(content, skillPath);
+    console.info(
+      `✅ [AgentRuntime-SkillContentLoader] 已读取Skill正文 name=${metadata.name} bodyLength=${parsedSkill.body.length}`,
+    );
 
     return {
       metadata: {
