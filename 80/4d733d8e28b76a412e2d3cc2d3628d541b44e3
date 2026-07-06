@@ -1,0 +1,33 @@
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  h_b866b1ed626949 49-54
+  s_8fa61f38ec177f::t_c87db3a6aef1c7 1-3,9-11
+design-docs/Agent/agent-runtime-harness.md
+  s_8fa61f38ec177f::t_d92bfadbd008b5 75-86,152
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_8fa61f38ec177f::t_b1148198ca2521 77-83
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  s_8fa61f38ec177f::t_3106d13bd62ca0 1-21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "804d733d8e28b76a412e2d3cc2d3628d541b44e3",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_8fa61f38ec177f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3578-4653-7860-94ff-94cdb83249e5",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
