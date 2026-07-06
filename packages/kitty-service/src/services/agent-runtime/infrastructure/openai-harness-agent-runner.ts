@@ -96,6 +96,18 @@ function toAgentDecision(input: unknown): AgentDecision | undefined {
     };
   }
 
+  if (input.type === 'skill_reference_call') {
+    const skillName = typeof input.skillName === 'string' ? input.skillName.trim() : '';
+    const referencePath = typeof input.referencePath === 'string' ? input.referencePath.trim() : '';
+    if (!skillName || !referencePath) return undefined;
+    return {
+      type: 'skill_reference_call',
+      skillName,
+      referencePath,
+      reason: readReason(input.reason),
+    };
+  }
+
   if (input.type === 'reply') {
     const text = typeof input.text === 'string' ? input.text.trim() : undefined;
     const actions = Array.isArray(input.actions)

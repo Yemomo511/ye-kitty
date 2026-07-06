@@ -1,6 +1,8 @@
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { SkillContent, SkillMetadata } from '../domain/skill';
+import type { SkillReferenceContent } from '../domain/skill-reference';
+import type { SkillSelectionContext } from '../domain/skill-selection-context';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
+import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import type { SkillSelectorPort } from '../ports/skill-selector.port';
 
 /**
@@ -11,17 +13,18 @@ import type { SkillSelectorPort } from '../ports/skill-selector.port';
 export class SkillRuntimeService {
   constructor(
     private readonly metadataList: readonly SkillMetadata[],
-    private readonly selector: SkillSelectorPort<ChatEventContract>,
+    private readonly selector: SkillSelectorPort<SkillSelectionContext>,
     private readonly contentLoader: SkillContentLoaderPort,
+    private readonly referenceLoader?: SkillReferenceLoaderPort,
   ) {}
 
   /**
-   * 为QQ消息选择可用Skill
-   * @param event QQ标准消息
+   * 为单次运行选择可见Skill
+   * @param context 选择上下文
    * @returns 本轮可用Skill元信息
    */
-  async selectSkillsForQqReply(event: ChatEventContract): Promise<SkillMetadata[]> {
-    return await this.selector.selectSkills(event, this.metadataList);
+  async selectSkillsForRun(context: SkillSelectionContext): Promise<SkillMetadata[]> {
+    return await this.selector.selectSkills(context, this.metadataList);
   }
 
   /**
@@ -31,5 +34,19 @@ export class SkillRuntimeService {
    */
   async loadSkillContent(skillName: string): Promise<SkillContent> {
     return await this.contentLoader.loadSkillContent(skillName);
+  }
+
+  /**
+   * 按需加载Skill引用
+   * @param skill 已启用Skill
+   * @param referencePath 引用路径
+   * @returns 引用正文
+   */
+  async loadSkillReference(
+    skill: SkillContent,
+    referencePath: string,
+  ): Promise<SkillReferenceContent> {
+    if (!this.referenceLoader) throw new Error('Skill引用加载器未配置');
+    return await this.referenceLoader.loadSkillReference(skill, referencePath);
   }
 }

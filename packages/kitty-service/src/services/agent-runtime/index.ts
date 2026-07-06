@@ -6,6 +6,9 @@ export type {
 export type { AgentDecision } from './domain/agent-decision';
 export type { AgentObservation } from './domain/agent-observation';
 export type { SkillContent, SkillMetadata } from './domain/skill';
+export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill-reference';
+export type { SkillSelectionContext } from './domain/skill-selection-context';
+export type { AgentConversationMessage } from './domain/agent-conversation-message';
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
 export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
@@ -16,6 +19,7 @@ export type {
 export type { ConversationHistoryPort } from './ports/conversation-history.port';
 export type { SkillMarketPort } from './ports/skill-market.port';
 export type { SkillContentLoaderPort } from './ports/skill-content-loader.port';
+export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.port';
 export type { SkillSelectorPort } from './ports/skill-selector.port';
 export type { RuntimeToolExecutorPort } from './ports/tool-executor.port';
 export type { RuntimeToolRegistryPort } from './ports/tool-registry.port';
@@ -28,9 +32,9 @@ export { FallbackQqReplyAgent } from './application/fallback-qq-reply.agent';
 export { InMemoryConversationHistory } from './application/in-memory-conversation-history';
 export { QqReplyEventSubscriber } from './application/qq-reply-event-subscriber';
 export {
-  DEFAULT_QQ_REPLY_SKILL_NAME,
-  QqReplySkillSelector,
-} from './application/qq-reply-skill-selector';
+  DEFAULT_VISIBLE_SKILL_LIMIT,
+  DefaultSkillSelector,
+} from './application/default-skill-selector';
 export { SafeQqReplyAgent } from './application/safe-qq-reply.agent';
 export { SkillRuntimeService } from './application/skill-runtime.service';
 export {
@@ -55,5 +59,9 @@ export {
 } from './infrastructure/openai-qq-reply.agent';
 export { FilesystemSkillMarket } from './infrastructure/skill-market/filesystem-skill-market';
 export { MarkdownSkillContentLoader } from './infrastructure/skill-market/markdown-skill-content-loader';
+export {
+  DEFAULT_SKILL_REFERENCE_LIMITS,
+  FilesystemSkillReferenceLoader,
+} from './infrastructure/skill-market/filesystem-skill-reference-loader';
 export { composeQqReplyPrompt } from './infrastructure/prompt/prompt-composer';
 export { composeHarnessPrompt, type HarnessPrompt } from './infrastructure/prompt/harness.prompt';

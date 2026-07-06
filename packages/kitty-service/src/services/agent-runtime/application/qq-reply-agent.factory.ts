@@ -1,5 +1,6 @@
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
+import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
 import { InMemoryConversationHistory } from './in-memory-conversation-history';
@@ -33,7 +34,7 @@ export interface QqReplyAgentRuntimeConfig {
  */
 export function createQqReplyAgent(
   config: QqReplyAgentRuntimeConfig,
-  skillContentLoader?: SkillContentLoaderPort,
+  skillContentLoader?: SkillContentLoaderPort & Partial<SkillReferenceLoaderPort>,
 ): QqReplyAgentPort {
   const fallbackAgent = new FallbackQqReplyAgent();
   if (!config.openAiApiKey) return fallbackAgent;
@@ -54,10 +55,14 @@ export function createQqReplyAgent(
     toolExecutor,
     conversationHistory,
     skillContentLoader,
+    skillContentLoader?.loadSkillReference
+      ? (skillContentLoader as SkillReferenceLoaderPort)
+      : undefined,
     fallbackAgent,
     {
       maxTurns: 4,
       maxToolCalls: 3,
+      maxSkillReferences: 3,
     },
   );
 

@@ -1,8 +1,10 @@
-import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, test, vi } from 'vitest';
+import { DefaultSkillSelector } from '../application/default-skill-selector';
 import { FilesystemSkillMarket } from '../infrastructure/skill-market/filesystem-skill-market';
+import { FilesystemSkillReferenceLoader } from '../infrastructure/skill-market/filesystem-skill-reference-loader';
 import { MarkdownSkillContentLoader } from '../infrastructure/skill-market/markdown-skill-content-loader';
 
 describe('Skill文件系统资产', () => {
@@ -131,6 +133,120 @@ describe('Skill文件系统资产', () => {
     await expect(new FilesystemSkillMarket(skillsRoot).listSkillMetadata()).rejects.toThrow(
       '缺少description',
     );
+  });
+
+  test('默认Skill选择器返回平台无关Skill目录', async () => {
+    const selector = new DefaultSkillSelector();
+    const skills = await selector.selectSkills(
+      {
+        platform: 'qq',
+        conversationType: 'group',
+        messageText: '你好',
+        mentionsAgent: false,
+        receivedAt: new Date('2026-07-02T00:00:00.000Z'),
+      },
+      [
+        {
+          name: 'chat-style',
+          description: '聊天风格',
+          rootPath: '/tmp/skills/chat-style',
+          allowedTools: ['get_recent_messages'],
+        },
+      ],
+    );
+
+    expect(skills).toHaveLength(1);
+    expect(skills[0]?.name).toBe('chat-style');
+  });
+
+  test('读取已启用Skill的references文件', async () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const skillsRoot = await createTempSkillsRoot();
+    await writeSkillFile(skillsRoot, 'chat-style', [
+      '---',
+      'name: chat-style',
+      'description: 聊天风格',
+      '---',
+      '',
+      '# 聊天风格',
+    ]);
+    await mkdir(join(skillsRoot, 'chat-style', 'references'), { recursive: true });
+    await writeFile(
+      join(skillsRoot, 'chat-style', 'references', 'examples.md'),
+      '示例：短句回复。',
+      'utf8',
+    );
+    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
+    const skill = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('chat-style');
+
+    const reference = await new FilesystemSkillReferenceLoader().loadSkillReference(
+      skill,
+      'examples.md',
+    );
+
+    expect(reference).toMatchObject({
+      referencePath: 'examples.md',
+      content: '示例：短句回复。',
+    });
+    expect(infoSpy).toHaveBeenCalledWith(
+      expect.stringContaining('[AgentRuntime-SkillReferenceLoader] 已读取Skill引用'),
+    );
+  });
+
+  test('拒绝references路径逃逸和非白名单扩展', async () => {
+    const skillsRoot = await createTempSkillsRoot();
+    await writeSkillFile(skillsRoot, 'chat-style', [
+      '---',
+      'name: chat-style',
+      'description: 聊天风格',
+      '---',
+      '',
+      '# 聊天风格',
+    ]);
+    await mkdir(join(skillsRoot, 'chat-style', 'references'), { recursive: true });
+    await writeFile(join(skillsRoot, 'secret.md'), '密文', 'utf8');
+    await writeFile(join(skillsRoot, 'chat-style', 'references', 'script.ts'), '代码', 'utf8');
+    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
+    const skill = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('chat-style');
+    const loader = new FilesystemSkillReferenceLoader();
+
+    await expect(loader.loadSkillReference(skill, '../secret.md')).rejects.toThrow('上级目录');
+    await expect(loader.loadSkillReference(skill, 'script.ts')).rejects.toThrow('扩展名不允许');
+  });
+
+  test('拒绝软链和超大references文件', async () => {
+    const skillsRoot = await createTempSkillsRoot();
+    await writeSkillFile(skillsRoot, 'chat-style', [
+      '---',
+      'name: chat-style',
+      'description: 聊天风格',
+      '---',
+      '',
+      '# 聊天风格',
+    ]);
+    await mkdir(join(skillsRoot, 'chat-style', 'references'), { recursive: true });
+    await writeFile(join(skillsRoot, 'outside.md'), '外部内容', 'utf8');
+    await symlink(
+      join(skillsRoot, 'outside.md'),
+      join(skillsRoot, 'chat-style', 'references', 'link.md'),
+    );
+    await writeFile(
+      join(skillsRoot, 'chat-style', 'references', 'large.md'),
+      'x'.repeat(8),
+      'utf8',
+    );
+    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
+    const skill = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('chat-style');
+
+    await expect(
+      new FilesystemSkillReferenceLoader().loadSkillReference(skill, 'link.md'),
+    ).rejects.toThrow('软链接');
+    await expect(
+      new FilesystemSkillReferenceLoader({
+        maxChars: 4,
+        maxReferencesPerRun: 3,
+      }).loadSkillReference(skill, 'large.md'),
+    ).rejects.toThrow('大小限制');
   });
 
   async function createTempSkillsRoot(): Promise<string> {

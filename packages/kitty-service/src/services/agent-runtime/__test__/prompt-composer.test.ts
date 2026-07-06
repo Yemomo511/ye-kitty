@@ -27,10 +27,9 @@ describe('Agent Runtime Prompt组织', () => {
       },
     ]);
 
-    expect(prompt).toContain('本轮已启用 Skill 正文');
+    expect(prompt).toContain('已启用Skill正文');
     expect(prompt).toContain('## qq-chat');
     expect(prompt).toContain('用于 QQ 回复');
-    expect(prompt).toContain('建议工具：get_recent_messages');
     expect(prompt).toContain('群聊回复短一点。');
   });
 
@@ -44,9 +43,10 @@ describe('Agent Runtime Prompt组织', () => {
       },
     ]);
 
-    expect(prompt).toContain('本轮可请求 Skill');
+    expect(prompt).toContain('可请求Skill目录');
     expect(prompt).toContain('## qq-chat');
     expect(prompt).toContain('用于 QQ 回复');
+    expect(prompt).not.toContain('get_recent_messages');
     expect(prompt).not.toContain('能力说明');
     expect(prompt).not.toContain('群聊回复短一点。');
   });
@@ -68,7 +68,7 @@ describe('Agent Runtime Prompt组织', () => {
     });
 
     expect(prompt.instructions).toContain('你是叶猫猫');
-    expect(prompt.instructions).toContain('本轮已启用 Skill 正文');
+    expect(prompt.instructions).toContain('已启用Skill正文');
     expect(prompt.instructions).toContain('保持自然、亲近。');
     expect(prompt.input).toContain('平台：QQ');
     expect(prompt.input).toContain('用户消息文本：你好');
@@ -94,6 +94,19 @@ describe('Agent Runtime Prompt组织', () => {
         },
       ],
       toolResults: [],
+      conversationMessages: [
+        { type: 'user_event', event: createChatEvent() },
+        {
+          type: 'skill_catalog',
+          skills: [
+            {
+              name: 'qq-chat',
+              description: '用于 QQ 回复',
+              rootPath: '/tmp/skills/qq-chat',
+            },
+          ],
+        },
+      ],
       turnIndex: 1,
       maxTurns: 4,
       toolCallCount: 0,
@@ -107,21 +120,25 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('## 第三层：JSON结构');
     expect(prompt.instructions).toContain('每一轮输出都必须是单个 JSON 对象');
     expect(prompt.instructions).toContain('当你想调用 Skill 时，返回 `skill_call`');
-    expect(prompt.instructions).toContain('本轮可请求 Skill');
-    expect(prompt.instructions).toContain('用于 QQ 回复');
+    expect(prompt.instructions).not.toContain('可请求Skill目录');
+    expect(prompt.instructions).not.toContain('用于 QQ 回复');
     expect(prompt.instructions).not.toContain('能力说明：');
     expect(prompt.instructions).not.toContain('群聊回复短一点。');
     expect(prompt.instructions).toContain('存在安全、合规、隐私或边界风险');
     expect(prompt.instructions).toContain('"type": "skill_call"');
+    expect(prompt.instructions).toContain('"type": "skill_reference_call"');
     expect(prompt.instructions).toContain('"type": "tool_call"');
     expect(prompt.instructions).toContain('get_recent_messages');
     expect(prompt.input).toContain('当前轮次：1/4');
-    expect(prompt.input).toContain('工具观察结果：暂无。');
+    expect(prompt.input).toContain('可请求Skill目录');
+    expect(prompt.input).toContain('用于 QQ 回复');
+    expect(prompt.input).toContain('用户消息文本：你好');
   });
 
-  test('Harness Prompt在Skill启用后包含正文', () => {
+  test('Harness Prompt在Skill启用后仅在观察中包含正文', () => {
+    const event = createChatEvent();
     const prompt = composeHarnessPrompt('叶猫猫', {
-      event: createChatEvent(),
+      event,
       availableSkills: [
         {
           name: 'qq-chat',
@@ -141,15 +158,43 @@ describe('Agent Runtime Prompt组织', () => {
       ],
       tools: [],
       toolResults: [],
+      conversationMessages: [
+        { type: 'user_event', event },
+        {
+          type: 'skill_catalog',
+          skills: [
+            {
+              name: 'qq-chat',
+              description: '用于 QQ 回复',
+              rootPath: '/tmp/skills/qq-chat',
+            },
+          ],
+        },
+        {
+          type: 'skill_content',
+          skill: {
+            metadata: {
+              name: 'qq-chat',
+              description: '用于 QQ 回复',
+              rootPath: '/tmp/skills/qq-chat',
+            },
+            body: '群聊回复短一点。',
+          },
+        },
+      ],
       turnIndex: 2,
       maxTurns: 4,
       toolCallCount: 0,
       maxToolCalls: 3,
     });
 
-    expect(prompt.instructions).toContain('本轮可请求 Skill');
-    expect(prompt.instructions).toContain('本轮已启用 Skill 正文');
-    expect(prompt.instructions).toContain('群聊回复短一点。');
+    expect(prompt.instructions).not.toContain('可请求Skill目录');
+    expect(prompt.instructions).not.toContain('# 已启用Skill正文');
+    expect(prompt.instructions).not.toContain('能力说明：');
+    expect(prompt.instructions).not.toContain('群聊回复短一点。');
+    expect(prompt.input).toContain('可请求Skill目录');
+    expect(prompt.input).toContain('已启用Skill正文');
+    expect(prompt.input).toContain('群聊回复短一点。');
   });
 
   test('无Skill时仍能生成Prompt', () => {

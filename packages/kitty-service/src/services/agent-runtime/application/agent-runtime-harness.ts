@@ -1,7 +1,9 @@
 import { isFinalAgentDecision } from '../domain/agent-decision';
 import type { AgentDecision } from '../domain/agent-decision';
+import type { AgentConversationMessage } from '../domain/agent-conversation-message';
 import type { AgentObservation } from '../domain/agent-observation';
 import type { SkillContent } from '../domain/skill';
+import type { SkillReferenceContent } from '../domain/skill-reference';
 import type { ToolExecutionResult } from '../domain/tool';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type {
@@ -11,6 +13,7 @@ import type {
 } from '../ports/agent-runtime-harness.port';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
+import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
 import type {
@@ -29,7 +32,11 @@ export interface AgentRuntimeHarnessConfig {
   readonly maxTurns: number;
   /** 最大工具次数 */
   readonly maxToolCalls: number;
+  /** 最大Skill引用读取数 */
+  readonly maxSkillReferences?: number;
 }
+
+const DEFAULT_MAX_SKILL_REFERENCES = 3;
 
 /**
  * Agent Runtime Harness
@@ -43,6 +50,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     private readonly toolExecutor: RuntimeToolExecutorPort,
     private readonly conversationHistory: ConversationHistoryPort,
     private readonly skillContentLoader: SkillContentLoaderPort | undefined,
+    private readonly skillReferenceLoader: SkillReferenceLoaderPort | undefined,
     private readonly fallbackAgent: QqReplyAgentPort,
     private readonly config: AgentRuntimeHarnessConfig,
   ) {}
@@ -56,7 +64,13 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     const traceId = createTraceId(input.event.id);
     const toolResults: ToolExecutionResult[] = [];
     const enabledSkills: SkillContent[] = [];
+    const loadedReferences: SkillReferenceContent[] = [];
+    const conversationMessages: AgentConversationMessage[] = [
+      { type: 'user_event', event: input.event },
+      { type: 'skill_catalog', skills: input.availableSkills ?? [] },
+    ];
     let toolCallCount = 0;
+    const maxSkillReferences = this.config.maxSkillReferences ?? DEFAULT_MAX_SKILL_REFERENCES;
 
     // 1. 先写入当前消息，让本轮工具也能读取到刚进入的上下文。
     this.conversationHistory.recordMessage(input.event);
@@ -73,6 +87,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         enabledSkills: [...enabledSkills],
         tools: this.toolRegistry.listTools(),
         toolResults,
+        conversationMessages: [...conversationMessages],
         turnIndex,
         maxTurns: this.config.maxTurns,
         toolCallCount,
@@ -90,7 +105,29 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         }
 
         if (decision.type === 'skill_call') {
-          toolResults.push(await this.enableSkill(decision, input, enabledSkills, traceId));
+          const result = await this.enableSkill(
+            decision,
+            input,
+            enabledSkills,
+            conversationMessages,
+            traceId,
+          );
+          toolResults.push(result);
+          conversationMessages.push({ type: 'tool_result', result });
+          continue;
+        }
+
+        if (decision.type === 'skill_reference_call') {
+          const result = await this.loadSkillReference(
+            decision,
+            enabledSkills,
+            loadedReferences,
+            conversationMessages,
+            traceId,
+            maxSkillReferences,
+          );
+          toolResults.push(result);
+          conversationMessages.push({ type: 'tool_result', result });
           continue;
         }
 
@@ -109,6 +146,11 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
             observation: `工具 ${decision.toolName} 未注册，不能执行。`,
             errorMessage: '工具未注册',
           });
+          conversationMessages.push({
+            type: 'decision_error',
+            observation: `工具 ${decision.toolName} 未注册，不能执行。`,
+            errorMessage: '工具未注册',
+          });
           continue;
         }
 
@@ -116,22 +158,28 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         console.info(
           `🚧 [AgentRuntime-Harness-tool] 开始执行工具 traceId=${traceId} tool=${tool.name} turn=${turnIndex}`,
         );
-        toolResults.push(
-          await this.toolExecutor.execute({
-            event: input.event,
-            toolName: decision.toolName,
-            input: decision.input,
-          }),
-        );
+        const result = await this.toolExecutor.execute({
+          event: input.event,
+          toolName: decision.toolName,
+          input: decision.input,
+        });
+        toolResults.push(result);
+        conversationMessages.push({ type: 'tool_result', result });
       } catch (error) {
         const reason = formatError(error);
         console.warn(
           `⚠️ [AgentRuntime-Harness-run] Agent决策失败，已转为下一轮观察 traceId=${traceId} turn=${turnIndex} reason=${reason}`,
         );
-        toolResults.push({
+        const result = {
           toolName: 'agent_decision',
           success: false,
           observation: `上一轮模型输出不可用，原因：${reason}。请重新输出合法 JSON 决策。`,
+          errorMessage: reason,
+        };
+        toolResults.push(result);
+        conversationMessages.push({
+          type: 'decision_error',
+          observation: result.observation,
           errorMessage: reason,
         });
       }
@@ -167,6 +215,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     decision: Extract<AgentDecision, { readonly type: 'skill_call' }>,
     input: AgentRuntimeRunInput,
     enabledSkills: SkillContent[],
+    conversationMessages: AgentConversationMessage[],
     traceId: string,
   ): Promise<ToolExecutionResult> {
     const availableSkill = input.availableSkills?.find(
@@ -201,6 +250,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     try {
       const content = await this.skillContentLoader.loadSkillContent(availableSkill.name);
       enabledSkills.push(content);
+      conversationMessages.push({ type: 'skill_content', skill: content });
       console.info(
         `✅ [AgentRuntime-Harness-skill] Skill正文已注入 traceId=${traceId} skill=${availableSkill.name} bodyLength=${content.body.length}`,
       );
@@ -218,6 +268,85 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         toolName: `skill_call:${decision.skillName}`,
         success: false,
         observation: `Skill ${decision.skillName} 启用失败，原因：${reason}。请改用其他可用 Skill、可见 Tool 或转人工。`,
+        errorMessage: reason,
+      };
+    }
+  }
+
+  // 按需读取已启用Skill的references文件。
+  private async loadSkillReference(
+    decision: Extract<AgentDecision, { readonly type: 'skill_reference_call' }>,
+    enabledSkills: readonly SkillContent[],
+    loadedReferences: SkillReferenceContent[],
+    conversationMessages: AgentConversationMessage[],
+    traceId: string,
+    maxSkillReferences: number,
+  ): Promise<ToolExecutionResult> {
+    const enabledSkill = enabledSkills.find((skill) => skill.metadata.name === decision.skillName);
+    if (!enabledSkill) {
+      return {
+        toolName: `skill_reference_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill ${decision.skillName} 尚未启用，不能读取 references。请先通过 skill_call 启用该 Skill。`,
+        errorMessage: 'Skill未启用',
+      };
+    }
+
+    const referenceKey = `${decision.skillName}:${decision.referencePath}`;
+    if (
+      loadedReferences.some(
+        (reference) => `${reference.skill.name}:${reference.referencePath}` === referenceKey,
+      )
+    ) {
+      return {
+        toolName: `skill_reference_call:${decision.skillName}`,
+        success: true,
+        observation: `Skill ${decision.skillName} 的引用 ${decision.referencePath} 已读取，请直接使用现有引用观察。`,
+      };
+    }
+
+    if (loadedReferences.length >= maxSkillReferences) {
+      return {
+        toolName: `skill_reference_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill引用读取已达到本轮上限 ${maxSkillReferences}，请基于现有上下文决策。`,
+        errorMessage: 'Skill引用读取超限',
+      };
+    }
+
+    if (!this.skillReferenceLoader) {
+      return {
+        toolName: `skill_reference_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill ${decision.skillName} 当前无法读取 references，原因：Skill引用加载器未配置。`,
+        errorMessage: 'Skill引用加载器未配置',
+      };
+    }
+
+    try {
+      const reference = await this.skillReferenceLoader.loadSkillReference(
+        enabledSkill,
+        decision.referencePath,
+      );
+      loadedReferences.push(reference);
+      conversationMessages.push({ type: 'skill_reference', reference });
+      console.info(
+        `✅ [AgentRuntime-Harness-skillReference] Skill引用已注入 traceId=${traceId} skill=${decision.skillName} reference=${reference.referencePath} length=${reference.content.length}`,
+      );
+      return {
+        toolName: `skill_reference_call:${decision.skillName}`,
+        success: true,
+        observation: `Skill ${decision.skillName} 的引用 ${reference.referencePath} 已读取，并将在下一轮模型上下文中生效。`,
+      };
+    } catch (error) {
+      const reason = formatError(error);
+      console.warn(
+        `⚠️ [AgentRuntime-Harness-skillReference] Skill引用加载失败，已转为下一轮观察 skill=${decision.skillName} reference=${decision.referencePath} reason=${reason}`,
+      );
+      return {
+        toolName: `skill_reference_call:${decision.skillName}`,
+        success: false,
+        observation: `Skill ${decision.skillName} 的引用 ${decision.referencePath} 读取失败，原因：${reason}。`,
         errorMessage: reason,
       };
     }

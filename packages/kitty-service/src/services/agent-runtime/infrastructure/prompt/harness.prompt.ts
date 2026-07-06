@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import type { AgentObservation } from '../../domain/agent-observation';
 import type { RuntimeTool } from '../../domain/tool';
 import { buildBaseAgentPrompt } from './base-agent.prompt';
-import { buildAvailableSkillCatalogPrompt, buildEnabledSkillPrompt } from './skill.prompt';
+import { renderConversationMessages } from './conversation-renderer';
 
 const promptDirectory = dirname(fileURLToPath(import.meta.url));
 const harnessRuntimePromptPath = join(promptDirectory, 'markdown', 'harness-runtime.prompt.md');
@@ -35,8 +35,6 @@ export function composeHarnessPrompt(
     instructions: [
       buildBaseAgentPrompt(agentName),
       buildHarnessRuntimePrompt(),
-      buildAvailableSkillCatalogPrompt(observation.availableSkills),
-      buildEnabledSkillPrompt(observation.enabledSkills),
       buildToolPrompt(observation.tools),
     ]
       .filter(Boolean)
@@ -74,33 +72,9 @@ function buildToolPrompt(tools: readonly RuntimeTool[]): string {
 
 // 构建本轮观察。
 function buildObservationPrompt(observation: AgentObservation): string {
-  const event = observation.event;
   return [
     `当前轮次：${observation.turnIndex}/${observation.maxTurns}`,
     `已调用工具次数：${observation.toolCallCount}/${observation.maxToolCalls}`,
-    `平台：QQ`,
-    `会话类型：${event.conversationType === 'group' ? '群聊' : '私聊'}`,
-    `会话ID：${event.conversationId}`,
-    `发送者QQ：${event.senderId}`,
-    `发送者昵称：${event.senderDisplayName ?? '未知'}`,
-    `用户消息文本：${event.message.text}`,
-    `消息接收时间：${event.receivedAt.toISOString()}`,
-    buildToolResultsPrompt(observation),
-  ].join('\n');
-}
-
-// 构建工具结果观察。
-function buildToolResultsPrompt(observation: AgentObservation): string {
-  if (observation.toolResults.length === 0) return '工具观察结果：暂无。';
-
-  return [
-    '工具观察结果：',
-    ...observation.toolResults.map((result, index) =>
-      [
-        `${index + 1}. 工具：${result.toolName}`,
-        `成功：${result.success ? '是' : '否'}`,
-        `观察：${result.observation}`,
-      ].join('\n'),
-    ),
+    renderConversationMessages(observation.conversationMessages),
   ].join('\n');
 }

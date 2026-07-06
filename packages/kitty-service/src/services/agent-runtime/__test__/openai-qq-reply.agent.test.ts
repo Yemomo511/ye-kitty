@@ -84,6 +84,24 @@ describe('parseAgentDecision', () => {
     });
   });
 
+  test('解析Skill引用调用决策', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'skill_reference_call',
+          skillName: 'chat-style',
+          referencePath: 'examples.md',
+          reason: '需要读取示例',
+        }),
+      ),
+    ).toEqual({
+      type: 'skill_reference_call',
+      skillName: 'chat-style',
+      referencePath: 'examples.md',
+      reason: '需要读取示例',
+    });
+  });
+
   test('过滤回复决策中的未知动作', () => {
     expect(
       parseAgentDecision(

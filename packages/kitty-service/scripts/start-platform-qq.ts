@@ -6,10 +6,11 @@ import {
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
 import {
   createQqReplyAgent,
+  DefaultSkillSelector,
+  FilesystemSkillReferenceLoader,
   FilesystemSkillMarket,
   loadQqReplyAgentConfig,
   MarkdownSkillContentLoader,
-  QqReplySkillSelector,
   QqReplyEventSubscriber,
   SkillRuntimeService,
 } from '../src/services/agent-runtime';
@@ -28,8 +29,9 @@ const skillMarket = new FilesystemSkillMarket(skillsRoot);
 const skillMetadataList = await skillMarket.listSkillMetadata();
 const skillRuntime = new SkillRuntimeService(
   skillMetadataList,
-  new QqReplySkillSelector(),
+  new DefaultSkillSelector(),
   new MarkdownSkillContentLoader(skillMetadataList),
+  new FilesystemSkillReferenceLoader(),
 );
 console.info(
   `✅ [AgentRuntime-SkillBootstrap] 已加载Skill元信息 count=${skillMetadataList.length}`,
