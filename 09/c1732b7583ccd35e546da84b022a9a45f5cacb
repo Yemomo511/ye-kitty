@@ -1,0 +1,42 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_8fa61f38ec177f::t_a5fe96689c0378 43-45,63,82-84,86,104,160-168,183-188,241
+design-docs/Task.md
+  s_8fa61f38ec177f::t_478c3a672b243c 17-19,51
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_8fa61f38ec177f::t_81678f9e55ef4d 106-153
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_8fa61f38ec177f::t_d0c38a4caa4b5f 69-86
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_8fa61f38ec177f::t_965ace56f2eb79 80,82,84
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_8fa61f38ec177f::t_28d23dcf6bdd42 83-87,208-236
+packages/kitty-service/src/services/agent-runtime/domain/agent-decision.ts
+  s_8fa61f38ec177f::t_eb665d81b714ae 19-28,59-62
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-harness-agent-runner.ts
+  s_8fa61f38ec177f::t_d968f2ed8ae5a4 88-98
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  s_8fa61f38ec177f::t_aa0b37a1d14ca8 3-7,18,23,27,29,31-32,35-36,39-40,44-47,50-51,55-56,60-63,69,73-84,95,101,107
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "09c1732b7583ccd35e546da84b022a9a45f5cacb",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_8fa61f38ec177f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3578-4653-7860-94ff-94cdb83249e5",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
