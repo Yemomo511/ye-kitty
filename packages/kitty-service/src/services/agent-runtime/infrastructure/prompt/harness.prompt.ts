@@ -1,7 +1,13 @@
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { AgentObservation } from '../../domain/agent-observation';
 import type { RuntimeTool } from '../../domain/tool';
 import { buildBaseAgentPrompt } from './base-agent.prompt';
 import { buildSkillPrompt } from './skill.prompt';
+
+const promptDirectory = dirname(fileURLToPath(import.meta.url));
+const harnessRuntimePromptPath = join(promptDirectory, 'markdown', 'harness-runtime.prompt.md');
 
 /**
  * Harness Prompt
@@ -40,18 +46,12 @@ export function composeHarnessPrompt(
 
 // 构建Harness运行协议。
 function buildHarnessRuntimePrompt(): string {
-  return [
-    '你运行在 Ye-Kitty Harness 循环中。',
-    '你只能返回 JSON 决策，不要输出 Markdown、解释文字或代码块。',
-    '你不能直接执行工具，只能请求 tool_call，由 Harness 执行后把结果作为新观察交给你。',
-    '如果需要上下文，优先调用可见工具；如果信息足够，再输出 reply、ignore 或 human_review。',
-    'JSON 决策格式只能是以下四类之一：',
-    '{"type":"tool_call","toolName":"工具名","input":{},"reason":"调用原因"}',
-    '{"type":"reply","text":"回复文本","actions":[],"reason":"回复原因"}',
-    '{"type":"ignore","reason":"静默原因"}',
-    '{"type":"human_review","reason":"需要人工审核的原因"}',
-    'actions 仅允许 send_text、send_face、send_custom_image、poke_sender、react_to_message。',
-  ].join('\n');
+  return readMarkdownPrompt(harnessRuntimePromptPath);
+}
+
+// 读取Markdown Prompt资产，让前置约束从代码字符串中解耦。
+function readMarkdownPrompt(promptPath: string): string {
+  return readFileSync(promptPath, 'utf8').trim();
 }
 
 // 构建可见工具说明。

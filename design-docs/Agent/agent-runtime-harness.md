@@ -72,6 +72,18 @@ flowchart TD
 2. 权限在 Harness，不在 Prompt。Prompt 可以提醒模型，但不能作为安全边界；工具必须经过注册、权限判断和审计。
 3. 市场 Skill 是外部协议，运行时 Skill 是内部结构。磁盘格式对齐市场，执行权限由 Ye-Kitty 决定。
 
+### Prompt 三层治理
+
+MVP 的 Harness Prompt 采用三层描述，目标是让模型先理解输出协议，再理解 Skill 和 Tool 的用途，最后知道如何用 JSON 触发 Harness 行动。
+
+1. JSON 输出契约层：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON。
+2. Skill 与 Tool 定义层：说明 Skill 是已启用的能力说明，Tool 是获取新观察的能力；当缺少上下文、历史消息或事实信息时，应优先请求 `tool_call`。
+3. JSON 调用方式层：给出 `tool_call`、`reply`、`ignore`、`human_review` 的具体 JSON 模板，特别标明 `get_recent_messages` 的触发场景。
+
+这套分层参考 Codex 类 Harness 的思路：系统提示先说明 Agent 能力和工具边界，再由工具 schema 或协议约束具体调用。Ye-Kitty 当前 MVP 还没有动态 `invoke_skill` 决策，模型只能使用“本轮已启用 Skill”，并通过 `tool_call` 请求 Harness 执行工具。
+
+三层运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md`，代码只负责读取 Markdown 并与基础身份、Skill、Tool 和 Observation 拼接，避免前置约束长期内嵌在 TypeScript 字符串中。
+
 ## 关键实现
 
 ### 模块一：AgentRuntimeHarness
@@ -137,6 +149,7 @@ packages/kitty-service/src/services/agent-runtime/
   infrastructure/
     openai-harness-agent-runner.ts
     prompt/harness.prompt.ts
+    prompt/markdown/harness-runtime.prompt.md
 ```
 
 ## 数据与接口
