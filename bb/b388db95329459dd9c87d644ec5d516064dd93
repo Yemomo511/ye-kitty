@@ -1,0 +1,57 @@
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  h_b866b1ed626949 18,46-47
+  s_34002dabb41529::t_390f0bba34230b 45,60,73
+design-docs/Agent/agent-runtime-harness.md
+  s_34002dabb41529::t_0fa450c45ad374 39-40,43-44,83,86,109-110,165-166,235-240,244
+design-docs/Task.md
+  s_34002dabb41529::t_5c39c3ad74aec2 17-19,52
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_34002dabb41529::t_854b5a23961a76 43
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_34002dabb41529::t_d9cf0ac485db9b 14,107,109-130,132-134,136,138-139,143,145-148,161-309,359-362,369,378-392
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_34002dabb41529::t_643bcb2a09b87f 4-7,18,30,37-53,71,80-87,110-113,122-154
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_34002dabb41529::t_991a7b9505f7e9 67-68,118,121-124,145,152-154
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_34002dabb41529::t_9d526d3c952ab2 4,13,16-20,45,58,72-73,93,101,143,150,154-155,164-224,240
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_34002dabb41529::t_4d44032f20439a 2,31,34-37,56
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_34002dabb41529::t_ea7e93fe1a3a6e 56-57
+packages/kitty-service/src/services/agent-runtime/application/skill-runtime.service.ts
+  s_34002dabb41529::t_628aa366b77079 19,21,23-24,27-34
+packages/kitty-service/src/services/agent-runtime/domain/agent-observation.ts
+  s_34002dabb41529::t_ae88a7642ec02a 2,13-16
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  s_34002dabb41529::t_63091a26569366 7,38-39
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/skill.prompt.ts
+  s_34002dabb41529::t_2b8351b55211e4 1,4-6,8-29,33,46-54
+packages/kitty-service/src/services/agent-runtime/ports/agent-runtime-harness.port.ts
+  s_34002dabb41529::t_ac1eed900a9b7c 3,13-14
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_34002dabb41529::t_93c1c7ce1919e1 2,12,14-15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "bbb388db95329459dd9c87d644ec5d516064dd93",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_34002dabb41529": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36c8-43fa-72f2-ac68-fb6895bcedc7",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
