@@ -1,0 +1,23 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_8fa61f38ec177f::t_6c1cffc3e27294 1,3,5,7,9,11-247,250-256,259,261,263-270,272-279,281,283,285-290,292-303,306-308,311,313-322,324-328,332-355,357-363,365,367-372,374,376-379,381,383-388,390,392-394
+design-docs/Task.md
+  s_8fa61f38ec177f::t_327b0428cf9d5d 1-47
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "5a24811ff3976cac4cd78a8831aa43f12e1922e5",
+  "prompts": {},
+  "sessions": {
+    "s_8fa61f38ec177f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3578-4653-7860-94ff-94cdb83249e5",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
