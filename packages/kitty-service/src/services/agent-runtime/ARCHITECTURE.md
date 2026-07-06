@@ -1,6 +1,7 @@
 ## Agent 架构
 
 ### Harness 架构铁律
+
 整个 Harness 的核心是在 Agent的循环过程中，万物均需要被结构化!!!
 
 - 铁律1: **一切对Agent的Harness上下文约束，都应该有对应的结构体对象和Prompt**。整套程序对于 LLM 大模型 Harness Prompt治理都应该拥有一种从`结构体对象` -> `Prompt文本/JSON结构`的映射关系。例如 SKILL，程序应该拥有一个SKILL的定义对象和列表结构，并能够讲这种列表结构以`Markdown Prompt` 的形式告诉 LLM 支持的 SKILL 列表。
