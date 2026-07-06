@@ -1,0 +1,18 @@
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  h_b866b1ed626949 1-8
+skills/qq-chat/SKILL.md
+  h_b866b1ed626949 19
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "d849079adfaf6690f2adae24dff43e3483f60369",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
