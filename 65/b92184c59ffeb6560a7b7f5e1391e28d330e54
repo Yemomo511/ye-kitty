@@ -1,0 +1,34 @@
+.codex/skills/design-docs-governance/SKILL.md
+  s_5d6e5f05d19ca9::t_d1a42f0c8f66fa 1-64
+.codex/skills/design-docs-governance/agents/openai.yaml
+  s_5d6e5f05d19ca9::t_d51d6ac9d65020 1-4
+.codex/skills/design-docs-governance/references/design-doc-template.md
+  s_5d6e5f05d19ca9::t_7fcd0d57f61555 1-100
+.codex/skills/design-docs-governance/references/status-rules.md
+  s_5d6e5f05d19ca9::t_00ce3343d03752 1-42
+.codex/skills/design-docs-governance/references/task-template.md
+  s_5d6e5f05d19ca9::t_abf6c95456f77c 1-60
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "65b92184c59ffeb6560a7b7f5e1391e28d330e54",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_5d6e5f05d19ca9": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3617-8b72-7680-80f9-9808c313f520",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
