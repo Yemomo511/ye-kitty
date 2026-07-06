@@ -1,6 +1,6 @@
 ---
 name: qq-chat
-description: 用于 QQ 群聊和私聊中的自然中文回复。
+description: 用于 QQ 群聊和私聊中的自然中文回复。当你回复QQ的消息时，务必查看。
 ---
 
 # QQ中文聊天
