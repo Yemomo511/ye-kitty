@@ -74,6 +74,23 @@ export class QqReplyActionExecutor {
         return;
       }
 
+      if (action.type === 'send_market_face') {
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments: [
+            {
+              type: 'mface',
+              emojiPackageId: action.emojiPackageId,
+              emojiId: action.emojiId,
+              key: action.key,
+              summary: action.summary,
+            },
+          ],
+        });
+        return;
+      }
+
       if (action.type === 'poke_sender') {
         await this.botClient.sendPoke({
           conversationExternalId,

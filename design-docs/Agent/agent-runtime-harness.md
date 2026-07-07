@@ -191,6 +191,7 @@ packages/kitty-service/src/services/agent-runtime/
 | `RuntimeTool`                  | 输入 | Harness 暴露给 Runner 的工具描述，不包含直接执行权。                |
 | `PermissionDecision`           | 输出 | 权限策略返回 `allow`、`deny` 或 `human_review`。                    |
 | `ToolExecutionResult`          | 输出 | 工具执行结果，供 RunTrace 和下一轮 Observation 使用。               |
+| `QqReplyAction`                | 输出 | `reply.actions` 中的 QQ 受控回复动作，由订阅器绑定当前会话后执行。  |
 
 推荐端口：
 
@@ -272,6 +273,23 @@ SKILL.md frontmatter
 ```
 
 `allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`，并允许模型通过 `skill_call` 请求 Harness 启用某个本轮可见 Skill；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入第二章 `2.1 Skill Prompt`，并被渲染为 `<skill_document>` 结构化文档。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入第二章 `<skill_reference_document>`。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
+
+## QQ受控回复动作
+
+QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/src/services/agent-runtime/domain/qq-reply-action.ts`。模型只能在 `reply.actions` 中声明项目允许的动作，不能指定任意群、任意好友、任意消息或任意 NapCat action；`QqReplyActionExecutor` 会把动作绑定到当前收到的 QQ 消息上下文，再交给 `QqBotClientPort`。
+
+当前允许的 QQ 回复动作：
+
+| 动作                | 平台消息段或动作         | 说明                                                                               |
+| ------------------- | ------------------------ | ---------------------------------------------------------------------------------- |
+| `send_text`         | `text`                   | 发送一段补充文本。                                                                 |
+| `send_face`         | `face`                   | 发送 QQ 内置表情，字段是 `faceId`。                                                |
+| `send_custom_image` | `image`                  | 发送图片文件、URL 或 NapCat 可识别资源。                                           |
+| `send_market_face`  | `mface`                  | 发送 NapCat 商城表情，字段必须包含 `emojiPackageId`、`emojiId`、`key`、`summary`。 |
+| `poke_sender`       | `group_poke/friend_poke` | 只戳当前消息发送者。                                                               |
+| `react_to_message`  | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                   |
+
+NapCat 源码中 `mface` 对应 OneBot 商城表情消息段，发送时会转换为内部 `marketFaceElement`。因此 Ye-Kitty 不把它当作普通图片表情，也不暴露 `fetch_custom_face`、`add_custom_face` 等收藏管理接口；Agent 只能在已经知道完整 `mface` 元数据时发送。
 
 ## 工具体系
 
@@ -394,7 +412,7 @@ QqReplyEventSubscriber
 ## 测试方案
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
-- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退。
+- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖 NapCat `mface` 商城表情消息段映射。
 - Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取和路径逃逸拒绝。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
@@ -424,3 +442,4 @@ QqReplyEventSubscriber
 | 2026-07-06 | 待验收 | MVP 已实现 Harness 主循环、OpenAI Harness Runner、进程内 `get_recent_messages`、Prompt 分层治理和 Skill 扩展字段。  |
 | 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 进入 Observation/Input。             |
 | 2026-07-07 | 待验收 | 完成 Prompt 三章治理：Skill Prompt 与 Tool Prompt 抽离到第二章 Outside Context，并引入结构化 Skill 文档。           |
+| 2026-07-07 | 待验收 | 扩展 QQ 受控回复动作，新增 NapCat `mface` 商城表情发送能力，并补充解析、执行和 OneBot 映射测试。                    |

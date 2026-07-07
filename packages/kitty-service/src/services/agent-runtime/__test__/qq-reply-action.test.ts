@@ -12,7 +12,7 @@ import { parseQqReplyAction } from '../domain/qq-reply-action';
 import type { QqReplyAction } from '../ports/qq-reply-agent.port';
 
 describe('parseQqReplyAction', () => {
-  test('解析首版5类QQ动作', () => {
+  test('解析6类QQ动作', () => {
     expect(parseQqReplyAction({ type: 'send_text', text: '  你好喵~  ' })).toEqual({
       type: 'send_text',
       text: '你好喵~',
@@ -24,6 +24,21 @@ describe('parseQqReplyAction', () => {
     expect(parseQqReplyAction({ type: 'send_custom_image', file: ' cat.png ' })).toEqual({
       type: 'send_custom_image',
       file: 'cat.png',
+    });
+    expect(
+      parseQqReplyAction({
+        type: 'send_market_face',
+        emojiPackageId: ' 123 ',
+        emojiId: 'abc123',
+        key: 'market-key',
+        summary: '摸摸头',
+      }),
+    ).toEqual({
+      type: 'send_market_face',
+      emojiPackageId: 123,
+      emojiId: 'abc123',
+      key: 'market-key',
+      summary: '摸摸头',
     });
     expect(parseQqReplyAction({ type: 'poke_sender' })).toEqual({ type: 'poke_sender' });
     expect(parseQqReplyAction({ type: 'react_to_message', emojiId: ' 128512 ' })).toEqual({
@@ -37,11 +52,20 @@ describe('parseQqReplyAction', () => {
     expect(parseQqReplyAction({ type: 'mention_sender', text: '不允许' })).toBeUndefined();
     expect(parseQqReplyAction({ type: 'send_text', text: '   ' })).toBeUndefined();
     expect(parseQqReplyAction({ type: 'send_face', faceId: '66\n77' })).toBeUndefined();
+    expect(
+      parseQqReplyAction({
+        type: 'send_market_face',
+        emojiPackageId: 0,
+        emojiId: 'abc123',
+        key: 'market-key',
+        summary: '摸摸头',
+      }),
+    ).toBeUndefined();
   });
 });
 
 describe('QqReplyActionExecutor', () => {
-  test('将5类动作映射为QQ发送端口输入', async () => {
+  test('将6类动作映射为QQ发送端口输入', async () => {
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
     const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
     const pokes: Array<Parameters<QqBotClientPort['sendPoke']>[0]> = [];
@@ -53,6 +77,13 @@ describe('QqReplyActionExecutor', () => {
     await executor.executeReply(createChatEvent(), '主回复喵~', [
       { type: 'send_face', faceId: '66' },
       { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+      {
+        type: 'send_market_face',
+        emojiPackageId: 123,
+        emojiId: 'abc123',
+        key: 'market-key',
+        summary: '摸摸头',
+      },
       { type: 'poke_sender' },
       { type: 'react_to_message', emojiId: '128512' },
     ]);
@@ -74,6 +105,19 @@ describe('QqReplyActionExecutor', () => {
         conversationExternalId: '123456',
         conversationType: 'group',
         segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          {
+            type: 'mface',
+            emojiPackageId: 123,
+            emojiId: 'abc123',
+            key: 'market-key',
+            summary: '摸摸头',
+          },
+        ],
       },
     ]);
     expect(pokes).toEqual([

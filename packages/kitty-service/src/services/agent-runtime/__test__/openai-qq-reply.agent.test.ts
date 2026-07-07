@@ -14,6 +14,13 @@ describe('parseQqReplyAgentResult', () => {
         actions: [
           { type: 'send_face', faceId: '66' },
           { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+          {
+            type: 'send_market_face',
+            emojiPackageId: 123,
+            emojiId: 'abc123',
+            key: 'market-key',
+            summary: '摸摸头',
+          },
           { type: 'poke_sender' },
           { type: 'react_to_message', emojiId: '128512' },
         ],
@@ -25,6 +32,13 @@ describe('parseQqReplyAgentResult', () => {
       actions: [
         { type: 'send_face', faceId: '66' },
         { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+        {
+          type: 'send_market_face',
+          emojiPackageId: 123,
+          emojiId: 'abc123',
+          key: 'market-key',
+          summary: '摸摸头',
+        },
         { type: 'poke_sender' },
         { type: 'react_to_message', emojiId: '128512' },
       ],

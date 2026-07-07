@@ -21,6 +21,15 @@ type OneBotSendMessageSegment =
       readonly data: { readonly id: string };
     }
   | {
+      readonly type: 'mface';
+      readonly data: {
+        readonly emoji_package_id: number;
+        readonly emoji_id: string;
+        readonly key: string;
+        readonly summary: string;
+      };
+    }
+  | {
       readonly type: 'image';
       readonly data: { readonly file: string };
     };
@@ -139,6 +148,18 @@ function toOneBotMessageSegment(segment: QqOutboundMessageSegment): OneBotSendMe
 
   if (segment.type === 'face') {
     return { type: 'face', data: { id: segment.id } };
+  }
+
+  if (segment.type === 'mface') {
+    return {
+      type: 'mface',
+      data: {
+        emoji_package_id: segment.emojiPackageId,
+        emoji_id: segment.emojiId,
+        key: segment.key,
+        summary: segment.summary,
+      },
+    };
   }
 
   return { type: 'image', data: { file: segment.file } };

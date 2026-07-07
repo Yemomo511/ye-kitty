@@ -54,7 +54,7 @@ describe('OneBotQqBotClient', () => {
     });
   });
 
-  test('发送表情和图片消息段时生成受控消息段动作', async () => {
+  test('发送表情、商城表情和图片消息段时生成受控消息段动作', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {
       async sendAction(action: OneBotV11ActionRequest) {
@@ -68,6 +68,13 @@ describe('OneBotQqBotClient', () => {
       conversationType: 'group',
       segments: [
         { type: 'face', id: '66' },
+        {
+          type: 'mface',
+          emojiPackageId: 123,
+          emojiId: 'abc123',
+          key: 'market-key',
+          summary: '摸摸头',
+        },
         { type: 'image', file: 'https://example.com/cat.png' },
       ],
     });
@@ -78,6 +85,15 @@ describe('OneBotQqBotClient', () => {
         group_id: '123456',
         message: [
           { type: 'face', data: { id: '66' } },
+          {
+            type: 'mface',
+            data: {
+              emoji_package_id: 123,
+              emoji_id: 'abc123',
+              key: 'market-key',
+              summary: '摸摸头',
+            },
+          },
           { type: 'image', data: { file: 'https://example.com/cat.png' } },
         ],
       },

@@ -24,6 +24,18 @@ export type QqReplyAction =
     }
   | {
       /** 动作类型 */
+      readonly type: 'send_market_face';
+      /** QQ商城表情包ID */
+      readonly emojiPackageId: number;
+      /** QQ商城表情ID */
+      readonly emojiId: string;
+      /** QQ商城表情key */
+      readonly key: string;
+      /** 表情摘要 */
+      readonly summary: string;
+    }
+  | {
+      /** 动作类型 */
       readonly type: 'poke_sender';
     }
   | {
@@ -56,6 +68,16 @@ export function parseQqReplyAction(input: unknown): QqReplyAction | undefined {
     return file ? { type: 'send_custom_image', file } : undefined;
   }
 
+  if (input.type === 'send_market_face') {
+    const emojiPackageId = normalizePositiveInteger(input.emojiPackageId);
+    const emojiId = normalizeToken(input.emojiId);
+    const key = normalizeToken(input.key);
+    const summary = normalizeText(input.summary);
+    return emojiPackageId && emojiId && key && summary
+      ? { type: 'send_market_face', emojiPackageId, emojiId, key, summary }
+      : undefined;
+  }
+
   if (input.type === 'poke_sender') {
     return { type: 'poke_sender' };
   }
@@ -82,6 +104,14 @@ function normalizeToken(value: unknown): string | undefined {
   const text = value.trim();
   if (!text || hasControlCharacter(text)) return undefined;
   return text;
+}
+
+// NapCat的商城表情包ID是数字，Agent 可以用字符串或数字表达。
+function normalizePositiveInteger(value: unknown): number | undefined {
+  const numberValue = typeof value === 'string' ? Number(value.trim()) : value;
+  if (typeof numberValue !== 'number') return undefined;
+  if (!Number.isSafeInteger(numberValue) || numberValue <= 0) return undefined;
+  return numberValue;
 }
 
 // 资源字段保留URL、文件名或NapCat资源标识，不在Agent层解释协议。
