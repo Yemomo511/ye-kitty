@@ -32,6 +32,7 @@ const skillPromptSafety = {
  * @returns 可注入第二章节的Skill文档
  */
 export function createSkillPromptDocument(skill: SkillContent): SkillPromptDocument {
+  const references = listSkillReferenceIndexes(skill.metadata.rootPath);
   return {
     type: 'skill_document',
     schemaVersion: SKILL_PROMPT_DOCUMENT_SCHEMA_VERSION,
@@ -46,7 +47,15 @@ export function createSkillPromptDocument(skill: SkillContent): SkillPromptDocum
     priority: 'observation',
     safety: skillPromptSafety,
     sections: parseSkillPromptSections(skill.metadata.name, skill.body),
-    references: listSkillReferenceIndexes(skill.metadata.rootPath),
+    references,
+    referenceAccess: {
+      type: 'skill_reference_call',
+      trigger:
+        '<skill_document> 可能引用 references/ 下的具体文件；当你认为任何时候有需要读取 reference 文件时，使用 skill_reference_call。',
+      constraint:
+        '只能请求当前已启用 Skill 的 references 索引内文件；不得猜测未出现在 references[].path 中的路径。',
+      references,
+    },
     rawBody: skill.body,
   };
 }
@@ -92,6 +101,7 @@ export function buildSkillPrompt(messages: readonly AgentConversationMessage[]):
 
   return [
     '## 2.1 Skill Prompt',
+    '阅读规则：<skill_document> 可能引用 references/ 下的具体文件。当你认为任何时候有需要读取 reference 文件时，返回 `skill_reference_call`，并使用结构头 `referenceAccess.references[].path` 或 `references[].path` 中列出的路径。',
     buildAvailableSkillCatalogPrompt(catalogMessages.flatMap((message) => message.skills)),
     ...documents.map(renderSkillPromptDocument),
     ...references.map(renderSkillReferencePromptDocument),
@@ -159,6 +169,7 @@ function renderSkillPromptDocument(document: SkillPromptDocument): string {
           level: section.level,
         })),
         references: document.references,
+        referenceAccess: document.referenceAccess,
       },
       null,
       2,

@@ -82,6 +82,20 @@ describe('Agent Runtime Prompt组织', () => {
         extension: '.md',
       },
     ]);
+    expect(document.referenceAccess).toEqual({
+      type: 'skill_reference_call',
+      trigger:
+        '<skill_document> 可能引用 references/ 下的具体文件；当你认为任何时候有需要读取 reference 文件时，使用 skill_reference_call。',
+      constraint:
+        '只能请求当前已启用 Skill 的 references 索引内文件；不得猜测未出现在 references[].path 中的路径。',
+      references: [
+        {
+          path: 'examples.md',
+          readable: true,
+          extension: '.md',
+        },
+      ],
+    });
   });
 
   test('无标题Skill正文生成默认小节', () => {
@@ -196,13 +210,17 @@ describe('Agent Runtime Prompt组织', () => {
 
   test('Harness Prompt在Skill启用后仅在观察中包含正文', () => {
     const event = createChatEvent();
+    const rootPath = join(tmpdir(), `harness-skill-doc-${Date.now()}`);
+    mkdirSync(join(rootPath, 'references'), { recursive: true });
+    writeFileSync(join(rootPath, 'references', 'examples.md'), '参考正文不应提前读取。');
+
     const prompt = composeHarnessPrompt('叶猫猫', {
       event,
       availableSkills: [
         {
           name: 'qq-chat',
           description: '用于 QQ 回复',
-          rootPath: '/tmp/skills/qq-chat',
+          rootPath,
         },
       ],
       enabledSkills: [
@@ -210,7 +228,7 @@ describe('Agent Runtime Prompt组织', () => {
           metadata: {
             name: 'qq-chat',
             description: '用于 QQ 回复',
-            rootPath: '/tmp/skills/qq-chat',
+            rootPath,
           },
           body: '群聊回复短一点。',
         },
@@ -235,7 +253,7 @@ describe('Agent Runtime Prompt组织', () => {
             metadata: {
               name: 'qq-chat',
               description: '用于 QQ 回复',
-              rootPath: '/tmp/skills/qq-chat',
+              rootPath,
             },
             body: '群聊回复短一点。',
           },
@@ -255,8 +273,15 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.input).toContain('<skill_document name="qq-chat"');
     expect(prompt.input).toContain('"schemaVersion": "ye-kitty.skill.prompt.v1"');
     expect(prompt.input).toContain('skill:qq-chat#body');
+    expect(prompt.input).toContain(
+      '当你认为任何时候有需要读取 reference 文件时，返回 `skill_reference_call`',
+    );
+    expect(prompt.input).toContain('"referenceAccess"');
+    expect(prompt.input).toContain('"type": "skill_reference_call"');
+    expect(prompt.input).toContain('"path": "examples.md"');
     expect(prompt.input).toContain('<skill_body format="markdown">');
     expect(prompt.input).toContain('群聊回复短一点。');
+    expect(prompt.input).not.toContain('参考正文不应提前读取。');
   });
 
   test('Harness Prompt在reference读取后注入结构化引用文档', () => {

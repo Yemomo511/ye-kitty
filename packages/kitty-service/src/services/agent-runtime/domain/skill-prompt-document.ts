@@ -40,6 +40,18 @@ export interface SkillReferenceIndex {
   readonly extension: '.md' | '.txt' | '.json';
 }
 
+/** Skill引用读取入口 */
+export interface SkillReferenceAccess {
+  /** 读取入口类型 */
+  readonly type: 'skill_reference_call';
+  /** 触发条件 */
+  readonly trigger: string;
+  /** 读取约束 */
+  readonly constraint: string;
+  /** 可读取文件索引 */
+  readonly references: readonly SkillReferenceIndex[];
+}
+
 /** Skill结构化Prompt文档 */
 export interface SkillPromptDocument {
   /** 文档类型 */
@@ -68,6 +80,8 @@ export interface SkillPromptDocument {
   readonly sections: readonly SkillPromptSection[];
   /** 可按需读取的引用索引 */
   readonly references: readonly SkillReferenceIndex[];
+  /** 引用读取入口 */
+  readonly referenceAccess: SkillReferenceAccess;
   /** Markdown原文 */
   readonly rawBody: string;
 }
