@@ -1,0 +1,28 @@
+packages/kitty-service/src/platforms/qq/__test__/onebot-qq-bot.client.test.ts
+  s_da7b8663ffdeb8::t_c8e496f923febc 148-183
+packages/kitty-service/src/platforms/qq/infrastructure/api/onebot-ws-external-action.api.ts
+  s_da7b8663ffdeb8::t_840499b307ad24 226-237,248,255-259
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "11b200bc08e6a14b3aac7d6db76baeb8ce8c3dd3",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_da7b8663ffdeb8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c7c-4608-7010-b8ff-bc10f5eddc79",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
