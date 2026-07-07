@@ -1,0 +1,28 @@
+packages/kitty-service/src/services/agent-runtime/__test__/custom-face-catalog.test.ts
+  s_da7b8663ffdeb8::t_7394ae3b042f7a 97-126
+packages/kitty-service/src/services/agent-runtime/application/runtime-tools.ts
+  s_da7b8663ffdeb8::t_ace6ba79832a31 119-131,136,173,178
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d56add0388aa2d7f168d0fad5bbbaeb71863b59d",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_da7b8663ffdeb8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c7c-4608-7010-b8ff-bc10f5eddc79",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
