@@ -31,19 +31,19 @@ description: 用于 QQ 群聊和私聊中的自然中文回复。当你回复QQ�
 
 回复应像真实 QQ 聊天一样自然，优先回应用户当前表达的情绪、问题或意图。
 
-当只需要文字时，直接输出 `reply.text`。不要把同一句话同时写进 `reply.text` 和 `actions[].send_text`，否则会形成重复回复。当文字中需要夹 QQ 内置表情时，不要先输出文字再单独 `send_face`，应使用 `send_text_with_face` 让文字和表情出现在同一条 QQ 消息里。当准备戳一戳时，只输出 `poke_sender` 动作，不要再输出任何 `text` 或其他发送动作。
+当只需要文字时，可以直接输出 `reply.text`。如果需要在一条 QQ 消息里混排文字、@、QQ 内置表情、商城表情、自定义表情、图片、回复引用或合并转发，应优先使用统一 `send_msg` 动作，把所有 OneBot 11 消息段放进同一个 `message` 数组。当准备戳一戳时，只输出 `poke_sender` 动作，不要再输出任何 `text` 或其他发送动作。
 
-当需要使用 QQ 互动能力时，只能在最终 `reply.actions` 中输出以下受控动作：
+当需要使用 QQ 互动能力时，只能在最终 `reply.actions` 中输出 Harness 允许的动作。普通消息发送统一使用 `send_msg`：
 
 ```json
 {
   "type": "reply",
   "actions": [
     {
-      "type": "send_text_with_face",
-      "segments": [
-        { "type": "text", "text": "好好好" },
-        { "type": "face", "faceId": "66" }
+      "type": "send_msg",
+      "message": [
+        { "type": "text", "data": { "text": "好好好 " } },
+        { "type": "face", "data": { "id": "66" } }
       ]
     }
   ],
@@ -51,7 +51,7 @@ description: 用于 QQ 群聊和私聊中的自然中文回复。当你回复QQ�
 }
 ```
 
-允许的动作只有 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image`、`send_market_face`、`poke_sender`、`react_to_message`。`send_face` 是 QQ 内置表情，`send_market_face` 是 NapCat `mface` 商城表情。不要输出 OneBot、NapCat、HTTP、curl 或任何原始平台 action。
+`send_msg` 只声明消息内容，不要填写 `group_id`、`user_id`、`message_type` 或任意 HTTP 地址；当前会话目标由 Harness 从 QQ 上下文补齐。合并转发 `node` 消息不能和普通消息段混发。`poke_sender` 仍然是独占动作，一旦使用，本轮不要再输出 `reply.text` 或 `send_msg`。`react_to_message` 只用于给当前触发消息添加轻量表情回应。不要输出 `send_group_msg`、`send_private_msg`、curl 或任何原始 HTTP 调用。
 
 如果你需要确认动作字段、示例或使用时机，先读取：
 

@@ -2,9 +2,9 @@
 
 ## 总原则
 
-QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，真正的会话、发送者和消息目标由 Agent Runtime 从当前 QQ 消息上下文补齐。
+QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，真正的群号、好友号、消息类型和发送者由 Agent Runtime 从当前 QQ 消息上下文补齐。
 
-禁止输出 OneBot、NapCat、HTTP、curl、群管理、删消息、踢人、改资料、退群、登录态操作或任意原始平台 action。
+普通消息发送统一使用 `send_msg`。不要输出 `send_group_msg`、`send_private_msg`、HTTP、curl、URL、token、群管理、删消息、踢人、改资料、退群、登录态操作或任意原始平台 action。
 
 ## 外层结构
 
@@ -18,69 +18,127 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 ```
 
 - `type` 必须是 `reply`。
-- `text` 可选；有文字回复时优先放在这里。
-- `actions` 可选；只放低风险 QQ 互动动作。
-- 不要把同一句话同时放进外层 `text` 和 `send_text` 动作。
+- `text` 可选；只需要纯文本时可以直接使用。
+- `actions` 可选；只放 Harness 允许执行的 QQ 动作。
+- 不要把同一句话同时放进外层 `text` 和 `send_msg.message`。
 - `reason` 必填，用于内部审计，不会发送给 QQ。
 
-## 允许动作
+## 统一消息动作
 
-### send_text
+### send_msg
 
-发送额外文本消息。通常优先使用外层 `text`，只有确实需要拆成多条消息时才使用。
-如果 `send_text.text` 和外层 `text` 一样，说明你输出了重复回复，应删除其中一个。
-
-```json
-{ "type": "send_text", "text": "补充一句喵~" }
-```
-
-### send_text_with_face
-
-发送一条同时包含文字和 QQ 内置表情的消息。文字和表情必须放在同一个 `segments` 数组里。
+`send_msg` 对应 NapCat 统一发送消息接口。Agent 只填写消息内容，不能填写会话目标。
 
 ```json
 {
-  "type": "send_text_with_face",
-  "segments": [
-    { "type": "text", "text": "好好好" },
-    { "type": "face", "faceId": "66" }
-  ]
+  "type": "send_msg",
+  "message": [
+    { "type": "at", "data": { "qq": "123456" } },
+    { "type": "text", "data": { "text": " 好好好 " } },
+    { "type": "face", "data": { "id": "66" } }
+  ],
+  "auto_escape": false
 }
 ```
 
-### send_face
+允许字段：
 
-单独发送 QQ 内置表情。通常如果表情要跟文字放在一起，优先使用 `send_text_with_face`。
+| 字段          | 类型                               | 说明                                                  |
+| ------------- | ---------------------------------- | ----------------------------------------------------- |
+| `type`        | `"send_msg"`                       | Harness 内部动作名。                                  |
+| `message`     | `string` / 单个消息段 / 消息段数组 | OneBot 11 消息混合类型。优先使用消息段数组。          |
+| `auto_escape` | `boolean` / `"true"` / `"false"`   | 只在 `message` 是字符串时生效，表示是否按纯文本发送。 |
+| `source`      | `string`                           | 合并转发来源，只用于 `node` 合并转发。                |
+| `news`        | `{ "text": string }[]`             | 合并转发新闻，只用于 `node` 合并转发。                |
+| `summary`     | `string`                           | 合并转发摘要，只用于 `node` 合并转发。                |
+| `prompt`      | `string`                           | 合并转发提示，只用于 `node` 合并转发。                |
+| `timeout`     | `number`                           | 自定义发送超时，单位毫秒。                            |
+
+禁止字段：
+
+| 字段                     | 原因                                               |
+| ------------------------ | -------------------------------------------------- |
+| `message_type`           | 由当前 QQ 会话决定，Agent 不能指定。               |
+| `group_id`               | 由当前 QQ 群聊上下文补齐，Agent 不能指定任意群。   |
+| `user_id`                | 由当前 QQ 私聊上下文补齐，Agent 不能指定任意好友。 |
+| `action`、`url`、`token` | 不能绕过 Harness 直接调用 NapCat。                 |
+
+## 消息段
+
+`send_msg.message` 可以包含 NapCat/OneBot 11 消息段。常用消息段如下：
 
 ```json
-{ "type": "send_face", "faceId": "66" }
+{ "type": "text", "data": { "text": "纯文本" } }
 ```
 
-### send_market_face
+```json
+{ "type": "at", "data": { "qq": "123456" } }
+```
 
-发送 NapCat `mface` 商城表情。必须已经知道完整商城表情元数据，不能编造。
+```json
+{ "type": "face", "data": { "id": "66" } }
+```
 
 ```json
 {
-  "type": "send_market_face",
-  "emojiPackageId": 123,
-  "emojiId": "abc123",
-  "key": "market-key",
-  "summary": "摸摸头"
+  "type": "mface",
+  "data": {
+    "emoji_package_id": 123,
+    "emoji_id": "abc",
+    "key": "market-key",
+    "summary": "摸摸头"
+  }
 }
 ```
 
-### send_custom_image
-
-发送图片或自定义表情。`file` 只能是已知安全图片 URL、文件或 NapCat 可识别资源。
+```json
+{ "type": "image", "data": { "file": "https://example.com/cat.png" } }
+```
 
 ```json
-{ "type": "send_custom_image", "file": "https://example.com/cat.png" }
+{ "type": "reply", "data": { "id": "12345" } }
 ```
+
+```json
+{ "type": "dice", "data": { "result": 1 } }
+```
+
+```json
+{ "type": "rps", "data": { "result": 1 } }
+```
+
+```json
+{ "type": "json", "data": { "data": "{\"app\":\"com.tencent.structmsg\"}" } }
+```
+
+NapCat schema 还声明了 `record`、`video`、`file`、`music`、`markdown`、`node`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。生成这些段时必须保证字段完整且来自当前上下文或已知资料，不要编造文件、商城表情 key、转发 ID 或 JSON 卡片。
+
+## 合并转发
+
+合并转发使用 `node` 消息段。只要 `message` 中出现 `node`，整条 `message` 必须全部都是 `node`，不能混入 `text`、`at`、`image` 等普通消息段。
+
+```json
+{
+  "type": "send_msg",
+  "message": [
+    {
+      "type": "node",
+      "data": {
+        "user_id": "123456",
+        "nickname": "叶猫猫",
+        "content": [{ "type": "text", "data": { "text": "第一条" } }]
+      }
+    }
+  ],
+  "summary": "聊天记录"
+}
+```
+
+## 其他动作
 
 ### poke_sender
 
-戳一戳当前消息发送者。不能指定其他用户。准备戳一戳时不要填写外层 `text`，也不要再追加 `send_text`、`send_face`、`send_text_with_face` 等发送动作。
+戳一戳当前消息发送者。不能指定其他用户。准备戳一戳时不要填写外层 `text`，也不要再追加 `send_msg`。
 
 ```json
 { "type": "poke_sender" }
@@ -94,6 +152,16 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 { "type": "react_to_message", "emojiId": "128512" }
 ```
 
+## Harness接入过程
+
+1. 模型在 Harness 循环中输出 `reply.actions[].send_msg`。
+2. `parseQqReplyAction` 只识别 `send_msg`、`poke_sender`、`react_to_message` 等 Harness 动作名，不识别原始 NapCat action。
+3. 解析层保留 `send_msg.message` 的 OneBot 11 段结构，同时过滤空消息、非法控制字段和会话目标字段。
+4. `QqReplyActionExecutor` 从当前 QQ 事件补齐 `message_type` 和当前会话 ID。
+5. `QqBotClientPort` 只暴露统一 `sendMessage`，不再为文字、图片、表情维护多套发送入口。
+6. `OneBotWsExternalActionApi` 根据当前会话调用 NapCat `send_msg`，群聊补 `message_type: "group"` 和当前 `group_id`，私聊补 `message_type: "private"` 和当前 `user_id`。
+7. 运行记录保存模型原始动作、补齐后的 NapCat 参数摘要、发送结果和错误，便于排查。
+
 ## 正例
 
 ```json
@@ -101,14 +169,14 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
   "type": "reply",
   "actions": [
     {
-      "type": "send_text_with_face",
-      "segments": [
-        { "type": "text", "text": "好呀，我知道了喵~" },
-        { "type": "face", "faceId": "66" }
+      "type": "send_msg",
+      "message": [
+        { "type": "text", "data": { "text": "好呀 " } },
+        { "type": "face", "data": { "id": "66" } }
       ]
     }
   ],
-  "reason": "用户轻松互动，可以用表情补充语气"
+  "reason": "用户轻松互动，可以用同一条消息混排文字和表情"
 }
 ```
 
@@ -125,8 +193,14 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 ```json
 {
   "type": "reply",
-  "actions": [{ "type": "group_poke", "group_id": "123", "user_id": "456" }],
-  "reason": "错误：直接输出了 OneBot action"
+  "actions": [
+    {
+      "type": "send_group_msg",
+      "group_id": "123",
+      "message": "好"
+    }
+  ],
+  "reason": "错误：直接输出了原始 NapCat action"
 }
 ```
 
@@ -135,32 +209,36 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
   "type": "reply",
   "text": "戳你一下",
   "actions": [{ "type": "poke_sender" }],
-  "reason": "错误：戳一戳时不应再发送文字"
+  "reason": "错误：戳一戳时不要填写外层 `text`"
 }
 ```
 
 ```json
 {
   "type": "reply",
-  "text": "好好好",
-  "actions": [{ "type": "send_text", "text": "好好好" }],
-  "reason": "错误：同一句话同时出现在 text 和 send_text，会造成重复回复"
+  "actions": [
+    {
+      "type": "send_msg",
+      "group_id": "123",
+      "message": [{ "type": "text", "data": { "text": "好" } }]
+    }
+  ],
+  "reason": "错误：Agent 不能指定任意群号"
 }
 ```
 
 ```json
 {
   "type": "reply",
-  "text": "好呀，我知道了喵~",
-  "actions": [{ "type": "send_face", "faceId": "66" }],
-  "reason": "错误：QQ内置表情应和文字放在同一条消息时，应使用 send_text_with_face"
-}
-```
-
-```json
-{
-  "type": "reply",
-  "actions": [{ "type": "poke_sender", "userExternalId": "456" }],
-  "reason": "错误：poke_sender 不能指定任意用户"
+  "actions": [
+    {
+      "type": "send_msg",
+      "message": [
+        { "type": "node", "data": { "id": "123" } },
+        { "type": "text", "data": { "text": "混发" } }
+      ]
+    }
+  ],
+  "reason": "错误：node 合并转发不能和普通消息段混发"
 }
 ```

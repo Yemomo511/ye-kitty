@@ -12,13 +12,12 @@ describe('qq-chat Skill动作协议', () => {
 
     expect(content).toContain('references/qq-action-json.md');
     expect(content).toContain('references/qq-action-style.md');
-    expect(content).toContain('send_text');
-    expect(content).toContain('send_text_with_face');
+    expect(content).toContain('send_msg');
+    expect(content).toContain('message');
     expect(content).toContain('react_to_message');
     expect(content).toContain('当准备戳一戳时');
-    expect(content).not.toContain('send_face` 是 QQ 商城表情');
     expect(content).not.toContain('group_poke');
-    expect(content).not.toContain('send_group_msg');
+    expect(content).toContain('不要输出 `send_group_msg`');
   });
 
   test('动作协议references可以被渐进式读取', async () => {
@@ -39,11 +38,12 @@ describe('qq-chat Skill动作协议', () => {
     const styleReference = await loader.loadSkillReference(skill, 'qq-action-style.md');
 
     expect(jsonReference.content).toContain('poke_sender');
-    expect(jsonReference.content).toContain('send_text_with_face');
+    expect(jsonReference.content).toContain('send_msg');
+    expect(jsonReference.content).toContain('OneBot 11 消息混合类型');
     expect(jsonReference.content).toContain('戳一戳时不要填写外层 `text`');
-    expect(jsonReference.content).toContain('不能指定其他用户');
+    expect(jsonReference.content).toContain('Agent 不能指定任意群号');
     expect(styleReference.content).toContain('避免打断多人对话');
-    expect(styleReference.content).toContain('文字和 QQ 内置表情出现在同一条消息');
+    expect(styleReference.content).toContain('放在同一个 `message` 数组里');
     expect(styleReference.content).not.toContain('reply_to_message');
   });
 });

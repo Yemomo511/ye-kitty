@@ -282,19 +282,31 @@ QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/s
 
 执行层会对文本发送做兜底去重：当模型同时输出外层 `reply.text` 和同内容的 `send_text` 或 `send_text_with_face` 文本段时，只发送一次，避免群聊出现相同内容重复回复。
 
-当前允许的 QQ 回复动作：
+目标 QQ 回复动作：
 
-| 动作                  | 平台消息段或动作         | 说明                                                                                    |
-| --------------------- | ------------------------ | --------------------------------------------------------------------------------------- |
-| `send_text`           | `text`                   | 发送一段补充文本。                                                                      |
-| `send_text_with_face` | `text` + `face`          | 在同一条 QQ 消息中发送文本和内置表情，字段是 `segments[].text` 或 `segments[].faceId`。 |
-| `send_face`           | `face`                   | 单独发送 QQ 内置表情，字段是 `faceId`。                                                 |
-| `send_custom_image`   | `image`                  | 发送图片文件、URL 或 NapCat 可识别资源。                                                |
-| `send_market_face`    | `mface`                  | 发送 NapCat 商城表情，字段必须包含 `emojiPackageId`、`emojiId`、`key`、`summary`。      |
-| `poke_sender`         | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                    |
-| `react_to_message`    | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                        |
+| 动作               | 平台消息段或动作         | 说明                                                                                    |
+| ------------------ | ------------------------ | --------------------------------------------------------------------------------------- |
+| `send_msg`         | NapCat `send_msg`        | 统一发送普通 QQ 消息，`message` 使用 OneBot 11 混合消息结构，由执行层补齐当前会话目标。 |
+| `poke_sender`      | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                    |
+| `react_to_message` | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                        |
 
-NapCat 源码中 `mface` 对应 OneBot 商城表情消息段，发送时会转换为内部 `marketFaceElement`。因此 Ye-Kitty 不把它当作普通图片表情，也不暴露 `fetch_custom_face`、`add_custom_face` 等收藏管理接口；Agent 只能在已经知道完整 `mface` 元数据时发送。
+`send_msg` 设计为替代 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image` 和 `send_market_face` 的统一消息出口。模型只允许声明消息内容，不能声明 `message_type`、`group_id` 或 `user_id`；这些字段由 `QqReplyActionExecutor` 根据当前 `QqChatMessageEvent` 补齐。群聊补 `message_type: "group"` 和当前群号，私聊补 `message_type: "private"` 和当前好友号。
+
+NapCat WebUI `http://127.0.0.1:16099/webui/debug/http` 中 `send_msg` 调试页确认的参数为：`message_type`、`user_id`、`group_id`、`message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`。其中 Agent Harness 只接收 `message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`，目标字段由运行时补齐。
+
+`message` 使用 OneBot 11 消息混合类型，可为字符串、单个消息段或消息段数组。常用段包括 `text`、`at`、`face`、`mface`、`image`、`reply`、`record`、`video`、`file`、`music`、`json`、`markdown`、`node`、`forward`、`contact` 和 `location`。NapCat schema 还声明了 `xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段，但部分转换器当前返回空元素，执行层应记录参数摘要和发送失败原因，避免把失败误判为 Harness 成功。
+
+合并转发采用 `node` 消息段。只要 `message` 中出现 `node`，整条 `message` 必须全部是 `node`，不能和普通消息段混发；该约束来自 NapCat 的 `send_msg` 参数校验，解析层和测试都应覆盖。
+
+统一 `send_msg` 接入 Harness 的过程：
+
+1. `qq-chat` Skill 暴露 `send_msg` JSON 结构，禁止模型输出 `send_group_msg`、`send_private_msg` 或任意 HTTP 调用。
+2. `harness-runtime.prompt.md` 将 `reply.actions` 白名单调整为 `send_msg`、`poke_sender`、`react_to_message`。
+3. `parseQqReplyAction` 新增 `send_msg`，保留 OneBot 11 消息段结构，过滤空消息和会话目标字段。
+4. `QqReplyActionExecutor` 仍处理 `poke_sender` 独占；普通回复统一调用 `QqBotClientPort.sendMessage`。
+5. `QqBotClientPort` 和 `OneBotWsExternalActionApi` 合并文字、图片、内置表情、商城表情发送入口，最终统一发 NapCat `send_msg`。
+6. RunTrace 记录模型原始 `send_msg`、运行时补齐后的参数摘要、NapCat 响应和错误。
+7. 单元测试覆盖消息段透传、目标字段过滤、`node` 混发拒绝、戳一戳独占和旧动作兼容迁移。
 
 ## 工具体系
 
