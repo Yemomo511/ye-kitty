@@ -1,0 +1,71 @@
+skills/qq-chat/SKILL.md
+  h_b866b1ed626949 18,26,34,36,43-47,54
+  s_e32c650c8d47b6::t_4ba31f1e892a58 35,42,48
+design-docs/Agent/agent-runtime-harness.md
+  s_df47bbb949a32a::t_c98ed36d0987e8 281-282,285-293,418-419
+design-docs/Task.md
+  s_df47bbb949a32a::t_e460999c931781 56
+packages/kitty-service/eval/cases.ts
+  s_df47bbb949a32a::t_e50b00e50a55aa 80-81,83-85,131,178,192
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_df47bbb949a32a::t_f666b17f7405f1 47
+packages/kitty-service/src/platforms/qq/__test__/onebot-qq-bot.client.test.ts
+  s_df47bbb949a32a::t_444380c7c45996 57,70,88
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_df47bbb949a32a::t_a4ff2be507af0a 15-21,40-46
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_df47bbb949a32a::t_28f623a5002ad9 199-200
+packages/kitty-service/src/services/agent-runtime/__test__/qq-chat-skill.test.ts
+  s_df47bbb949a32a::t_53868a21923c71 16,18-19,42-43,46
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-action.test.ts
+  s_df47bbb949a32a::t_9692036cc62fbe 15,20-34,69-83,98,101,104-110,130-137,162-173,184-186,188-206,208,228,235,268,276
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_df47bbb949a32a::t_e03c42c61cb877 54,92-93,113-114,153,192-193,198-200,204,206-214,216-228,230-236,241-242,257,264-267,271-272,280-330,343-344,352,359,378,386
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-action-executor.ts
+  s_df47bbb949a32a::t_40a48331f85344 59-70,134-137
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_df47bbb949a32a::t_b49afbf1145c52 9-14,29,53-62,81,100-106
+packages/kitty-service/src/services/agent-runtime/domain/qq-reply-action.ts
+  s_df47bbb949a32a::t_ebd6294bf4c33a 13-18,22,54-68,82-86,119-150
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/conversation-renderer.ts
+  s_df47bbb949a32a::t_49cd212621d203 24
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md
+  s_df47bbb949a32a::t_7650f9260d5bdd 130
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/qq-reply.prompt.ts
+  s_df47bbb949a32a::t_e0ed8a2f3b3557 12-14
+skills/qq-chat/references/qq-action-json.md
+  s_df47bbb949a32a::t_6e73a5c69a851b 35-48,51,57-70,81,100-108,113-120,131-148
+skills/qq-chat/references/qq-action-style.md
+  s_df47bbb949a32a::t_91a2b75b427afc 11,13-14,21
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "6927baca792c9da1fbc2406034c33d4816856475",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_df47bbb949a32a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c1a-e06b-7332-b08a-9060ddcd14e7",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    },
+    "s_e32c650c8d47b6": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c21-c3bf-73e0-b6cf-b06fab22d149",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
