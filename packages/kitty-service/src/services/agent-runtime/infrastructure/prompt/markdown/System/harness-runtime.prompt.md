@@ -93,7 +93,7 @@ Tool 是你获取外界信息和请求受控操作的权威官方方式。每次
 {
   "type": "tool_call",
   "toolName": "example_context_tool",
-  "input": { "limit": 5 },
+  "input": {},
   "reason": "需要最近消息判断上下文"
 }
 ```

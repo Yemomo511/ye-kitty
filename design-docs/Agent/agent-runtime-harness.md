@@ -126,7 +126,7 @@ MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协
 
 - 入口：`packages/kitty-service/src/services/agent-runtime/ports/tool-registry.port.ts`、`packages/kitty-service/src/services/agent-runtime/ports/tool-executor.port.ts`、`packages/kitty-service/src/services/agent-runtime/application/runtime-tools.ts`
 - 职责：`ToolRegistry` 暴露工具元信息，`ToolExecutor` 执行经过授权的工具调用。
-- 重要细节：MVP 已实现 `get_recent_messages` 只读工具，输入支持 `{ limit?: number }`，默认 5，最大 10，输出转成中文 Observation。
+- 重要细节：MVP 已实现 `get_recent_messages` 只读工具，私聊固定读取最近 100 条消息，群聊固定读取最近 50 条消息，输出转成中文 Observation。
 - 边界：MCP、内置工具、长期记忆工具都只是工具来源，不能成为信任边界。
 
 ### 模块六：PermissionPolicy
