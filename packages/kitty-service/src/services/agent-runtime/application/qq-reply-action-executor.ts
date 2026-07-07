@@ -137,9 +137,41 @@ function normalizeReplyActions(
 
   const normalizedActions: QqReplyAction[] = [];
   const normalizedText = text?.trim();
-  if (normalizedText) normalizedActions.push({ type: 'send_text', text: normalizedText });
-  normalizedActions.push(...actions);
+  const actionTexts = new Set(actions.flatMap(readActionTextSegments));
+  const sentTexts = new Set<string>();
+
+  if (normalizedText && !actionTexts.has(normalizedText)) {
+    normalizedActions.push({ type: 'send_text', text: normalizedText });
+    sentTexts.add(normalizedText);
+  }
+
+  for (const action of actions) {
+    if (action.type === 'send_text') {
+      const actionText = action.text.trim();
+      if (sentTexts.has(actionText)) continue;
+      sentTexts.add(actionText);
+    }
+
+    for (const actionText of readActionTextSegments(action)) {
+      sentTexts.add(actionText);
+    }
+
+    normalizedActions.push(action);
+  }
+
   return normalizedActions;
+}
+
+// 提取动作中会直接发送到 QQ 的文本，用于防止 reply.text 和动作内容重复发送。
+function readActionTextSegments(action: QqReplyAction): readonly string[] {
+  if (action.type === 'send_text') return [action.text.trim()].filter(Boolean);
+  if (action.type === 'send_text_with_face') {
+    return action.segments
+      .filter((segment) => segment.type === 'text')
+      .map((segment) => segment.text.trim())
+      .filter(Boolean);
+  }
+  return [];
 }
 
 // 还原 OneBot 发送动作需要的平台会话ID。

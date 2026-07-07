@@ -280,6 +280,8 @@ QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/s
 
 群聊触发采用保守门禁：`QqReplyEventSubscriber` 只把明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息交给 Agent，未 @ 或只 @ 其他人的普通群聊直接跳过。私聊仍由 QQ 好友白名单控制，不要求 @。
 
+执行层会对文本发送做兜底去重：当模型同时输出外层 `reply.text` 和同内容的 `send_text` 或 `send_text_with_face` 文本段时，只发送一次，避免群聊出现相同内容重复回复。
+
 当前允许的 QQ 回复动作：
 
 | 动作                  | 平台消息段或动作         | 说明                                                                                    |

@@ -20,6 +20,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 - `type` 必须是 `reply`。
 - `text` 可选；有文字回复时优先放在这里。
 - `actions` 可选；只放低风险 QQ 互动动作。
+- 不要把同一句话同时放进外层 `text` 和 `send_text` 动作。
 - `reason` 必填，用于内部审计，不会发送给 QQ。
 
 ## 允许动作
@@ -27,6 +28,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 ### send_text
 
 发送额外文本消息。通常优先使用外层 `text`，只有确实需要拆成多条消息时才使用。
+如果 `send_text.text` 和外层 `text` 一样，说明你输出了重复回复，应删除其中一个。
 
 ```json
 { "type": "send_text", "text": "补充一句喵~" }
@@ -134,6 +136,15 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
   "text": "戳你一下",
   "actions": [{ "type": "poke_sender" }],
   "reason": "错误：戳一戳时不应再发送文字"
+}
+```
+
+```json
+{
+  "type": "reply",
+  "text": "好好好",
+  "actions": [{ "type": "send_text", "text": "好好好" }],
+  "reason": "错误：同一句话同时出现在 text 和 send_text，会造成重复回复"
 }
 ```
 

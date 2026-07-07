@@ -31,7 +31,7 @@ description: 用于 QQ 群聊和私聊中的自然中文回复。当你回复QQ�
 
 回复应像真实 QQ 聊天一样自然，优先回应用户当前表达的情绪、问题或意图。
 
-当只需要文字时，直接输出 `reply.text`。当文字中需要夹 QQ 内置表情时，不要先输出文字再单独 `send_face`，应使用 `send_text_with_face` 让文字和表情出现在同一条 QQ 消息里。当准备戳一戳时，只输出 `poke_sender` 动作，不要再输出任何 `text` 或其他发送动作。
+当只需要文字时，直接输出 `reply.text`。不要把同一句话同时写进 `reply.text` 和 `actions[].send_text`，否则会形成重复回复。当文字中需要夹 QQ 内置表情时，不要先输出文字再单独 `send_face`，应使用 `send_text_with_face` 让文字和表情出现在同一条 QQ 消息里。当准备戳一戳时，只输出 `poke_sender` 动作，不要再输出任何 `text` 或其他发送动作。
 
 当需要使用 QQ 互动能力时，只能在最终 `reply.actions` 中输出以下受控动作：
 
