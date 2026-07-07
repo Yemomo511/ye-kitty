@@ -1,0 +1,21 @@
+skills/qq-chat/SKILL.md
+  s_54a728841601d0::t_edd7312020f717 13,26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "26a9ef85f7ca189085942006d1acdf0050890c24",
+  "prompts": {},
+  "sessions": {
+    "s_54a728841601d0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36d2-ac5d-7b42-90a0-c2e0afbddfc2",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
