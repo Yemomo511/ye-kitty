@@ -1,0 +1,51 @@
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md
+  h_b866b1ed626949 1-43,45-47,49-130
+  s_54a728841601d0::t_6a35d32a2ce49e 44,48
+design-docs/Agent/agent-runtime-harness.md
+  s_54a728841601d0::t_e9bc54144695a2 82,84,86-88,90,92,172-175,180-193,274,398,426
+design-docs/Task.md
+  s_54a728841601d0::t_24eafa35be950c 12,17-19,54
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  s_54a728841601d0::t_b3aa5243b39790 12,17-20,28,31
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_54a728841601d0::t_2b1adc1c2d1631 2-4,10,35,51,58-106,169,171-173,180,185-189,193,251,255-258,262-329
+packages/kitty-service/src/services/agent-runtime/domain/skill-prompt-document.ts
+  s_54a728841601d0::t_d4159e7e666728 1-99
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_54a728841601d0::t_3e2f340298938e 10-15
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/conversation-renderer.ts
+  s_54a728841601d0::t_4c12c7d1ee5e98 17,28-33,38,46
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  s_54a728841601d0::t_773794e330ef67 7,10-15,23,25,40,60-66
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/outside-context-prompt.ts
+  s_54a728841601d0::t_577ed9d8f28a06 1-22
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/prompt-composer.ts
+  s_54a728841601d0::t_7ca37d2861b147 5,29
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/skill.prompt.ts
+  s_54a728841601d0::t_a4da7c54637dc1 1-15,17-101,104-121,123,125-305
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/tool.prompt.ts
+  s_54a728841601d0::t_21297952743dfe 1-23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "7c35112cc240e36c82812f9562e8009f9f1f23ec",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_54a728841601d0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36d2-ac5d-7b42-90a0-c2e0afbddfc2",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
