@@ -109,6 +109,37 @@ describe('OneBotQqBotClient', () => {
     });
   });
 
+  test('引用回复消息段携带reply id', async () => {
+    const sentActions: OneBotV11ActionRequest[] = [];
+    const server = {
+      async sendAction(action: OneBotV11ActionRequest) {
+        sentActions.push(action);
+      },
+    } as unknown as OneBotFastifyReverseWsServer;
+
+    const client = new OneBotQqBotClient(server);
+    await client.sendMessageSegments({
+      conversationExternalId: '123456',
+      conversationType: 'group',
+      segments: [
+        { type: 'reply', id: '123' },
+        { type: 'text', text: '我喜欢你\n' },
+      ],
+    });
+
+    expect(sentActions[0]).toMatchObject({
+      action: 'send_msg',
+      params: {
+        message_type: 'group',
+        group_id: '123456',
+        message: [
+          { type: 'reply', data: { id: '123' } },
+          { type: 'text', data: { text: '我喜欢你\n' } },
+        ],
+      },
+    });
+  });
+
   test('读取自定义表情时调用fetch_custom_face并归一化可发送资源', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {

@@ -29,6 +29,15 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 
 `send_msg` 对应 NapCat 统一发送消息接口。Agent 只填写消息内容，不能填写会话目标、引用消息或发送者提醒。执行层会在所有 `send_msg` 最前面自动补 `reply` 引用当前触发消息，并 @ 当前触发消息发送者。
 
+执行层最终投递给 OneBot 的引用消息段必须携带 `data.id`：
+
+```json
+[
+  { "type": "reply", "data": { "id": "123" } },
+  { "type": "text", "data": { "text": "我喜欢你\n" } }
+]
+```
+
 ```json
 {
   "type": "send_msg",
