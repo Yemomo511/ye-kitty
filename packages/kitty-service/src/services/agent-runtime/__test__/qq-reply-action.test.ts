@@ -19,6 +19,41 @@ describe('parseQqReplyAction', () => {
     });
     expect(
       parseQqReplyAction({
+        type: 'send_msg',
+        message: [
+          { type: 'text', data: { text: ' 表情来了 ' } },
+          { type: 'at', data: { qq: ' 20000 ' } },
+          { type: 'face', data: { id: ' 66 ' } },
+          { type: 'image', data: { file: ' custom-face://cat ' } },
+          {
+            type: 'mface',
+            data: {
+              emoji_package_id: '123',
+              emoji_id: 'abc123',
+              key: 'market-key',
+              summary: '摸摸头',
+            },
+          },
+        ],
+      }),
+    ).toEqual({
+      type: 'send_msg',
+      message: [
+        { type: 'text', text: '表情来了' },
+        { type: 'at', qq: '20000' },
+        { type: 'face', id: '66' },
+        { type: 'image', file: 'custom-face://cat' },
+        {
+          type: 'mface',
+          emojiPackageId: 123,
+          emojiId: 'abc123',
+          key: 'market-key',
+          summary: '摸摸头',
+        },
+      ],
+    });
+    expect(
+      parseQqReplyAction({
         type: 'send_text_with_face',
         segments: [
           { type: 'text', text: ' 好好好 ' },
@@ -66,6 +101,19 @@ describe('parseQqReplyAction', () => {
     expect(parseQqReplyAction({ type: 'reply_to_message', text: '不允许' })).toBeUndefined();
     expect(parseQqReplyAction({ type: 'mention_sender', text: '不允许' })).toBeUndefined();
     expect(parseQqReplyAction({ type: 'send_text', text: '   ' })).toBeUndefined();
+    expect(
+      parseQqReplyAction({
+        type: 'send_msg',
+        group_id: '123456',
+        message: [{ type: 'text', data: { text: '越权目标' } }],
+      }),
+    ).toBeUndefined();
+    expect(
+      parseQqReplyAction({
+        type: 'send_msg',
+        message: [{ type: 'image', data: { file: '' } }],
+      }),
+    ).toBeUndefined();
     expect(
       parseQqReplyAction({
         type: 'send_text_with_face',
@@ -117,6 +165,13 @@ describe('QqReplyActionExecutor', () => {
         key: 'market-key',
         summary: '摸摸头',
       },
+      {
+        type: 'send_msg',
+        message: [
+          { type: 'text', text: '自定义表情' },
+          { type: 'image', file: 'custom-face://cat' },
+        ],
+      },
     ]);
 
     expect(replies).toEqual([]);
@@ -155,6 +210,14 @@ describe('QqReplyActionExecutor', () => {
             key: 'market-key',
             summary: '摸摸头',
           },
+        ],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'text', text: '自定义表情' },
+          { type: 'image', file: 'custom-face://cat' },
         ],
       },
     ]);
@@ -256,6 +319,32 @@ describe('QqReplyActionExecutor', () => {
     ]);
   });
 
+  test('外层文本和send_msg文本重复时只发送send_msg', async () => {
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const executor = new QqReplyActionExecutor(createTestBotClient({ segments }));
+
+    await executor.executeReply(createChatEvent(), '好好好', [
+      {
+        type: 'send_msg',
+        message: [
+          { type: 'text', text: '好好好' },
+          { type: 'image', file: 'custom-face://ok' },
+        ],
+      },
+    ]);
+
+    expect(segments).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'text', text: '好好好' },
+          { type: 'image', file: 'custom-face://ok' },
+        ],
+      },
+    ]);
+  });
+
   test('表情回应只能绑定当前消息上下文', async () => {
     const reactions: Array<Parameters<QqBotClientPort['reactToMessage']>[0]> = [];
     const executor = new QqReplyActionExecutor(createTestBotClient({ reactions }));
@@ -335,6 +424,9 @@ function createTestBotClient(options: {
     },
     async reactToMessage(input) {
       options.reactions?.push(input);
+    },
+    async fetchCustomFaces() {
+      return [];
     },
   };
 }

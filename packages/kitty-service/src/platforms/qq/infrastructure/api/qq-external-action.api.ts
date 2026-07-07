@@ -26,6 +26,14 @@ export interface QqFaceMessageSegment {
   readonly id: string;
 }
 
+/** QQ@消息段 */
+export interface QqAtMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'at';
+  /** 被@的QQ号 */
+  readonly qq: string;
+}
+
 /** QQ商城表情消息段 */
 export interface QqMarketFaceMessageSegment {
   /** 消息段类型 */
@@ -48,9 +56,25 @@ export interface QqImageMessageSegment {
   readonly file: string;
 }
 
+/** QQ自定义表情资源 */
+export interface QqCustomFaceResource {
+  /** 表情稳定ID */
+  readonly id: string;
+  /** NapCat可发送资源 */
+  readonly file: string;
+  /** 表情名称 */
+  readonly name?: string;
+  /** 平台摘要 */
+  readonly summary?: string;
+}
+
 /** Ye-Kitty首版允许发送的QQ消息段 */
 export type QqOutboundMessageSegment =
-  QqTextMessageSegment | QqFaceMessageSegment | QqMarketFaceMessageSegment | QqImageMessageSegment;
+  | QqTextMessageSegment
+  | QqAtMessageSegment
+  | QqFaceMessageSegment
+  | QqMarketFaceMessageSegment
+  | QqImageMessageSegment;
 
 /** 发送QQ消息输入 */
 export interface QqSendMessageInput extends QqActionTarget {
@@ -108,4 +132,10 @@ export interface QqExternalActionApi {
    * @param input 消息和表情目标
    */
   reactToMessage(input: QqReactToMessageInput): Promise<void>;
+
+  /**
+   * 读取QQ自定义表情
+   * @returns 可发送表情资源
+   */
+  fetchCustomFaces(): Promise<readonly QqCustomFaceResource[]>;
 }

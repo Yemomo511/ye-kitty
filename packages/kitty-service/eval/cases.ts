@@ -11,7 +11,10 @@ import type {
   SkillContent,
   SkillMetadata,
 } from '../src/services/agent-runtime';
-import { BuiltinRuntimeToolRegistry } from '../src/services/agent-runtime';
+import {
+  BuiltinRuntimeToolRegistry,
+  GET_CUSTOM_FACES_TOOL_NAME,
+} from '../src/services/agent-runtime';
 
 /** 评估断言目标 */
 export type AgentEvalExpectation =
@@ -97,6 +100,26 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       tools: toolRegistry.listTools(),
     }),
     expectation: { type: 'tool_call', toolName: 'get_recent_messages' },
+  },
+  {
+    name: '需要自定义表情时调用表情目录工具',
+    inputSummary: '用户明确要求叶猫猫发一个合适的自定义表情。',
+    observation: createObservation({
+      event: createChatEvent('@叶猫猫 来个适合现在气氛的自定义表情。', 'group', 'custom-face', [
+        '10000',
+      ]),
+      availableSkills: [qqChatSkill],
+      tools: [
+        ...toolRegistry.listTools(),
+        {
+          name: GET_CUSTOM_FACES_TOOL_NAME,
+          description: '读取已理解的QQ自定义表情目录，用于选择合适表情回复。',
+          riskLevel: 'low',
+          inputSchemaDescription: '{ "query"?: string, "limit"?: number }',
+        },
+      ],
+    }),
+    expectation: { type: 'tool_call', toolName: GET_CUSTOM_FACES_TOOL_NAME },
   },
   {
     name: '已启用Skill要求读取引用',

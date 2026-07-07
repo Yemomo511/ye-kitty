@@ -292,11 +292,9 @@ QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/s
 
 `send_msg` 设计为替代 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image` 和 `send_market_face` 的统一消息出口。模型只允许声明消息内容，不能声明 `message_type`、`group_id` 或 `user_id`；这些字段由 `QqReplyActionExecutor` 根据当前 `QqChatMessageEvent` 补齐。群聊补 `message_type: "group"` 和当前群号，私聊补 `message_type: "private"` 和当前好友号。
 
-NapCat WebUI `http://127.0.0.1:16099/webui/debug/http` 中 `send_msg` 调试页确认的参数为：`message_type`、`user_id`、`group_id`、`message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`。其中 Agent Harness 只接收 `message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`，目标字段由运行时补齐。
+NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`、`group_id`、`message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`。当前 Agent Harness 只接收 `message`，目标字段由运行时补齐，其余发送控制字段暂不对模型开放。
 
-`message` 使用 OneBot 11 消息混合类型，可为字符串、单个消息段或消息段数组。常用段包括 `text`、`at`、`face`、`mface`、`image`、`reply`、`record`、`video`、`file`、`music`、`json`、`markdown`、`node`、`forward`、`contact` 和 `location`。NapCat schema 还声明了 `xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段，但部分转换器当前返回空元素，执行层应记录参数摘要和发送失败原因，避免把失败误判为 Harness 成功。
-
-合并转发采用 `node` 消息段。只要 `message` 中出现 `node`，整条 `message` 必须全部是 `node`，不能和普通消息段混发；该约束来自 NapCat 的 `send_msg` 参数校验，解析层和测试都应覆盖。
+`message` 使用受控 OneBot 11 消息混合类型，当前只允许消息段数组，并只接收 `text`、`at`、`face`、`mface`、`image` 五类段。自定义表情通过 `image` 段发送，`file` 必须来自 `get_custom_faces` 工具返回的目录结果，不能由模型编造。更宽的 NapCat 段类型如 `reply`、`record`、`video`、`file`、`music`、`json`、`markdown`、`node`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 暂不开放。
 
 统一 `send_msg` 接入 Harness 的过程：
 
@@ -306,7 +304,13 @@ NapCat WebUI `http://127.0.0.1:16099/webui/debug/http` 中 `send_msg` 调试页�
 4. `QqReplyActionExecutor` 仍处理 `poke_sender` 独占；普通回复统一调用 `QqBotClientPort.sendMessage`。
 5. `QqBotClientPort` 和 `OneBotWsExternalActionApi` 合并文字、图片、内置表情、商城表情发送入口，最终统一发 NapCat `send_msg`。
 6. RunTrace 记录模型原始 `send_msg`、运行时补齐后的参数摘要、NapCat 响应和错误。
-7. 单元测试覆盖消息段透传、目标字段过滤、`node` 混发拒绝、戳一戳独占和旧动作兼容迁移。
+7. 单元测试覆盖消息段透传、目标字段过滤、自定义表情图片段、戳一戳独占和旧动作兼容迁移。
+
+## 自定义表情理解与选择
+
+自定义表情采用“平台读取、视觉理解、目录缓存、聊天选择”的链路。`OneBotWsExternalActionApi.fetchCustomFaces` 只调用 NapCat `fetch_custom_face` 并归一化可发送资源；`CustomFaceCatalogService` 调用独立视觉 Agent 生成中文描述，并把结果缓存为聊天 Agent 可读取的目录。聊天 Agent 不直接理解图片，只能通过 `get_custom_faces` 工具读取目录，再用 `send_msg` 的 `image` 段发送工具返回的 `file`。
+
+启动期由 `packages/kitty-service/scripts/start-platform-qq.ts` 组装 `CustomFaceCatalogService`。NapCat 连接建立后触发一次刷新；缓存为空且聊天 Agent 调用 `get_custom_faces` 时，会再尝试一次懒刷新。视觉 Agent 使用 `YE_KITTY_VISION_AGENT_MODEL`、`YE_KITTY_VISION_AGENT_API_KEY`、`YE_KITTY_VISION_AGENT_BASE_URL` 和 `YE_KITTY_VISION_AGENT_TIMEOUT_MS` 独立配置；未配置视觉模型或单张表情理解失败时，目录保留可发送表情，并用平台 `summary/name` 生成低置信度降级描述。
 
 ## 工具体系
 
@@ -315,6 +319,7 @@ NapCat WebUI `http://127.0.0.1:16099/webui/debug/http` 中 `send_msg` 调试页�
 | 工具                  | 风险等级 | 说明                                                            |
 | --------------------- | -------- | --------------------------------------------------------------- |
 | `get_recent_messages` | low      | 已实现。读取当前会话最近消息，帮助 Agent 判断上下文和是否回复。 |
+| `get_custom_faces`    | low      | 已实现。读取已理解的 QQ 自定义表情目录，帮助 Agent 选择表情。   |
 | `search_memory`       | medium   | 后续阶段。查询长期记忆或项目知识库。                            |
 
 工具调用过程：
@@ -433,7 +438,7 @@ QqReplyEventSubscriber
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
 - 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 静默、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情和 `text` + `face` 混排消息段映射。
 - Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议和戳一戳独占说明。
-- 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要。
+- 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、检索和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
 
@@ -462,3 +467,4 @@ QqReplyEventSubscriber
 | 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 进入 Observation/Input。             |
 | 2026-07-07 | 待验收 | 完成 Prompt 三章治理：Skill Prompt 与 Tool Prompt 抽离到第二章 Outside Context，并引入结构化 Skill 文档。           |
 | 2026-07-07 | 待验收 | 扩展 QQ 受控回复动作，新增 NapCat `mface` 商城表情发送能力，并补充解析、执行和 OneBot 映射测试。                    |
+| 2026-07-07 | 待验收 | 新增自定义表情目录工具、独立视觉 Agent 配置和 `send_msg` 图片段发送能力，支持聊天 Agent 自主选择自定义表情。        |

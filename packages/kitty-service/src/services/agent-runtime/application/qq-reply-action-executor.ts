@@ -56,6 +56,15 @@ export class QqReplyActionExecutor {
         return;
       }
 
+      if (action.type === 'send_msg') {
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments: action.message,
+        });
+        return;
+      }
+
       if (action.type === 'send_text_with_face') {
         await this.botClient.sendMessageSegments({
           conversationExternalId,
@@ -165,6 +174,12 @@ function normalizeReplyActions(
 // 提取动作中会直接发送到 QQ 的文本，用于防止 reply.text 和动作内容重复发送。
 function readActionTextSegments(action: QqReplyAction): readonly string[] {
   if (action.type === 'send_text') return [action.text.trim()].filter(Boolean);
+  if (action.type === 'send_msg') {
+    return action.message
+      .filter((segment) => segment.type === 'text')
+      .map((segment) => segment.text.trim())
+      .filter(Boolean);
+  }
   if (action.type === 'send_text_with_face') {
     return action.segments
       .filter((segment) => segment.type === 'text')

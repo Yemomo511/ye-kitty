@@ -2,6 +2,7 @@ import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
 import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
+import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
 import { InMemoryConversationHistory } from './in-memory-conversation-history';
 import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtime-tools';
@@ -38,13 +39,15 @@ export interface QqReplyAgentRuntimeConfig {
 export function createQqReplyAgent(
   config: QqReplyAgentRuntimeConfig,
   skillContentLoader?: SkillContentLoaderPort & Partial<SkillReferenceLoaderPort>,
+  customFaceCatalog?: CustomFaceCatalogService,
 ): QqReplyAgentPort {
   const fallbackAgent = new FallbackQqReplyAgent();
   if (!config.openAiApiKey) return fallbackAgent;
 
   const conversationHistory = new InMemoryConversationHistory();
-  const toolRegistry = new BuiltinRuntimeToolRegistry();
-  const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory);
+  const toolDependencies = { customFaceCatalog };
+  const toolRegistry = new BuiltinRuntimeToolRegistry(toolDependencies);
+  const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies);
   const runner = new OpenAiHarnessAgentRunner({
     apiKey: config.openAiApiKey,
     baseURL: config.openAiBaseUrl,

@@ -2,6 +2,7 @@ import type { QqBotClientPort } from '../ports/qq-bot-client.port';
 import {
   OneBotWsExternalActionApi,
   type QqExternalActionApi,
+  type QqCustomFaceResource,
   type QqOutboundMessageSegment,
   type QqReactToMessageInput,
 } from './api';
@@ -62,5 +63,13 @@ export class OneBotQqBotClient implements QqBotClientPort {
    */
   async reactToMessage(input: QqReactToMessageInput): Promise<void> {
     await this.actionApi.reactToMessage(input);
+  }
+
+  /**
+   * 读取QQ自定义表情
+   * @returns 可发送表情资源
+   */
+  async fetchCustomFaces(): Promise<readonly QqCustomFaceResource[]> {
+    return await this.actionApi.fetchCustomFaces();
   }
 }

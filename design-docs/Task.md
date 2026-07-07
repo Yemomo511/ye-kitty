@@ -14,9 +14,9 @@
 
 ## 设计拆分
 
-| 模块                         | 设计文档                                     | 状态   | 进度说明                                                                                                                                                                                            |
-| ---------------------------- | -------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md` | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、Prompt 三章治理、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call` 和 `references/` 按需读取。 |
+| 模块                         | 设计文档                                     | 状态   | 进度说明                                                                                                                                                                                                                |
+| ---------------------------- | -------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md` | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、`get_custom_faces`、Prompt 三章治理、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call` 和 `references/` 按需读取。 |
 
 ## 开发顺序
 
@@ -27,12 +27,12 @@
 
 ## 阻塞与风险
 
-| 问题                            | 影响                                                                                                  | 下一步                                                                                                                   |
-| ------------------------------- | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| risk/actions 正式链路尚未落地   | Harness 的高风险动作只能停留在候选动作设计，不能直接执行完整对外动作                                  | MVP 只允许 `reply`、`ignore`、`human_review` 和 `get_recent_messages` 只读工具，后续在 risk/actions 落地后开放候选动作。 |
-| 市场 Skill 扩展字段存在实现差异 | Skill 可能来自 Claude Code、Codex 或其他 Agent Skills 实现，字段支持程度不同                          | 采用 Agent Skills 基线字段，未知字段只记录不阻断加载，Ye-Kitty 私有字段统一放入 `metadata.ye-kitty.*`。                  |
-| 工具执行权限边界容易漂移        | 如果模型或 Skill 绕过 Harness 执行工具，会破坏审计和安全边界                                          | 工具执行只能经过 `ToolExecutor`，权限判断只能经过 `PermissionPolicy`，外发动作必须进入 risk/actions。                    |
-| 本地 WebSocket 监听受限         | `pnpm check` 中 OneBot WebSocket 测试在当前环境触发 `listen EPERM: operation not permitted 127.0.0.1` | Harness 相关定向测试已通过，完整校验结果中单独记录该环境限制。                                                           |
+| 问题                            | 影响                                                                                                  | 下一步                                                                                                                                       |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| risk/actions 正式链路尚未落地   | Harness 的高风险动作只能停留在候选动作设计，不能直接执行完整对外动作                                  | MVP 只允许 `reply`、`ignore`、`human_review`、`get_recent_messages` 和 `get_custom_faces` 只读工具，后续在 risk/actions 落地后开放候选动作。 |
+| 市场 Skill 扩展字段存在实现差异 | Skill 可能来自 Claude Code、Codex 或其他 Agent Skills 实现，字段支持程度不同                          | 采用 Agent Skills 基线字段，未知字段只记录不阻断加载，Ye-Kitty 私有字段统一放入 `metadata.ye-kitty.*`。                                      |
+| 工具执行权限边界容易漂移        | 如果模型或 Skill 绕过 Harness 执行工具，会破坏审计和安全边界                                          | 工具执行只能经过 `ToolExecutor`，权限判断只能经过 `PermissionPolicy`，外发动作必须进入 risk/actions。                                        |
+| 本地 WebSocket 监听受限         | `pnpm check` 中 OneBot WebSocket 测试在当前环境触发 `listen EPERM: operation not permitted 127.0.0.1` | Harness 相关定向测试已通过，完整校验结果中单独记录该环境限制。                                                                               |
 
 ## 验收总览
 
@@ -58,3 +58,4 @@
 | 2026-07-07 | 修复 QQ 群聊重复回复                        | 当模型同时输出 `reply.text` 和同内容文本动作时，执行层只发送一次，避免群聊重复刷屏。                  |
 | 2026-07-07 | 设计统一 send_msg 回复结构                  | 基于 NapCat WebUI 调试页确认 `send_msg` 参数，规划用统一 OneBot 11 消息段替代分散 QQ 发送动作。       |
 | 2026-07-07 | 约束消息发送统一 send_msg                   | 平台执行层不再调用 `send_group_msg` 或 `send_private_msg`，所有普通 QQ 消息统一发 NapCat `send_msg`。 |
+| 2026-07-07 | 新增自定义表情自主回复                      | 通过 `fetch_custom_face`、视觉 Agent 和 `get_custom_faces` 工具，让聊天 Agent 能自主选择自定义表情。  |

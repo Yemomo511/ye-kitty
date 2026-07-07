@@ -43,16 +43,10 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 
 允许字段：
 
-| 字段          | 类型                               | 说明                                                  |
-| ------------- | ---------------------------------- | ----------------------------------------------------- |
-| `type`        | `"send_msg"`                       | Harness 内部动作名。                                  |
-| `message`     | `string` / 单个消息段 / 消息段数组 | OneBot 11 消息混合类型。优先使用消息段数组。          |
-| `auto_escape` | `boolean` / `"true"` / `"false"`   | 只在 `message` 是字符串时生效，表示是否按纯文本发送。 |
-| `source`      | `string`                           | 合并转发来源，只用于 `node` 合并转发。                |
-| `news`        | `{ "text": string }[]`             | 合并转发新闻，只用于 `node` 合并转发。                |
-| `summary`     | `string`                           | 合并转发摘要，只用于 `node` 合并转发。                |
-| `prompt`      | `string`                           | 合并转发提示，只用于 `node` 合并转发。                |
-| `timeout`     | `number`                           | 自定义发送超时，单位毫秒。                            |
+| 字段      | 类型         | 说明                                                 |
+| --------- | ------------ | ---------------------------------------------------- |
+| `type`    | `"send_msg"` | Harness 内部动作名。                                 |
+| `message` | 消息段数组   | 只能使用 `text`、`at`、`face`、`mface`、`image` 段。 |
 
 禁止字段：
 
@@ -65,7 +59,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 
 ## 消息段
 
-`send_msg.message` 可以包含 NapCat/OneBot 11 消息段。常用消息段如下：
+`send_msg.message` 是受控的 OneBot 11 消息混合类型，当前可以包含以下 NapCat/OneBot 11 消息段：
 
 ```json
 { "type": "text", "data": { "text": "纯文本" } }
@@ -92,47 +86,10 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 ```
 
 ```json
-{ "type": "image", "data": { "file": "https://example.com/cat.png" } }
+{ "type": "image", "data": { "file": "custom-face://cat" } }
 ```
 
-```json
-{ "type": "reply", "data": { "id": "12345" } }
-```
-
-```json
-{ "type": "dice", "data": { "result": 1 } }
-```
-
-```json
-{ "type": "rps", "data": { "result": 1 } }
-```
-
-```json
-{ "type": "json", "data": { "data": "{\"app\":\"com.tencent.structmsg\"}" } }
-```
-
-NapCat schema 还声明了 `record`、`video`、`file`、`music`、`markdown`、`node`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。生成这些段时必须保证字段完整且来自当前上下文或已知资料，不要编造文件、商城表情 key、转发 ID 或 JSON 卡片。
-
-## 合并转发
-
-合并转发使用 `node` 消息段。只要 `message` 中出现 `node`，整条 `message` 必须全部都是 `node`，不能混入 `text`、`at`、`image` 等普通消息段。
-
-```json
-{
-  "type": "send_msg",
-  "message": [
-    {
-      "type": "node",
-      "data": {
-        "user_id": "123456",
-        "nickname": "叶猫猫",
-        "content": [{ "type": "text", "data": { "text": "第一条" } }]
-      }
-    }
-  ],
-  "summary": "聊天记录"
-}
-```
+自定义表情必须先通过 `get_custom_faces` 工具读取目录，再把工具结果里的 `file` 放进 `image` 段。当前实现不接受 `reply`、`dice`、`rps`、`json`、`node`、`record`、`video`、`file`、`music`、`markdown`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。
 
 ## 其他动作
 
@@ -156,9 +113,9 @@ NapCat schema 还声明了 `record`、`video`、`file`、`music`、`markdown`、
 
 1. 模型在 Harness 循环中输出 `reply.actions[].send_msg`。
 2. `parseQqReplyAction` 只识别 `send_msg`、`poke_sender`、`react_to_message` 等 Harness 动作名，不识别原始 NapCat action。
-3. 解析层保留 `send_msg.message` 的 OneBot 11 段结构，同时过滤空消息、非法控制字段和会话目标字段。
+3. 解析层把 `send_msg.message` 收敛为白名单消息段，同时过滤空消息、非法控制字段和会话目标字段。
 4. `QqReplyActionExecutor` 从当前 QQ 事件补齐 `message_type` 和当前会话 ID。
-5. `QqBotClientPort` 只暴露统一 `sendMessage`，不再为文字、图片、表情维护多套发送入口。
+5. `QqBotClientPort` 通过统一 `sendMessageSegments` 发送文字、图片和表情消息段。
 6. `OneBotWsExternalActionApi` 根据当前会话调用 NapCat `send_msg`，群聊补 `message_type: "group"` 和当前 `group_id`，私聊补 `message_type: "private"` 和当前 `user_id`。
 7. 运行记录保存模型原始动作、补齐后的 NapCat 参数摘要、发送结果和错误，便于排查。
 

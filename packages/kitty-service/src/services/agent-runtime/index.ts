@@ -30,6 +30,12 @@ export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.po
 export type { SkillSelectorPort } from './ports/skill-selector.port';
 export type { RuntimeToolExecutorPort } from './ports/tool-executor.port';
 export type { RuntimeToolRegistryPort } from './ports/tool-registry.port';
+export type { CustomFaceVisionAgentPort } from './ports/custom-face-vision-agent.port';
+export type {
+  CustomFaceDescription,
+  CustomFaceQuery,
+  DescribedCustomFace,
+} from './domain/custom-face';
 export {
   AgentRuntimeHarness,
   HarnessQqReplyAgentAdapter,
@@ -44,9 +50,11 @@ export {
 } from './application/default-skill-selector';
 export { SafeQqReplyAgent } from './application/safe-qq-reply.agent';
 export { SkillRuntimeService } from './application/skill-runtime.service';
+export { CustomFaceCatalogService } from './application/custom-face-catalog.service';
 export {
   BuiltinRuntimeToolExecutor,
   BuiltinRuntimeToolRegistry,
+  GET_CUSTOM_FACES_TOOL_NAME,
   GET_RECENT_MESSAGES_TOOL_NAME,
 } from './application/runtime-tools';
 export { QqReplyActionExecutor } from './application/qq-reply-action-executor';
@@ -60,6 +68,12 @@ export {
   parseAgentDecision,
   type OpenAiHarnessAgentRunnerConfig,
 } from './infrastructure/openai-harness-agent-runner';
+export {
+  OpenAiCustomFaceVisionAgent,
+  loadCustomFaceVisionAgentConfig,
+  parseCustomFaceDescription,
+  type OpenAiCustomFaceVisionAgentConfig,
+} from './infrastructure/openai-custom-face-vision.agent';
 export {
   OpenAiQqReplyAgent,
   parseQqReplyAgentResult,

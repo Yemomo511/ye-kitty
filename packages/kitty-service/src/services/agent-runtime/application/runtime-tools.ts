@@ -1,16 +1,25 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { ConversationId } from '@kitty/shared/types/ids';
 import type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from '../domain/tool';
+import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
 
 /** 最近消息工具名称 */
 export const GET_RECENT_MESSAGES_TOOL_NAME = 'get_recent_messages';
+/** 自定义表情目录工具名称 */
+export const GET_CUSTOM_FACES_TOOL_NAME = 'get_custom_faces';
 /** 私聊上下文窗口 */
 const PRIVATE_RECENT_MESSAGE_LIMIT = 100;
 /** 群聊上下文窗口 */
 const GROUP_RECENT_MESSAGE_LIMIT = 50;
+
+/** 内置工具依赖 */
+export interface BuiltinRuntimeToolDependencies {
+  /** 自定义表情目录 */
+  readonly customFaceCatalog?: CustomFaceCatalogService;
+}
 
 /**
  * 内置工具注册表
@@ -18,14 +27,28 @@ const GROUP_RECENT_MESSAGE_LIMIT = 50;
  * MVP 只暴露只读工具，后续 MCP 或写操作工具也必须先注册到这里。
  */
 export class BuiltinRuntimeToolRegistry implements RuntimeToolRegistryPort {
-  private readonly tools: readonly RuntimeTool[] = [
-    {
-      name: GET_RECENT_MESSAGES_TOOL_NAME,
-      description: '读取当前会话最近消息，用于判断上下文和是否需要回复。',
-      riskLevel: 'low',
-      inputSchemaDescription: '{}',
-    },
-  ];
+  private readonly tools: readonly RuntimeTool[];
+
+  constructor(dependencies: BuiltinRuntimeToolDependencies = {}) {
+    this.tools = [
+      {
+        name: GET_RECENT_MESSAGES_TOOL_NAME,
+        description: '读取当前会话最近消息，用于判断上下文和是否需要回复。',
+        riskLevel: 'low',
+        inputSchemaDescription: '{}',
+      },
+      ...(dependencies.customFaceCatalog
+        ? [
+            {
+              name: GET_CUSTOM_FACES_TOOL_NAME,
+              description: '读取已理解的QQ自定义表情目录，用于选择合适表情回复。',
+              riskLevel: 'low' as const,
+              inputSchemaDescription: '{ "query"?: string, "limit"?: number }',
+            },
+          ]
+        : []),
+    ];
+  }
 
   /**
    * 列出工具
@@ -51,7 +74,10 @@ export class BuiltinRuntimeToolRegistry implements RuntimeToolRegistryPort {
  * 将已授权的工具调用收敛到本地只读能力，并返回中文观察摘要。
  */
 export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
-  constructor(private readonly conversationHistory: ConversationHistoryPort) {}
+  constructor(
+    private readonly conversationHistory: ConversationHistoryPort,
+    private readonly dependencies: BuiltinRuntimeToolDependencies = {},
+  ) {}
 
   /**
    * 执行工具
@@ -63,11 +89,53 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
       return this.getRecentMessages(call.event);
     }
 
+    if (call.toolName === GET_CUSTOM_FACES_TOOL_NAME) {
+      return await this.getCustomFaces(call.input);
+    }
+
     return {
       toolName: call.toolName,
       success: false,
       observation: `工具 ${call.toolName} 未注册，不能执行。`,
       errorMessage: '工具未注册',
+    };
+  }
+
+  // 读取自定义表情目录。
+  private async getCustomFaces(input: unknown): Promise<ToolExecutionResult> {
+    const catalog = this.dependencies.customFaceCatalog;
+    if (!catalog) {
+      return {
+        toolName: GET_CUSTOM_FACES_TOOL_NAME,
+        success: false,
+        observation: '自定义表情目录未配置，不能读取。',
+        errorMessage: '自定义表情目录未配置',
+      };
+    }
+
+    await catalog.ensureReady();
+    const query = isRecord(input) && typeof input.query === 'string' ? input.query : undefined;
+    const limit = isRecord(input) && typeof input.limit === 'number' ? input.limit : undefined;
+    const faces = catalog.list({ query, limit });
+
+    console.info(
+      `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情目录 count=${faces.length} queryLength=${query?.length ?? 0}`,
+    );
+
+    return {
+      toolName: GET_CUSTOM_FACES_TOOL_NAME,
+      success: true,
+      observation: formatCustomFacesObservation(faces),
+      structuredData: faces.map((face) => ({
+        id: face.id,
+        file: face.file,
+        content: face.content,
+        emotion: face.emotion,
+        suitableScenes: face.suitableScenes,
+        avoidScenes: face.avoidScenes,
+        tags: face.tags,
+        confidence: face.confidence,
+      })),
     };
   }
 
@@ -89,6 +157,21 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
       structuredData: messages.map(toRecentMessageSummary),
     };
   }
+}
+
+// 格式化自定义表情目录观察。
+function formatCustomFacesObservation(
+  faces: readonly ReturnType<CustomFaceCatalogService['list']>[number][],
+): string {
+  if (faces.length === 0) return '当前没有可用自定义表情。';
+
+  return [
+    `可用自定义表情 ${faces.length} 个：`,
+    ...faces.map(
+      (face, index) =>
+        `${index + 1}. id=${face.id} file=${face.file} 内容=${face.content} 情绪=${face.emotion} 适用=${face.suitableScenes.join('、') || '未知'} 避免=${face.avoidScenes.join('、') || '未知'} 标签=${face.tags.join('、') || '无'} 置信度=${face.confidence}`,
+    ),
+  ].join('\n');
 }
 
 // 按会话类型选择上下文窗口，避免群聊噪声挤压私聊连续上下文。
@@ -120,6 +203,11 @@ function toRecentMessageSummary(message: ChatEventContract): Record<string, stri
     text: message.message.text,
     receivedAt: message.receivedAt.toISOString(),
   };
+}
+
+// 判断普通对象。
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === 'object' && input !== null;
 }
 
 // 脱敏会话ID。

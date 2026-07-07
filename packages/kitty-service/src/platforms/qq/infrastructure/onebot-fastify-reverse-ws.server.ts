@@ -2,7 +2,7 @@ import websocketPlugin from '@fastify/websocket';
 import Fastify, { type FastifyInstance, type FastifyRequest } from 'fastify';
 import { WebSocket } from 'ws';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
-import type { OneBotV11ActionRequest } from '../domain/onebot-v11';
+import type { OneBotV11ActionRequest, OneBotV11ActionResponse } from '../domain/onebot-v11';
 
 /**
  * OneBot反向WebSocket配置
@@ -22,6 +22,17 @@ export interface OneBotReverseWebSocketConfig {
 
 /** OneBot原始消息处理器 */
 export type OneBotRawMessageHandler = (rawMessage: unknown) => Promise<void>;
+/** OneBot连接处理器 */
+export type OneBotConnectionHandler = () => Promise<void> | void;
+
+interface PendingOneBotAction {
+  /** 响应成功 */
+  readonly resolve: (response: OneBotV11ActionResponse) => void;
+  /** 响应失败 */
+  readonly reject: (error: Error) => void;
+  /** 超时清理 */
+  readonly timeout: NodeJS.Timeout;
+}
 
 /**
  * OneBot反向WebSocket服务
@@ -33,8 +44,12 @@ export class OneBotFastifyReverseWsServer {
   private readonly fastify: FastifyInstance;
   // 当前可回写动作的 NapCat 连接
   private readonly sockets = new Set<WebSocket>();
+  // 正在等待echo响应的动作
+  private readonly pendingActions = new Map<string, PendingOneBotAction>();
   // 上层通道注册的事件入口
   private rawMessageHandler?: OneBotRawMessageHandler;
+  // NapCat连接建立后的上层回调
+  private connectionHandler?: OneBotConnectionHandler;
 
   constructor(private readonly config: OneBotReverseWebSocketConfig) {
     this.fastify = Fastify({ logger: false });
@@ -46,6 +61,14 @@ export class OneBotFastifyReverseWsServer {
    */
   registerRawMessageHandler(handler: OneBotRawMessageHandler): void {
     this.rawMessageHandler = handler;
+  }
+
+  /**
+   * 注册连接处理器
+   * @param handler 连接处理器
+   */
+  registerConnectionHandler(handler: OneBotConnectionHandler): void {
+    this.connectionHandler = handler;
   }
 
   /**
@@ -129,6 +152,42 @@ export class OneBotFastifyReverseWsServer {
   }
 
   /**
+   * 发送OneBot动作并等待echo响应
+   * @param action OneBot动作请求
+   * @param timeoutMs 超时毫秒
+   * @returns OneBot动作响应
+   */
+  async sendActionAndWait(
+    action: OneBotV11ActionRequest,
+    timeoutMs: number,
+  ): Promise<OneBotV11ActionResponse> {
+    if (!action.echo) throw new Error('等待 OneBot 响应的动作必须包含 echo');
+    if (this.pendingActions.has(action.echo)) {
+      throw new Error(`OneBot echo 已存在，不能重复等待：${action.echo}`);
+    }
+
+    const responsePromise = new Promise<OneBotV11ActionResponse>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.pendingActions.delete(action.echo!);
+        reject(new Error(`OneBot 动作响应超时 action=${action.action}`));
+      }, timeoutMs);
+      this.pendingActions.set(action.echo!, { resolve, reject, timeout });
+    });
+
+    try {
+      await this.sendAction(action);
+      return await responsePromise;
+    } catch (error) {
+      const pending = this.pendingActions.get(action.echo);
+      if (pending) {
+        clearTimeout(pending.timeout);
+        this.pendingActions.delete(action.echo);
+      }
+      throw error;
+    }
+  }
+
+  /**
    * 获取监听端口
    * @returns 实际端口
    */
@@ -167,6 +226,16 @@ export class OneBotFastifyReverseWsServer {
         )}`,
       );
     });
+
+    if (this.connectionHandler) {
+      void Promise.resolve(this.connectionHandler()).catch((error) => {
+        console.warn(
+          `⚠️ [OneBotReverseWs-connection] 连接处理器执行失败，已继续保持连接 reason=${formatError(
+            error,
+          )}`,
+        );
+      });
+    }
   }
 
   // 解析并转发 OneBot 原始事件
@@ -178,6 +247,9 @@ export class OneBotFastifyReverseWsServer {
       const rawText = data.toString('utf8');
       const rawMessage = JSON.parse(rawText) as unknown;
 
+      // 2. 如果是带echo的动作响应，先唤醒等待方，不再转给消息入口。
+      if (this.resolvePendingAction(rawMessage)) return;
+
       // 2. 交给 QQ 实验通道做白名单过滤、事件发布和回复编排。
       await this.rawMessageHandler(rawMessage);
     } catch (error) {
@@ -187,6 +259,24 @@ export class OneBotFastifyReverseWsServer {
       );
       socket.close(1011, 'OneBot 消息处理失败');
     }
+  }
+
+  // 匹配 OneBot 动作响应。
+  private resolvePendingAction(rawMessage: unknown): boolean {
+    if (!isOneBotActionResponse(rawMessage)) return false;
+
+    const pending = this.pendingActions.get(rawMessage.echo);
+    if (!pending) return false;
+
+    clearTimeout(pending.timeout);
+    this.pendingActions.delete(rawMessage.echo);
+    pending.resolve(rawMessage);
+    writeDebugLog(
+      `🔍 [OneBotReverseWs-actionResponse] 已收到OneBot动作响应 echo=${maskId(
+        rawMessage.echo,
+      )} status=${rawMessage.status} retcode=${rawMessage.retcode}`,
+    );
+    return true;
   }
 
   // 校验 NapCat 连接令牌
@@ -223,4 +313,15 @@ function maskId(value: string): string {
 function formatError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+// 判断 OneBot 动作响应。
+function isOneBotActionResponse(
+  input: unknown,
+): input is OneBotV11ActionResponse & { readonly echo: string } {
+  if (typeof input !== 'object' || input === null) return false;
+  const record = input as Record<string, unknown>;
+  if (record.status !== 'ok' && record.status !== 'failed') return false;
+  if (typeof record.retcode !== 'number') return false;
+  return typeof record.echo === 'string' && record.echo.length > 0;
 }

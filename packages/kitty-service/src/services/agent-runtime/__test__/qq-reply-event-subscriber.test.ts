@@ -395,6 +395,9 @@ function createTestBotClient(options: {
     async reactToMessage(input) {
       options.reactions?.push(input);
     },
+    async fetchCustomFaces() {
+      return [];
+    },
   };
 }
 

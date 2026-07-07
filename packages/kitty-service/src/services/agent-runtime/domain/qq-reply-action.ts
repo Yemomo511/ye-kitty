@@ -12,6 +12,12 @@ export type QqReplyAction =
     }
   | {
       /** 动作类型 */
+      readonly type: 'send_msg';
+      /** 同一条QQ消息内的OneBot安全消息段 */
+      readonly message: readonly QqSendMsgSegment[];
+    }
+  | {
+      /** 动作类型 */
       readonly type: 'send_text_with_face';
       /** 同一条QQ消息内的文本和内置表情段 */
       readonly segments: readonly QqTextWithFaceSegment[];
@@ -66,6 +72,45 @@ export type QqTextWithFaceSegment =
       readonly faceId: string;
     };
 
+/** QQ统一发送消息段 */
+export type QqSendMsgSegment =
+  | {
+      /** 消息段类型 */
+      readonly type: 'text';
+      /** 文本内容 */
+      readonly text: string;
+    }
+  | {
+      /** 消息段类型 */
+      readonly type: 'at';
+      /** 被@的QQ号 */
+      readonly qq: string;
+    }
+  | {
+      /** 消息段类型 */
+      readonly type: 'face';
+      /** QQ内置表情ID */
+      readonly id: string;
+    }
+  | {
+      /** 消息段类型 */
+      readonly type: 'mface';
+      /** QQ商城表情包ID */
+      readonly emojiPackageId: number;
+      /** QQ商城表情ID */
+      readonly emojiId: string;
+      /** QQ商城表情key */
+      readonly key: string;
+      /** 表情摘要 */
+      readonly summary: string;
+    }
+  | {
+      /** 消息段类型 */
+      readonly type: 'image';
+      /** 图片文件或自定义表情资源 */
+      readonly file: string;
+    };
+
 /**
  * 解析QQ回复动作
  * @param input 模型输出动作
@@ -77,6 +122,11 @@ export function parseQqReplyAction(input: unknown): QqReplyAction | undefined {
   if (input.type === 'send_text') {
     const text = normalizeText(input.text);
     return text ? { type: 'send_text', text } : undefined;
+  }
+
+  if (input.type === 'send_msg') {
+    const message = normalizeSendMsgSegments(input);
+    return message ? { type: 'send_msg', message } : undefined;
   }
 
   if (input.type === 'send_text_with_face') {
@@ -111,6 +161,69 @@ export function parseQqReplyAction(input: unknown): QqReplyAction | undefined {
   if (input.type === 'react_to_message') {
     const emojiId = normalizeToken(input.emojiId);
     return emojiId ? { type: 'react_to_message', emojiId } : undefined;
+  }
+
+  return undefined;
+}
+
+// 统一消息不允许模型指定平台目标字段，目标只能由当前QQ事件补齐。
+function normalizeSendMsgSegments(
+  input: Record<string, unknown>,
+): readonly QqSendMsgSegment[] | undefined {
+  if (hasForbiddenSendTarget(input)) return undefined;
+
+  const message = input.message;
+  if (!Array.isArray(message)) return undefined;
+
+  const segments = message
+    .map(normalizeSendMsgSegment)
+    .filter((segment): segment is QqSendMsgSegment => Boolean(segment));
+  return segments.length > 0 && segments.length === message.length ? segments : undefined;
+}
+
+// 判断模型是否试图越权指定发送目标。
+function hasForbiddenSendTarget(input: Record<string, unknown>): boolean {
+  return ['group_id', 'user_id', 'message_type', 'conversationExternalId', 'conversationType'].some(
+    (key) => Object.prototype.hasOwnProperty.call(input, key),
+  );
+}
+
+// 只接受本轮白名单消息段。
+function normalizeSendMsgSegment(input: unknown): QqSendMsgSegment | undefined {
+  if (!isRecord(input) || typeof input.type !== 'string' || !isRecord(input.data)) {
+    return undefined;
+  }
+
+  if (input.type === 'text') {
+    const text = normalizeText(input.data.text);
+    return text ? { type: 'text', text } : undefined;
+  }
+
+  if (input.type === 'at') {
+    const qq = normalizeToken(input.data.qq);
+    return qq ? { type: 'at', qq } : undefined;
+  }
+
+  if (input.type === 'face') {
+    const id = normalizeToken(input.data.id);
+    return id ? { type: 'face', id } : undefined;
+  }
+
+  if (input.type === 'image') {
+    const file = normalizeResource(input.data.file);
+    return file ? { type: 'image', file } : undefined;
+  }
+
+  if (input.type === 'mface') {
+    const emojiPackageId = normalizePositiveInteger(
+      input.data.emoji_package_id ?? input.data.emojiPackageId,
+    );
+    const emojiId = normalizeToken(input.data.emoji_id ?? input.data.emojiId);
+    const key = normalizeToken(input.data.key);
+    const summary = normalizeText(input.data.summary);
+    return emojiPackageId && emojiId && key && summary
+      ? { type: 'mface', emojiPackageId, emojiId, key, summary }
+      : undefined;
   }
 
   return undefined;

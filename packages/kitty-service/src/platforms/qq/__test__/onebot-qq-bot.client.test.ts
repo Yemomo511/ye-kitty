@@ -10,7 +10,7 @@ describe('OneBotQqBotClient', () => {
       async sendAction(action: OneBotV11ActionRequest) {
         sentActions.push(action);
       },
-    } as OneBotFastifyReverseWsServer;
+    } as unknown as OneBotFastifyReverseWsServer;
 
     const client = new OneBotQqBotClient(server);
     await client.sendTextMessage({
@@ -36,7 +36,7 @@ describe('OneBotQqBotClient', () => {
       async sendAction(action: OneBotV11ActionRequest) {
         sentActions.push(action);
       },
-    } as OneBotFastifyReverseWsServer;
+    } as unknown as OneBotFastifyReverseWsServer;
 
     const client = new OneBotQqBotClient(server);
     await client.sendTextMessage({
@@ -62,7 +62,7 @@ describe('OneBotQqBotClient', () => {
       async sendAction(action: OneBotV11ActionRequest) {
         sentActions.push(action);
       },
-    } as OneBotFastifyReverseWsServer;
+    } as unknown as OneBotFastifyReverseWsServer;
 
     const client = new OneBotQqBotClient(server);
     await client.sendMessageSegments({
@@ -70,6 +70,7 @@ describe('OneBotQqBotClient', () => {
       conversationType: 'group',
       segments: [
         { type: 'text', text: '好好好' },
+        { type: 'at', qq: '20000' },
         { type: 'face', id: '66' },
         {
           type: 'mface',
@@ -89,6 +90,7 @@ describe('OneBotQqBotClient', () => {
         group_id: '123456',
         message: [
           { type: 'text', data: { text: '好好好' } },
+          { type: 'at', data: { qq: '20000' } },
           { type: 'face', data: { id: '66' } },
           {
             type: 'mface',
@@ -103,6 +105,44 @@ describe('OneBotQqBotClient', () => {
         ],
       },
     });
+  });
+
+  test('读取自定义表情时调用fetch_custom_face并归一化可发送资源', async () => {
+    const sentActions: OneBotV11ActionRequest[] = [];
+    const server = {
+      async sendActionAndWait(action: OneBotV11ActionRequest) {
+        sentActions.push(action);
+        return {
+          status: 'ok',
+          retcode: 0,
+          data: [
+            { md5: 'face-md5', file: 'custom-face://cat', summary: '猫猫震惊' },
+            { id: 'face-2', url: 'https://example.com/doge.png', name: '狗狗点头' },
+            { id: 'missing-file' },
+          ],
+          echo: action.echo,
+        };
+      },
+    } as unknown as OneBotFastifyReverseWsServer;
+
+    const client = new OneBotQqBotClient(server);
+    const faces = await client.fetchCustomFaces();
+
+    expect(sentActions[0]).toMatchObject({ action: 'fetch_custom_face' });
+    expect(faces).toEqual([
+      {
+        id: 'face-md5',
+        file: 'custom-face://cat',
+        summary: '猫猫震惊',
+        name: undefined,
+      },
+      {
+        id: 'face-2',
+        file: 'https://example.com/doge.png',
+        summary: undefined,
+        name: '狗狗点头',
+      },
+    ]);
   });
 
   test('戳一戳按会话类型生成对应动作', async () => {

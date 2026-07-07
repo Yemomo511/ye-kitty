@@ -2,6 +2,7 @@ import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
 import type { OneBotV11ActionRequest } from '../../domain/onebot-v11';
 import type { OneBotFastifyReverseWsServer } from '../onebot-fastify-reverse-ws.server';
 import type {
+  QqCustomFaceResource,
   QqExternalActionApi,
   QqOutboundMessageSegment,
   QqPokeInput,
@@ -15,6 +16,10 @@ type OneBotSendMessageSegment =
   | {
       readonly type: 'text';
       readonly data: { readonly text: string };
+    }
+  | {
+      readonly type: 'at';
+      readonly data: { readonly qq: string };
     }
   | {
       readonly type: 'face';
@@ -131,6 +136,29 @@ export class OneBotWsExternalActionApi implements QqExternalActionApi {
     );
   }
 
+  /**
+   * 读取QQ自定义表情
+   * @returns 可发送自定义表情资源
+   */
+  async fetchCustomFaces(): Promise<readonly QqCustomFaceResource[]> {
+    const action = 'fetch_custom_face';
+    const response = await this.server.sendActionAndWait(
+      {
+        action,
+        echo: this.createEcho(action),
+      },
+      30000,
+    );
+    if (response.status !== 'ok') {
+      throw new Error(response.message ?? response.wording ?? 'fetch_custom_face 返回失败');
+    }
+    const faces = normalizeCustomFaces(response.data);
+    console.info(
+      `✅ [OneBotWsExternalActionApi-fetchCustomFaces] 已读取QQ自定义表情 count=${faces.length}`,
+    );
+    return faces;
+  }
+
   // 所有 NapCat 调用必须经过该入口，避免绕过白名单审查。
   private async sendWhitelistedAction(action: OneBotV11ActionRequest): Promise<void> {
     await this.server.sendAction(action);
@@ -146,6 +174,10 @@ export class OneBotWsExternalActionApi implements QqExternalActionApi {
 function toOneBotMessageSegment(segment: QqOutboundMessageSegment): OneBotSendMessageSegment {
   if (segment.type === 'text') {
     return { type: 'text', data: { text: segment.text } };
+  }
+
+  if (segment.type === 'at') {
+    return { type: 'at', data: { qq: segment.qq } };
   }
 
   if (segment.type === 'face') {
@@ -165,6 +197,65 @@ function toOneBotMessageSegment(segment: QqOutboundMessageSegment): OneBotSendMe
   }
 
   return { type: 'image', data: { file: segment.file } };
+}
+
+// 兼容 NapCat 对自定义表情字段命名的差异。
+function normalizeCustomFaces(data: unknown): readonly QqCustomFaceResource[] {
+  const rawFaces = Array.isArray(data)
+    ? data
+    : isRecord(data) && Array.isArray(data.data)
+      ? data.data
+      : [];
+  const faces: QqCustomFaceResource[] = [];
+  const seenFiles = new Set<string>();
+
+  for (const rawFace of rawFaces) {
+    const face = normalizeCustomFace(rawFace);
+    if (!face) continue;
+    if (seenFiles.has(face.file)) continue;
+
+    seenFiles.add(face.file);
+    faces.push(face);
+  }
+
+  return faces;
+}
+
+// 提取单个可发送表情。
+function normalizeCustomFace(input: unknown): QqCustomFaceResource | undefined {
+  if (!isRecord(input)) return undefined;
+
+  const file = readFirstString(input, ['file', 'url', 'path']);
+  if (!file) {
+    writeDebugLog('⏭️ [OneBotWsExternalActionApi-fetchCustomFaces] 跳过缺少file的自定义表情');
+    return undefined;
+  }
+
+  const id = readFirstString(input, ['id', 'md5', 'file_id']) ?? file;
+  return {
+    id,
+    file,
+    name: readFirstString(input, ['name']),
+    summary: readFirstString(input, ['summary']),
+  };
+}
+
+// 从候选字段中读取第一个非空字符串。
+function readFirstString(
+  input: Record<string, unknown>,
+  keys: readonly string[],
+): string | undefined {
+  for (const key of keys) {
+    const value = input[key];
+    if (typeof value === 'string' && value.trim()) return value.trim();
+  }
+
+  return undefined;
+}
+
+// 判断普通对象。
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === 'object' && input !== null;
 }
 
 // 脱敏外部ID，仅保留排障所需尾部特征。

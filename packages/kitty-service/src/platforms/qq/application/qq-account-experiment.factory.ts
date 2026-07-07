@@ -2,6 +2,7 @@ import type { QqBotClientPort } from '../ports/qq-bot-client.port';
 import { OneBotQqBotClient } from '../infrastructure/onebot-qq-bot.client';
 import {
   OneBotFastifyReverseWsServer,
+  type OneBotConnectionHandler,
   type OneBotReverseWebSocketConfig,
 } from '../infrastructure/onebot-fastify-reverse-ws.server';
 import {
@@ -32,6 +33,11 @@ export interface QqAccountExperimentRuntime {
   start(): Promise<void>;
   /** 停止通道 */
   stop(): Promise<void>;
+  /**
+   * 注册NapCat连接处理器
+   * @param handler 连接处理器
+   */
+  onClientConnected(handler: OneBotConnectionHandler): void;
 }
 
 /**
@@ -54,6 +60,9 @@ export function createQqAccountExperimentChannel(
     },
     async stop() {
       await channel.stop();
+    },
+    onClientConnected(handler) {
+      server.registerConnectionHandler(handler);
     },
   };
 }
