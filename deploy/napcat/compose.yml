@@ -1,0 +1,18 @@
+# Ye-Kitty 的 NapCat Docker 本地部署模板。
+# Ye-Kitty 自己监听宿主机 3001，NapCat 通过 host.docker.internal 反向连接，不再占用宿主机 3001。
+services:
+  napcat:
+    image: mlikiowa/napcat-docker:latest
+    container_name: ye-kitty-napcat
+    restart: unless-stopped
+    environment:
+      NAPCAT_UID: ${NAPCAT_UID:-1000}
+      NAPCAT_GID: ${NAPCAT_GID:-1000}
+    ports:
+      - '${NAPCAT_WEBUI_PORT:-16099}:6099'
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    volumes:
+      - ./data/config:/app/napcat/config
+      - ./data/ntqq:/app/.config/QQ
+      - ./data/plugins:/app/napcat/plugins
