@@ -1,0 +1,32 @@
+packages/kitty-service/eval/cases.ts
+  s_da7b8663ffdeb8::t_3cc22aea0bae13 14-17,104-123
+packages/kitty-service/src/platforms/qq/__test__/onebot-fastify-reverse-ws.server.test.ts
+  s_da7b8663ffdeb8::t_e27ae9492f82d0 53-100
+packages/kitty-service/src/platforms/qq/infrastructure/api/qq-external-action.api.ts
+  s_da7b8663ffdeb8::t_6bf4785028369e 29-36,59-70,73-77,135-140
+packages/kitty-service/src/services/agent-runtime/__test__/custom-face-catalog.test.ts
+  s_da7b8663ffdeb8::t_6d82c024b89fe1 1-143
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "7958187b3029e11721401f62675d7cf0aac8600f",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_da7b8663ffdeb8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c7c-4608-7010-b8ff-bc10f5eddc79",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
