@@ -2,7 +2,7 @@
 
 ## 总原则
 
-QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，真正的群号、好友号、消息类型和发送者由 Agent Runtime 从当前 QQ 消息上下文补齐。
+QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，真正的群号、好友号、消息类型、触发消息引用和发送者提醒由 Agent Runtime 从当前 QQ 消息上下文补齐。
 
 普通消息发送统一使用 `send_msg`。不要输出 `send_group_msg`、`send_private_msg`、HTTP、curl、URL、token、群管理、删消息、踢人、改资料、退群、登录态操作或任意原始平台 action。
 
@@ -27,7 +27,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 
 ### send_msg
 
-`send_msg` 对应 NapCat 统一发送消息接口。Agent 只填写消息内容，不能填写会话目标。
+`send_msg` 对应 NapCat 统一发送消息接口。Agent 只填写消息内容，不能填写会话目标、引用消息或发送者提醒。执行层会在所有 `send_msg` 最前面自动补 `reply` 引用当前触发消息，并 @ 当前触发消息发送者。
 
 ```json
 {
@@ -55,6 +55,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 | `message_type`           | 由当前 QQ 会话决定，Agent 不能指定。               |
 | `group_id`               | 由当前 QQ 群聊上下文补齐，Agent 不能指定任意群。   |
 | `user_id`                | 由当前 QQ 私聊上下文补齐，Agent 不能指定任意好友。 |
+| `reply`                  | 由执行层引用当前触发消息，Agent 不能指定任意消息。 |
 | `action`、`url`、`token` | 不能绕过 Harness 直接调用 NapCat。                 |
 
 ## 消息段
@@ -89,7 +90,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 { "type": "image", "data": { "file": "custom-face://cat" } }
 ```
 
-自定义表情必须先通过 `get_custom_faces` 工具提交表情需求，由视觉Agent基于已理解描述推荐候选，再把工具结果里的 `file` 放进 `image` 段。当前实现不接受 `reply`、`dice`、`rps`、`json`、`node`、`record`、`video`、`file`、`music`、`markdown`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。
+自定义表情必须先通过 `get_custom_faces` 工具提交表情需求，由视觉Agent基于已理解描述推荐候选，再把工具结果里的 `file` 放进 `image` 段。当前实现不接受模型手写 `reply`、`dice`、`rps`、`json`、`node`、`record`、`video`、`file`、`music`、`markdown`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。
 
 ## 其他动作
 
@@ -114,8 +115,8 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 1. 模型在 Harness 循环中输出 `reply.actions[].send_msg`。
 2. `parseQqReplyAction` 只识别 `send_msg`、`poke_sender`、`react_to_message` 等 Harness 动作名，不识别原始 NapCat action。
 3. 解析层把 `send_msg.message` 收敛为白名单消息段，同时过滤空消息、非法控制字段和会话目标字段。
-4. `QqReplyActionExecutor` 从当前 QQ 事件补齐 `message_type` 和当前会话 ID。
-5. `QqBotClientPort` 通过统一 `sendMessageSegments` 发送文字、图片和表情消息段。
+4. `QqReplyActionExecutor` 从当前 QQ 事件补齐触发消息 `reply`、发送者 `at`、`message_type` 和当前会话 ID。
+5. `QqBotClientPort` 通过统一 `sendMessageSegments` 发送文字、图片、表情和执行层自动补齐的上下文消息段。
 6. `OneBotWsExternalActionApi` 根据当前会话调用 NapCat `send_msg`，群聊补 `message_type: "group"` 和当前 `group_id`，私聊补 `message_type: "private"` 和当前 `user_id`。
 7. 运行记录保存模型原始动作、补齐后的 NapCat 参数摘要、发送结果和错误，便于排查。
 

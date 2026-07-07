@@ -1,4 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { QqOutboundMessageSegment } from '@kitty/platforms/qq/infrastructure/api';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { ConversationId } from '@kitty/shared/types/ids';
 import type { QqReplyAction } from '../ports/qq-reply-agent.port';
@@ -48,67 +49,53 @@ export class QqReplyActionExecutor {
       const conversationExternalId = stripQqConversationPrefix(message.conversationId);
 
       if (action.type === 'send_text') {
-        await this.botClient.sendMessageSegments({
-          conversationExternalId,
-          conversationType: message.conversationType,
-          segments: [{ type: 'text', text: action.text }],
-        });
+        await this.sendMessageSegments(message, conversationExternalId, [
+          { type: 'text', text: action.text },
+        ]);
         return;
       }
 
       if (action.type === 'send_msg') {
-        await this.botClient.sendMessageSegments({
-          conversationExternalId,
-          conversationType: message.conversationType,
-          segments: action.message,
-        });
+        await this.sendMessageSegments(message, conversationExternalId, action.message);
         return;
       }
 
       if (action.type === 'send_text_with_face') {
-        await this.botClient.sendMessageSegments({
+        await this.sendMessageSegments(
+          message,
           conversationExternalId,
-          conversationType: message.conversationType,
-          segments: action.segments.map((segment) => {
+          action.segments.map((segment) => {
             if (segment.type === 'text') return { type: 'text', text: segment.text };
             return { type: 'face', id: segment.faceId };
           }),
-        });
+        );
         return;
       }
 
       if (action.type === 'send_face') {
-        await this.botClient.sendMessageSegments({
-          conversationExternalId,
-          conversationType: message.conversationType,
-          segments: [{ type: 'face', id: action.faceId }],
-        });
+        await this.sendMessageSegments(message, conversationExternalId, [
+          { type: 'face', id: action.faceId },
+        ]);
         return;
       }
 
       if (action.type === 'send_custom_image') {
-        await this.botClient.sendMessageSegments({
-          conversationExternalId,
-          conversationType: message.conversationType,
-          segments: [{ type: 'image', file: action.file }],
-        });
+        await this.sendMessageSegments(message, conversationExternalId, [
+          { type: 'image', file: action.file },
+        ]);
         return;
       }
 
       if (action.type === 'send_market_face') {
-        await this.botClient.sendMessageSegments({
-          conversationExternalId,
-          conversationType: message.conversationType,
-          segments: [
-            {
-              type: 'mface',
-              emojiPackageId: action.emojiPackageId,
-              emojiId: action.emojiId,
-              key: action.key,
-              summary: action.summary,
-            },
-          ],
-        });
+        await this.sendMessageSegments(message, conversationExternalId, [
+          {
+            type: 'mface',
+            emojiPackageId: action.emojiPackageId,
+            emojiId: action.emojiId,
+            key: action.key,
+            summary: action.summary,
+          },
+        ]);
         return;
       }
 
@@ -132,6 +119,19 @@ export class QqReplyActionExecutor {
         )} reason=${formatError(error)}`,
       );
     }
+  }
+
+  // 所有普通 QQ send_msg 都引用触发消息并提醒发送者，避免群聊里回复脱离上下文。
+  private async sendMessageSegments(
+    message: ChatEventContract,
+    conversationExternalId: string,
+    segments: readonly QqOutboundMessageSegment[],
+  ): Promise<void> {
+    await this.botClient.sendMessageSegments({
+      conversationExternalId,
+      conversationType: message.conversationType,
+      segments: withTriggerContext(message, segments),
+    });
   }
 }
 
@@ -187,6 +187,25 @@ function readActionTextSegments(action: QqReplyAction): readonly string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+// 为普通消息补齐当前触发消息上下文。
+function withTriggerContext(
+  message: ChatEventContract,
+  segments: readonly QqOutboundMessageSegment[],
+): readonly QqOutboundMessageSegment[] {
+  const senderExternalId = stripQqParticipantPrefix(message.senderId);
+  const hasSenderAt = segments.some(
+    (segment) => segment.type === 'at' && segment.qq === senderExternalId,
+  );
+
+  return [
+    { type: 'reply', id: message.message.id },
+    ...(hasSenderAt
+      ? []
+      : [{ type: 'at', qq: senderExternalId } satisfies QqOutboundMessageSegment]),
+    ...segments,
+  ];
 }
 
 // 还原 OneBot 发送动作需要的平台会话ID。

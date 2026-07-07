@@ -4,6 +4,7 @@ import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
 import { SkillRuntimeService } from '../application/skill-runtime.service';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { QqOutboundMessageSegment } from '@kitty/platforms/qq/infrastructure/api';
 import { PlatformMessageService } from '@kitty/platforms/shared';
 import type {
   ChatEventId,
@@ -71,7 +72,7 @@ describe('QqReplyEventSubscriber', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [{ type: 'text', text: 'Agent回复：你好' }],
+        segments: withTriggerContext([{ type: 'text', text: 'Agent回复：你好' }]),
       },
     ]);
   });
@@ -95,7 +96,9 @@ describe('QqReplyEventSubscriber', () => {
 
     await subscriber.handleMessage(createChatEvent({ text: '模型失败后的消息' }));
 
-    expect(segments[0]?.segments).toEqual([{ type: 'text', text: '叶猫猫收到：模型失败后的消息' }]);
+    expect(segments[0]?.segments).toEqual(
+      withTriggerContext([{ type: 'text', text: '叶猫猫收到：模型失败后的消息' }]),
+    );
   });
 
   test('非QQ事件或空文本事件不触发回复', async () => {
@@ -160,7 +163,9 @@ describe('QqReplyEventSubscriber', () => {
     expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
     expect(agentInputs[0]?.skills).toBeUndefined();
     expect(loadSkillContent).not.toHaveBeenCalled();
-    expect(segments[0]?.segments).toEqual([{ type: 'text', text: 'Skill失败也能回复' }]);
+    expect(segments[0]?.segments).toEqual(
+      withTriggerContext([{ type: 'text', text: 'Skill失败也能回复' }]),
+    );
   });
 
   test('执行Agent返回的QQ互动动作', async () => {
@@ -239,10 +244,10 @@ describe('QqReplyEventSubscriber', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [
+        segments: withTriggerContext([
           { type: 'text', text: '好好好' },
           { type: 'face', id: '66' },
-        ],
+        ]),
       },
     ]);
   });
@@ -326,7 +331,7 @@ describe('QqReplyEventSubscriber', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'private',
-        segments: [{ type: 'text', text: '私聊收到' }],
+        segments: withTriggerContext([{ type: 'text', text: '私聊收到' }]),
       },
     ]);
   });
@@ -370,6 +375,12 @@ function createSkillMetadata(): SkillMetadata {
     description: '用于 QQ 群聊和私聊中的自然中文回复。',
     rootPath: '/tmp/skills/qq-chat',
   };
+}
+
+function withTriggerContext(
+  segments: readonly QqOutboundMessageSegment[],
+): readonly QqOutboundMessageSegment[] {
+  return [{ type: 'reply', id: 'message-1' }, { type: 'at', qq: '20000' }, ...segments];
 }
 
 function createTestBotClient(options: {

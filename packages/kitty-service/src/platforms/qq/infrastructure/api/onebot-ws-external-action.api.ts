@@ -22,6 +22,10 @@ type OneBotSendMessageSegment =
       readonly data: { readonly qq: string };
     }
   | {
+      readonly type: 'reply';
+      readonly data: { readonly id: string };
+    }
+  | {
       readonly type: 'face';
       readonly data: { readonly id: string };
     }
@@ -178,6 +182,10 @@ function toOneBotMessageSegment(segment: QqOutboundMessageSegment): OneBotSendMe
 
   if (segment.type === 'at') {
     return { type: 'at', data: { qq: segment.qq } };
+  }
+
+  if (segment.type === 'reply') {
+    return { type: 'reply', data: { id: segment.id } };
   }
 
   if (segment.type === 'face') {

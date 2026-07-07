@@ -34,6 +34,14 @@ export interface QqAtMessageSegment {
   readonly qq: string;
 }
 
+/** QQ引用消息段 */
+export interface QqReplyMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'reply';
+  /** 被引用的QQ消息ID */
+  readonly id: string;
+}
+
 /** QQ商城表情消息段 */
 export interface QqMarketFaceMessageSegment {
   /** 消息段类型 */
@@ -72,6 +80,7 @@ export interface QqCustomFaceResource {
 export type QqOutboundMessageSegment =
   | QqTextMessageSegment
   | QqAtMessageSegment
+  | QqReplyMessageSegment
   | QqFaceMessageSegment
   | QqMarketFaceMessageSegment
   | QqImageMessageSegment;

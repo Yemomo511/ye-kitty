@@ -69,6 +69,7 @@ describe('OneBotQqBotClient', () => {
       conversationExternalId: '123456',
       conversationType: 'group',
       segments: [
+        { type: 'reply', id: 'message-1' },
         { type: 'text', text: '好好好' },
         { type: 'at', qq: '20000' },
         { type: 'face', id: '66' },
@@ -89,6 +90,7 @@ describe('OneBotQqBotClient', () => {
         message_type: 'group',
         group_id: '123456',
         message: [
+          { type: 'reply', data: { id: 'message-1' } },
           { type: 'text', data: { text: '好好好' } },
           { type: 'at', data: { qq: '20000' } },
           { type: 'face', data: { id: '66' } },

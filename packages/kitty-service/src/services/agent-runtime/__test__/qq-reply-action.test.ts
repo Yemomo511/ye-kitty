@@ -1,4 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { QqOutboundMessageSegment } from '@kitty/platforms/qq/infrastructure/api';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type {
   ChatEventId,
@@ -116,6 +117,12 @@ describe('parseQqReplyAction', () => {
     ).toBeUndefined();
     expect(
       parseQqReplyAction({
+        type: 'send_msg',
+        message: [{ type: 'reply', data: { id: 'message-1' } }],
+      }),
+    ).toBeUndefined();
+    expect(
+      parseQqReplyAction({
         type: 'send_text_with_face',
         segments: [{ type: 'text', text: '只有文字' }],
       }),
@@ -179,30 +186,30 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [{ type: 'text', text: '主回复喵~' }],
+        segments: withTriggerContext([{ type: 'text', text: '主回复喵~' }]),
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [
+        segments: withTriggerContext([
           { type: 'text', text: '好好好' },
           { type: 'face', id: '66' },
-        ],
+        ]),
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [{ type: 'face', id: '66' }],
+        segments: withTriggerContext([{ type: 'face', id: '66' }]),
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
+        segments: withTriggerContext([{ type: 'image', file: 'https://example.com/cat.png' }]),
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [
+        segments: withTriggerContext([
           {
             type: 'mface',
             emojiPackageId: 123,
@@ -210,15 +217,15 @@ describe('QqReplyActionExecutor', () => {
             key: 'market-key',
             summary: '摸摸头',
           },
-        ],
+        ]),
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [
+        segments: withTriggerContext([
           { type: 'text', text: '自定义表情' },
           { type: 'image', file: 'custom-face://cat' },
-        ],
+        ]),
       },
     ]);
   });
@@ -281,12 +288,12 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [{ type: 'text', text: '重复回复' }],
+        segments: withTriggerContext([{ type: 'text', text: '重复回复' }]),
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [{ type: 'text', text: '追加一句' }],
+        segments: withTriggerContext([{ type: 'text', text: '追加一句' }]),
       },
     ]);
   });
@@ -311,10 +318,10 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [
+        segments: withTriggerContext([
           { type: 'text', text: '好好好' },
           { type: 'face', id: '66' },
-        ],
+        ]),
       },
     ]);
   });
@@ -337,9 +344,36 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: [
+        segments: withTriggerContext([
           { type: 'text', text: '好好好' },
           { type: 'image', file: 'custom-face://ok' },
+        ]),
+      },
+    ]);
+  });
+
+  test('send_msg已包含发送者at时不重复提醒', async () => {
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const executor = new QqReplyActionExecutor(createTestBotClient({ segments }));
+
+    await executor.executeReply(createChatEvent(), undefined, [
+      {
+        type: 'send_msg',
+        message: [
+          { type: 'at', qq: '20000' },
+          { type: 'text', text: '收到' },
+        ],
+      },
+    ]);
+
+    expect(segments).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'reply', id: 'message-1' },
+          { type: 'at', qq: '20000' },
+          { type: 'text', text: '收到' },
         ],
       },
     ]);
@@ -400,6 +434,12 @@ function createChatEvent(): ChatEventContract {
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
   };
+}
+
+function withTriggerContext(
+  segments: readonly QqOutboundMessageSegment[],
+): readonly QqOutboundMessageSegment[] {
+  return [{ type: 'reply', id: 'message-1' }, { type: 'at', qq: '20000' }, ...segments];
 }
 
 function createTestBotClient(options: {

@@ -284,27 +284,29 @@ QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/s
 
 目标 QQ 回复动作：
 
-| 动作               | 平台消息段或动作         | 说明                                                                                    |
-| ------------------ | ------------------------ | --------------------------------------------------------------------------------------- |
-| `send_msg`         | NapCat `send_msg`        | 统一发送普通 QQ 消息，`message` 使用 OneBot 11 混合消息结构，由执行层补齐当前会话目标。 |
-| `poke_sender`      | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                    |
-| `react_to_message` | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                        |
+| 动作               | 平台消息段或动作         | 说明                                                                                                            |
+| ------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
+| `send_msg`         | NapCat `send_msg`        | 统一发送普通 QQ 消息，`message` 使用 OneBot 11 混合消息结构，由执行层补齐当前会话目标、触发消息引用和发送者 @。 |
+| `poke_sender`      | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                                            |
+| `react_to_message` | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                                                |
 
-`send_msg` 设计为替代 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image` 和 `send_market_face` 的统一消息出口。模型只允许声明消息内容，不能声明 `message_type`、`group_id` 或 `user_id`；这些字段由 `QqReplyActionExecutor` 根据当前 `QqChatMessageEvent` 补齐。群聊补 `message_type: "group"` 和当前群号，私聊补 `message_type: "private"` 和当前好友号。
+`send_msg` 设计为替代 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image` 和 `send_market_face` 的统一消息出口。模型只允许声明消息内容，不能声明 `message_type`、`group_id`、`user_id` 或 `reply` 消息段；这些字段和上下文消息段由 `QqReplyActionExecutor` 根据当前 `QqChatMessageEvent` 补齐。群聊补 `message_type: "group"` 和当前群号，私聊补 `message_type: "private"` 和当前好友号。
+
+所有 Agent 普通外发消息只要最终通过 `send_msg` 发送，执行层都会在消息段最前面注入 `reply` 和 `at`：`reply` 引用当前触发消息 `message.id`，`at` 提醒当前触发消息发送者。这个规则覆盖纯文本、内置表情、商城表情、自定义表情、图片和后续文件类消息段；`poke_sender` 和 `react_to_message` 不经过 `send_msg`，因此不注入引用和 @。如果模型已经在 `send_msg.message` 中 @ 当前发送者，执行层只保留一次发送者 @，避免重复提醒。
 
 NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`、`group_id`、`message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`。当前 Agent Harness 只接收 `message`，目标字段由运行时补齐，其余发送控制字段暂不对模型开放。
 
-`message` 使用受控 OneBot 11 消息混合类型，当前只允许消息段数组，并只接收 `text`、`at`、`face`、`mface`、`image` 五类段。自定义表情通过 `image` 段发送，`file` 必须来自 `get_custom_faces` 工具返回的目录结果，不能由模型编造。更宽的 NapCat 段类型如 `reply`、`record`、`video`、`file`、`music`、`json`、`markdown`、`node`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 暂不开放。
+`message` 使用受控 OneBot 11 消息混合类型，当前只允许消息段数组，并只接收模型声明的 `text`、`at`、`face`、`mface`、`image` 五类段。自定义表情通过 `image` 段发送，`file` 必须来自 `get_custom_faces` 工具返回的目录结果，不能由模型编造。更宽的 NapCat 段类型如模型手写 `reply`、`record`、`video`、`file`、`music`、`json`、`markdown`、`node`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 暂不开放。
 
 统一 `send_msg` 接入 Harness 的过程：
 
 1. `qq-chat` Skill 暴露 `send_msg` JSON 结构，禁止模型输出 `send_group_msg`、`send_private_msg` 或任意 HTTP 调用。
 2. `harness-runtime.prompt.md` 将 `reply.actions` 白名单调整为 `send_msg`、`poke_sender`、`react_to_message`。
-3. `parseQqReplyAction` 新增 `send_msg`，保留 OneBot 11 消息段结构，过滤空消息和会话目标字段。
-4. `QqReplyActionExecutor` 仍处理 `poke_sender` 独占；普通回复统一调用 `QqBotClientPort.sendMessage`。
+3. `parseQqReplyAction` 新增 `send_msg`，保留 OneBot 11 内容消息段结构，过滤空消息、模型手写 `reply` 和会话目标字段。
+4. `QqReplyActionExecutor` 仍处理 `poke_sender` 独占；普通回复统一调用 `QqBotClientPort.sendMessage`，并在每次 `send_msg` 前补齐当前触发消息 `reply` 和发送者 `at`。
 5. `QqBotClientPort` 和 `OneBotWsExternalActionApi` 合并文字、图片、内置表情、商城表情发送入口，最终统一发 NapCat `send_msg`。
 6. RunTrace 记录模型原始 `send_msg`、运行时补齐后的参数摘要、NapCat 响应和错误。
-7. 单元测试覆盖消息段透传、目标字段过滤、自定义表情图片段、戳一戳独占和旧动作兼容迁移。
+7. 单元测试覆盖消息段透传、目标字段过滤、自定义表情图片段、触发消息引用、发送者 @ 去重、戳一戳独占和旧动作兼容迁移。
 
 ## 自定义表情理解与选择
 
@@ -436,8 +438,8 @@ QqReplyEventSubscriber
 ## 测试方案
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
-- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 静默、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情和 `text` + `face` 混排消息段映射。
-- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议和戳一戳独占说明。
+- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 静默、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射，以及所有 `send_msg` 自动注入触发消息引用和发送者 @。
+- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议、自动引用提醒说明和戳一戳独占说明。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、视觉推荐和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
@@ -468,3 +470,4 @@ QqReplyEventSubscriber
 | 2026-07-07 | 待验收 | 完成 Prompt 三章治理：Skill Prompt 与 Tool Prompt 抽离到第二章 Outside Context，并引入结构化 Skill 文档。           |
 | 2026-07-07 | 待验收 | 扩展 QQ 受控回复动作，新增 NapCat `mface` 商城表情发送能力，并补充解析、执行和 OneBot 映射测试。                    |
 | 2026-07-07 | 待验收 | 新增自定义表情目录工具、独立视觉 Agent 配置和 `send_msg` 图片段发送能力，支持聊天 Agent 自主选择自定义表情。        |
+| 2026-07-07 | 待验收 | 所有 Agent 普通 `send_msg` 回复自动引用触发消息并 @ 当前发送者，模型不能手写任意 `reply` 消息段。                   |
