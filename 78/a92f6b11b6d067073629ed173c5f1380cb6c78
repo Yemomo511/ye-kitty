@@ -1,0 +1,28 @@
+packages/kitty-service/src/platforms/qq/__test__/onebot-qq-bot.client.test.ts
+  s_b9b23d36825c2a::t_c9be1584652d47 112-142
+skills/qq-chat/references/qq-action-json.md
+  s_b9b23d36825c2a::t_c2f877e827a8da 32-40
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "78a92f6b11b6d067073629ed173c5f1380cb6c78",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_b9b23d36825c2a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3cdb-a6c0-7530-a41f-bbd7291cd255",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
