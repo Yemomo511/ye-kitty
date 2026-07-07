@@ -1,0 +1,18 @@
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md
+  h_b866b1ed626949 1,3,11,26,44,52,56,60
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  h_b866b1ed626949 10-31
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "714fb9b4bc7dff0a3178a7a595734d7da5d74484",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
