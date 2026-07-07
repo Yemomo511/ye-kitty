@@ -33,6 +33,82 @@ Ye-Kitty 是叶墨沫为虚拟互联网形象“叶猫猫”设计的服务系�
 - 自动发帖和主动运营。
 - 高级攻击检测和完整风控体系。
 
+## 本地运行 NapCat Docker
+
+NapCat 在本项目中作为 QQ 账号侧 OneBot v11 适配器运行。连接方向是：Ye-Kitty 启动 OneBot 反向 WebSocket 服务，NapCat Docker 作为 WebSocket 客户端主动连接 Ye-Kitty。
+
+### 端口映射
+
+| 端口            | 所属进程      | 用途                                                                     |
+| --------------- | ------------- | ------------------------------------------------------------------------ |
+| `3001`          | Ye-Kitty      | OneBot v11 反向 WebSocket，供 NapCat 主动连接                            |
+| `16099 -> 6099` | NapCat Docker | 宿主机 `16099` 映射到容器内 WebUI `6099`，用于登录 QQ 和配置 OneBot 网络 |
+
+不要把 NapCat 的 `3001` 映射到宿主机，否则会和 Ye-Kitty 默认监听的 `3001` 冲突。
+
+### 启动流程
+
+先确认根目录 `.env` 至少配置：
+
+```dotenv
+YE_KITTY_ONEBOT_ACCESS_TOKEN=ye-kitty-local-secret
+YE_KITTY_QQ_SELF_ID=你的机器人QQ号
+YE_KITTY_QQ_GROUP_ALLOWLIST=[]
+YE_KITTY_QQ_FRIEND_ALLOWLIST=[允许回复的好友QQ号]
+YE_KITTY_ONEBOT_WS_HOST=0.0.0.0
+YE_KITTY_ONEBOT_WS_PORT=3001
+YE_KITTY_ONEBOT_WS_PATH=/onebot/v11
+```
+
+启动 Ye-Kitty QQ 服务：
+
+```bash
+pnpm --filter @ye-kitty/kitty-service start-platform:qq
+```
+
+另开终端启动 NapCat Docker：
+
+```bash
+pnpm napcat:up
+```
+
+查看 NapCat WebUI Token 和登录二维码：
+
+```bash
+pnpm napcat:logs
+```
+
+打开 WebUI：
+
+```text
+http://127.0.0.1:16099/webui
+```
+
+在 NapCat WebUI 中新增或确认 WebSocket 客户端：
+
+```text
+ws://host.docker.internal:3001/onebot/v11?access_token=ye-kitty-local-secret
+```
+
+如果修改了 `.env` 中的 `YE_KITTY_ONEBOT_ACCESS_TOKEN`、`YE_KITTY_ONEBOT_WS_PORT` 或 `YE_KITTY_ONEBOT_WS_PATH`，这里的 URL 必须同步修改。
+
+也可以使用项目里的文件化配置示例：
+
+```bash
+mkdir -p deploy/napcat/data/config
+cp deploy/napcat/onebot11.example.json deploy/napcat/data/config/onebot11.json
+pnpm napcat:restart
+```
+
+### 验证连接
+
+1. Ye-Kitty 日志出现 `NapCat连接已建立`。
+2. NapCat 日志不再持续出现 WebSocket 重连失败。
+3. 用白名单内 QQ 好友或群发送文本消息。
+4. Ye-Kitty 日志出现 `开始生成QQ回复` 和 `已发送QQ回复`。
+
+完整部署说明、排障和配置细节见 [NapCat Docker 接入 QQ 服务](docs/qq-napcat-docker.md)。
+
 ## 总体架构
 
 项目采用模块化单体作为 MVP 形态，但所有模块都按微服务边界设计。这样可以先降低部署和调试成本，同时为后续拆分 HTTP、RPC、队列或 Worker 服务保留空间。
