@@ -1,7 +1,11 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
-import { createQqReplyAgent, loadQqReplyAgentConfig } from '../application/qq-reply-agent.factory';
+import {
+  DEFAULT_HARNESS_MAX_TURNS,
+  createQqReplyAgent,
+  loadQqReplyAgentConfig,
+} from '../application/qq-reply-agent.factory';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type {
@@ -72,6 +76,10 @@ describe('QQ回复Agent', () => {
       replyTimeoutMs: 20000,
     });
     expect(agent).toBeInstanceOf(SafeQqReplyAgent);
+  });
+
+  test('Harness默认最大循环次数为100次', () => {
+    expect(DEFAULT_HARNESS_MAX_TURNS).toBe(100);
   });
 });
 

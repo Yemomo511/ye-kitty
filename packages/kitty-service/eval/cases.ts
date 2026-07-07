@@ -165,7 +165,7 @@ function createObservation(input: {
       ...(input.extraMessages ?? []),
     ],
     turnIndex: input.extraMessages && input.extraMessages.length > 0 ? 2 : 1,
-    maxTurns: 4,
+    maxTurns: 100,
     toolCallCount: 0,
     maxToolCalls: 3,
   };

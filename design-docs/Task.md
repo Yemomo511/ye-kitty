@@ -54,3 +54,4 @@
 | 2026-07-07 | 重构 Skill 外界上下文生态位                 | 将 Skill Prompt 与 Tool Prompt 从 SystemPrompt 抽离到第二章 Outside Context，并用结构化文档注入。 |
 | 2026-07-07 | 新增 QQ 商城表情回复动作                    | 基于 NapCat `mface` 消息段扩展 `reply.actions` 白名单，允许 Agent 在 QQ 回复中发送受控商城表情。  |
 | 2026-07-07 | 修正 QQ 群聊响应与互动动作                  | 群聊仅在 @ 叶猫猫时触发 Agent，戳一戳独占回复，QQ 内置表情支持与文本同条消息混排。                |
+| 2026-07-07 | 提升 Harness 循环轮次                       | 将 QQ Agent Harness 默认最大循环次数从 4 次提升到 100 次，支持更长的 Skill/Tool 观察链路。        |

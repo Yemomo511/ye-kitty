@@ -8,6 +8,9 @@ import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtim
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
 import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
 
+/** Harness 单次运行默认最大轮次 */
+export const DEFAULT_HARNESS_MAX_TURNS = 100;
+
 /**
  * QQ回复Agent运行配置
  *
@@ -60,7 +63,7 @@ export function createQqReplyAgent(
       : undefined,
     fallbackAgent,
     {
-      maxTurns: 4,
+      maxTurns: DEFAULT_HARNESS_MAX_TURNS,
       maxToolCalls: 3,
       maxSkillReferences: 3,
     },

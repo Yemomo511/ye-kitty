@@ -97,7 +97,7 @@ MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协
 
 - 入口：`packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts`
 - 职责：控制一次 Agent 运行的主循环，组织 Observation、Runner 决策、权限判断、工具执行和最终结果。
-- 重要细节：MVP 默认限制 `maxTurns=4`、`maxToolCalls=3`；Runner 单次决策超时继续复用 `YE_KITTY_AGENT_REPLY_TIMEOUT_MS`；每轮循环通过结构化日志记录。
+- 重要细节：MVP 默认限制 `maxTurns=100`、`maxToolCalls=3`；Runner 单次决策超时继续复用 `YE_KITTY_AGENT_REPLY_TIMEOUT_MS`；每轮循环通过结构化日志记录。
 - Skill 细节：Harness 内部维护 `conversationMessages`、已启用 Skill 和已读取 reference；`skill_call` 与 `skill_reference_call` 不消耗工具预算，但仍受最大轮次和单次运行 reference 次数限制。
 - 边界：不直接发送 QQ 消息，不直接绕过 `risk/actions` 执行平台动作。
 
@@ -383,7 +383,7 @@ QqReplyEventSubscriber
 - 新增 Runner、ToolRegistry、ToolExecutor 和会话历史端口。
 - 新增 `get_recent_messages` 只读工具。
 - 支持市场 Skill 的最小目录、按需正文和 `references/` 按需读取。
-- 默认 `maxTurns=4`、`maxToolCalls=3`、`timeoutMs=30000`。
+- 默认 `maxTurns=100`、`maxToolCalls=3`、`timeoutMs=30000`。
 - 跑通“收到 QQ 消息 -> 调工具获取上下文 -> 再观察 -> 输出最终回复”的闭环。
 - 当前状态：已完成实现，等待完整环境验收。
 
