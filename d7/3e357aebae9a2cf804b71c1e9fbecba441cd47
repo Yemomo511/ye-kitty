@@ -1,0 +1,16 @@
+skills/qq-chat/SKILL.md
+  h_b866b1ed626949 12-13,15-25
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "d73e357aebae9a2cf804b71c1e9fbecba441cd47",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
