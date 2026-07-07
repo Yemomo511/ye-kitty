@@ -94,6 +94,36 @@ describe('CustomFaceCatalogService', () => {
       }),
     ]);
   });
+
+  test('工具查询未命中时返回未过滤表情目录候选', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const catalog = new CustomFaceCatalogService(
+      createBotClient([{ id: 'face-1', file: 'custom-face://cat', summary: '猫猫震惊' }]),
+      createVisionAgent(),
+    );
+    await catalog.refresh();
+    const executor = new BuiltinRuntimeToolExecutor(new InMemoryConversationHistory(), {
+      customFaceCatalog: catalog,
+    });
+
+    const result = await executor.execute({
+      event: createChatEvent(),
+      toolName: GET_CUSTOM_FACES_TOOL_NAME,
+      input: { query: '哭哭', limit: 5 },
+    });
+
+    expect(result).toMatchObject({
+      success: true,
+      observation: expect.stringContaining('查询词未命中，已返回当前可用自定义表情候选。'),
+    });
+    expect(result.structuredData).toEqual([
+      expect.objectContaining({
+        id: 'face-1',
+        file: 'custom-face://cat',
+      }),
+    ]);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('自定义表情查询未命中'));
+  });
 });
 
 function createVisionAgent(): CustomFaceVisionAgentPort {

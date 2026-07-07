@@ -116,16 +116,24 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
     await catalog.ensureReady();
     const query = isRecord(input) && typeof input.query === 'string' ? input.query : undefined;
     const limit = isRecord(input) && typeof input.limit === 'number' ? input.limit : undefined;
-    const faces = catalog.list({ query, limit });
+    const matchedFaces = catalog.list({ query, limit });
+    const shouldFallbackToCatalog = Boolean(query?.trim()) && matchedFaces.length === 0;
+    const faces = shouldFallbackToCatalog ? catalog.list({ limit }) : matchedFaces;
 
-    console.info(
-      `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情目录 count=${faces.length} queryLength=${query?.length ?? 0}`,
-    );
+    if (shouldFallbackToCatalog && faces.length > 0) {
+      console.warn(
+        `⚠️ [AgentRuntime-Tool-getCustomFaces] 自定义表情查询未命中，已返回未过滤目录 count=${faces.length} queryLength=${query?.length ?? 0}`,
+      );
+    } else {
+      console.info(
+        `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情目录 count=${faces.length} queryLength=${query?.length ?? 0}`,
+      );
+    }
 
     return {
       toolName: GET_CUSTOM_FACES_TOOL_NAME,
       success: true,
-      observation: formatCustomFacesObservation(faces),
+      observation: formatCustomFacesObservation(faces, shouldFallbackToCatalog),
       structuredData: faces.map((face) => ({
         id: face.id,
         file: face.file,
@@ -162,10 +170,12 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
 // 格式化自定义表情目录观察。
 function formatCustomFacesObservation(
   faces: readonly ReturnType<CustomFaceCatalogService['list']>[number][],
+  isQueryFallback = false,
 ): string {
   if (faces.length === 0) return '当前没有可用自定义表情。';
 
   return [
+    ...(isQueryFallback ? ['查询词未命中，已返回当前可用自定义表情候选。'] : []),
     `可用自定义表情 ${faces.length} 个：`,
     ...faces.map(
       (face, index) =>
