@@ -1,0 +1,21 @@
+README.md
+  s_66f55bcd93a9c2::t_efbc8fe03997ea 36-111
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "1a4940e7780d6eb63a880d888eed41d99fd779bf",
+  "prompts": {},
+  "sessions": {
+    "s_66f55bcd93a9c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3a63-17d4-72e3-ad47-bfd86f2f8447",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
