@@ -89,7 +89,10 @@ export function loadCustomFaceVisionAgentConfig(
       normalizeOptionalValue(env.YE_KITTY_VISION_AGENT_BASE_URL) ??
       normalizeOptionalValue(env.OPENAI_BASE_URL),
     model,
-    timeoutMs: readPositiveInteger(env.YE_KITTY_VISION_AGENT_TIMEOUT_MS, 30000),
+    timeoutMs: readPositiveInteger(
+      normalizeOptionalValue(env.YE_KITTY_VISION_AGENT_TIMEOUT_MS),
+      30000,
+    ),
   };
 }
 

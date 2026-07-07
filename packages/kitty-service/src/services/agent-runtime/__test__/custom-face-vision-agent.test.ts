@@ -1,5 +1,8 @@
 import { describe, expect, test } from 'vitest';
-import { parseCustomFaceDescription } from '../infrastructure/openai-custom-face-vision.agent';
+import {
+  loadCustomFaceVisionAgentConfig,
+  parseCustomFaceDescription,
+} from '../infrastructure/openai-custom-face-vision.agent';
 
 describe('parseCustomFaceDescription', () => {
   test('解析视觉Agent严格JSON输出', () => {
@@ -28,5 +31,18 @@ describe('parseCustomFaceDescription', () => {
     expect(() =>
       parseCustomFaceDescription('{"content":"猫猫","emotion":"震惊","tags":["猫"]}'),
     ).toThrow('视觉Agent描述字段不完整');
+  });
+
+  test('视觉Agent超时时间为空时使用默认值', () => {
+    expect(
+      loadCustomFaceVisionAgentConfig({
+        YE_KITTY_VISION_AGENT_MODEL: 'gpt-4.1-mini',
+        YE_KITTY_VISION_AGENT_API_KEY: 'sk-test',
+        YE_KITTY_VISION_AGENT_TIMEOUT_MS: '',
+      }),
+    ).toMatchObject({
+      model: 'gpt-4.1-mini',
+      timeoutMs: 30000,
+    });
   });
 });
