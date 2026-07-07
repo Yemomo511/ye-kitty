@@ -1,0 +1,40 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_df47bbb949a32a::t_03ccf81b0f4b21 371-372,380-381
+design-docs/Task.md
+  s_df47bbb949a32a::t_911d97d4004dfc 46-60
+packages/kitty-service/src/platforms/qq/__test__/onebot-fastify-reverse-ws.server.test.ts
+  s_df47bbb949a32a::t_5696f2c28e989f 39-40,45
+packages/kitty-service/src/platforms/qq/__test__/onebot-qq-bot.client.test.ts
+  s_df47bbb949a32a::t_57d2829f1e0caf 7,24,26,33,50,52,86,88
+packages/kitty-service/src/platforms/qq/infrastructure/api/onebot-ws-external-action.api.ts
+  s_df47bbb949a32a::t_7bc4e793463a2d 54-55,61,68
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-action.test.ts
+  s_df47bbb949a32a::t_c3a01c08345327 122-123,127,207-208,216-217,221,226
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_df47bbb949a32a::t_372137f2de71de 27-28,70,74,81-82,98,103-104,122,133-134,163,308,311,325,329
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-action-executor.ts
+  s_df47bbb949a32a::t_a236d6d8fbc46a 51,54
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3c98dcfbf2141430b21d66636891e425f59c403d",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_df47bbb949a32a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3c1a-e06b-7332-b08a-9060ddcd14e7",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
