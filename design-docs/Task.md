@@ -9,14 +9,14 @@
 
 - 状态：待验收
 - 负责人：Codex
-- 最近更新：2026-07-06
+- 最近更新：2026-07-07
 - 唯一入口：`design-docs/Agent/agent-runtime-harness.md`
 
 ## 设计拆分
 
-| 模块                         | 设计文档                                     | 状态   | 进度说明                                                                                                                                                                                        |
-| ---------------------------- | -------------------------------------------- | ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md` | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、Prompt 分层、平台无关 Skill 目录、`skill_call`、`skill_reference_call`、按需正文注入和 `references/` 按需读取；完整校验剩余本地监听环境限制。 |
+| 模块                         | 设计文档                                     | 状态   | 进度说明                                                                                                                                                                                            |
+| ---------------------------- | -------------------------------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md` | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、Prompt 三章治理、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call` 和 `references/` 按需读取。 |
 
 ## 开发顺序
 
@@ -51,3 +51,4 @@
 | 2026-07-06 | 补充 Skill 调用协议                         | 新增 `skill_call` JSON 格式，让模型能用结构化方式请求 Harness 确认 Skill 状态。                   |
 | 2026-07-06 | 实现 Skill 渐进式注入                       | 首轮只提供 Skill 目录，模型请求后由 Harness 按需读取正文并注入下一轮上下文。                      |
 | 2026-07-06 | 完成平台无关 Skill MVP                      | 移除 Skill 操作中的 QQ 命名，目录仅展示 `name`/`description`，正文和 reference 进入 Observation。 |
+| 2026-07-07 | 重构 Skill 外界上下文生态位                 | 将 Skill Prompt 与 Tool Prompt 从 SystemPrompt 抽离到第二章 Outside Context，并用结构化文档注入。 |
