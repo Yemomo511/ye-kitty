@@ -9,7 +9,8 @@ export function buildQqReplyPrompt(event: ChatEventContract): string {
   return [
     '请根据下面的 QQ 消息生成一条回复。',
     '你可以直接返回一段自然语言文本，也可以返回 JSON：{"text":"文字回复","actions":[...]}。',
-    'actions 仅允许 send_text、send_face、send_custom_image、poke_sender、react_to_message。',
+    'actions 仅允许 send_text、send_face、send_custom_image、send_market_face、poke_sender、react_to_message。',
+    'send_market_face 用于 NapCat mface 商城表情，必须包含 emojiPackageId、emojiId、key、summary。',
     '禁止输出 curl、HTTP 请求、群管理、删好友、退群、改资料、退出登录、原始包发送等危险能力。',
     '使用动作时保持克制，避免连续刷屏；没有把握时只返回自然语言文本。',
     `平台：QQ`,

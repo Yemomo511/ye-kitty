@@ -170,6 +170,13 @@ describe('QqReplyEventSubscriber', () => {
             actions: [
               { type: 'send_face', faceId: '66' },
               { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+              {
+                type: 'send_market_face',
+                emojiPackageId: 123,
+                emojiId: 'abc123',
+                key: 'market-key',
+                summary: '摸摸头',
+              },
               { type: 'poke_sender' },
               { type: 'react_to_message', emojiId: '128512' },
             ],
@@ -191,6 +198,19 @@ describe('QqReplyEventSubscriber', () => {
         conversationExternalId: '123456',
         conversationType: 'group',
         segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          {
+            type: 'mface',
+            emojiPackageId: 123,
+            emojiId: 'abc123',
+            key: 'market-key',
+            summary: '摸摸头',
+          },
+        ],
       },
     ]);
     expect(pokes).toEqual([
