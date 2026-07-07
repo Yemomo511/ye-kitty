@@ -43,17 +43,18 @@
 
 ## 变更记录
 
-| 日期       | 变更                                        | 原因                                                                                              |
-| ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------- |
-| 2026-07-06 | 新增 Harness Agent 第二版任务入口和进度拆分 | 将循环观察、工具调用和市场 Skill 协议对齐方案同步为团队进度。                                     |
-| 2026-07-06 | 完成 Harness Agent MVP 实现                 | 新增 Harness 循环、OpenAI Harness Runner、进程内最近消息工具、Prompt 分层治理和 Skill 扩展字段。  |
-| 2026-07-06 | 优化 Harness System Prompt                  | 强化系统级约束、外部环境感知触发、Skill/Tool 边界和安全合规风险收束。                             |
-| 2026-07-06 | 补充 Skill 调用协议                         | 新增 `skill_call` JSON 格式，让模型能用结构化方式请求 Harness 确认 Skill 状态。                   |
-| 2026-07-06 | 实现 Skill 渐进式注入                       | 首轮只提供 Skill 目录，模型请求后由 Harness 按需读取正文并注入下一轮上下文。                      |
-| 2026-07-06 | 完成平台无关 Skill MVP                      | 移除 Skill 操作中的 QQ 命名，目录仅展示 `name`/`description`，正文和 reference 进入 Observation。 |
-| 2026-07-07 | 重构 Skill 外界上下文生态位                 | 将 Skill Prompt 与 Tool Prompt 从 SystemPrompt 抽离到第二章 Outside Context，并用结构化文档注入。 |
-| 2026-07-07 | 新增 QQ 商城表情回复动作                    | 基于 NapCat `mface` 消息段扩展 `reply.actions` 白名单，允许 Agent 在 QQ 回复中发送受控商城表情。  |
-| 2026-07-07 | 修正 QQ 群聊响应与互动动作                  | 群聊仅在 @ 叶猫猫时触发 Agent，戳一戳独占回复，QQ 内置表情支持与文本同条消息混排。                |
-| 2026-07-07 | 提升 Harness 循环轮次                       | 将 QQ Agent Harness 默认最大循环次数从 4 次提升到 100 次，支持更长的 Skill/Tool 观察链路。        |
-| 2026-07-07 | 修复 QQ 群聊重复回复                        | 当模型同时输出 `reply.text` 和同内容文本动作时，执行层只发送一次，避免群聊重复刷屏。              |
-| 2026-07-07 | 设计统一 send_msg 回复结构                  | 基于 NapCat WebUI 调试页确认 `send_msg` 参数，规划用统一 OneBot 11 消息段替代分散 QQ 发送动作。   |
+| 日期       | 变更                                        | 原因                                                                                                  |
+| ---------- | ------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| 2026-07-06 | 新增 Harness Agent 第二版任务入口和进度拆分 | 将循环观察、工具调用和市场 Skill 协议对齐方案同步为团队进度。                                         |
+| 2026-07-06 | 完成 Harness Agent MVP 实现                 | 新增 Harness 循环、OpenAI Harness Runner、进程内最近消息工具、Prompt 分层治理和 Skill 扩展字段。      |
+| 2026-07-06 | 优化 Harness System Prompt                  | 强化系统级约束、外部环境感知触发、Skill/Tool 边界和安全合规风险收束。                                 |
+| 2026-07-06 | 补充 Skill 调用协议                         | 新增 `skill_call` JSON 格式，让模型能用结构化方式请求 Harness 确认 Skill 状态。                       |
+| 2026-07-06 | 实现 Skill 渐进式注入                       | 首轮只提供 Skill 目录，模型请求后由 Harness 按需读取正文并注入下一轮上下文。                          |
+| 2026-07-06 | 完成平台无关 Skill MVP                      | 移除 Skill 操作中的 QQ 命名，目录仅展示 `name`/`description`，正文和 reference 进入 Observation。     |
+| 2026-07-07 | 重构 Skill 外界上下文生态位                 | 将 Skill Prompt 与 Tool Prompt 从 SystemPrompt 抽离到第二章 Outside Context，并用结构化文档注入。     |
+| 2026-07-07 | 新增 QQ 商城表情回复动作                    | 基于 NapCat `mface` 消息段扩展 `reply.actions` 白名单，允许 Agent 在 QQ 回复中发送受控商城表情。      |
+| 2026-07-07 | 修正 QQ 群聊响应与互动动作                  | 群聊仅在 @ 叶猫猫时触发 Agent，戳一戳独占回复，QQ 内置表情支持与文本同条消息混排。                    |
+| 2026-07-07 | 提升 Harness 循环轮次                       | 将 QQ Agent Harness 默认最大循环次数从 4 次提升到 100 次，支持更长的 Skill/Tool 观察链路。            |
+| 2026-07-07 | 修复 QQ 群聊重复回复                        | 当模型同时输出 `reply.text` 和同内容文本动作时，执行层只发送一次，避免群聊重复刷屏。                  |
+| 2026-07-07 | 设计统一 send_msg 回复结构                  | 基于 NapCat WebUI 调试页确认 `send_msg` 参数，规划用统一 OneBot 11 消息段替代分散 QQ 发送动作。       |
+| 2026-07-07 | 约束消息发送统一 send_msg                   | 平台执行层不再调用 `send_group_msg` 或 `send_private_msg`，所有普通 QQ 消息统一发 NapCat `send_msg`。 |

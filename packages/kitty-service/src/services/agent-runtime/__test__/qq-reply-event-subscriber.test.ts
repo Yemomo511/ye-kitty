@@ -24,8 +24,8 @@ describe('QqReplyEventSubscriber', () => {
     const messageService = new TestQqMessageService();
     const skillMetadata = createSkillMetadata();
     const agentInputs: QqReplyAgentInput[] = [];
-    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
-    const botClient = createTestBotClient({ replies });
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const botClient = createTestBotClient({ segments });
     const subscriber = new QqReplyEventSubscriber(
       messageService,
       botClient,
@@ -67,19 +67,19 @@ describe('QqReplyEventSubscriber', () => {
     });
     expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
     expect(agentInputs[0]?.skills).toBeUndefined();
-    expect(replies).toEqual([
+    expect(segments).toEqual([
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        text: 'Agent回复：你好',
+        segments: [{ type: 'text', text: 'Agent回复：你好' }],
       },
     ]);
   });
 
   test('Agent失败时由安全Agent回落默认回复', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
-    const botClient = createTestBotClient({ replies });
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const botClient = createTestBotClient({ segments });
     const failedAgent: QqReplyAgentPort = {
       async generateReply() {
         throw new Error('模型不可用');
@@ -95,12 +95,13 @@ describe('QqReplyEventSubscriber', () => {
 
     await subscriber.handleMessage(createChatEvent({ text: '模型失败后的消息' }));
 
-    expect(replies[0]?.text).toBe('叶猫猫收到：模型失败后的消息');
+    expect(segments[0]?.segments).toEqual([{ type: 'text', text: '叶猫猫收到：模型失败后的消息' }]);
   });
 
   test('非QQ事件或空文本事件不触发回复', async () => {
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
-    const botClient = createTestBotClient({ replies });
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const botClient = createTestBotClient({ replies, segments });
     const replyAgent: QqReplyAgentPort = {
       async generateReply() {
         return { text: '不应该触发' };
@@ -118,6 +119,7 @@ describe('QqReplyEventSubscriber', () => {
     await subscriber.handleMessage(createChatEvent({ text: '   ' }));
 
     expect(replies).toEqual([]);
+    expect(segments).toEqual([]);
   });
 
   test('订阅器只传入Skill目录，不提前读取正文', async () => {
@@ -128,8 +130,8 @@ describe('QqReplyEventSubscriber', () => {
       body: '不应该提前读取。',
     }));
     const agentInputs: QqReplyAgentInput[] = [];
-    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
-    const botClient = createTestBotClient({ replies });
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const botClient = createTestBotClient({ segments });
     const subscriber = new QqReplyEventSubscriber(
       new TestQqMessageService(),
       botClient,
@@ -158,7 +160,7 @@ describe('QqReplyEventSubscriber', () => {
     expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
     expect(agentInputs[0]?.skills).toBeUndefined();
     expect(loadSkillContent).not.toHaveBeenCalled();
-    expect(replies[0]?.text).toBe('Skill失败也能回复');
+    expect(segments[0]?.segments).toEqual([{ type: 'text', text: 'Skill失败也能回复' }]);
   });
 
   test('执行Agent返回的QQ互动动作', async () => {
@@ -303,10 +305,10 @@ describe('QqReplyEventSubscriber', () => {
 
   test('私聊不需要@也会触发Agent', async () => {
     const agentInputs: QqReplyAgentInput[] = [];
-    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
     const subscriber = new QqReplyEventSubscriber(
       new TestQqMessageService(),
-      createTestBotClient({ replies }),
+      createTestBotClient({ segments }),
       {
         async generateReply(input) {
           agentInputs.push(input);
@@ -320,11 +322,11 @@ describe('QqReplyEventSubscriber', () => {
     await subscriber.handleMessage(createChatEvent({ conversationType: 'private', mentions: [] }));
 
     expect(agentInputs).toHaveLength(1);
-    expect(replies).toEqual([
+    expect(segments).toEqual([
       {
         conversationExternalId: '123456',
         conversationType: 'private',
-        text: '私聊收到',
+        segments: [{ type: 'text', text: '私聊收到' }],
       },
     ]);
   });

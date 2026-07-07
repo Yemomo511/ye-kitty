@@ -368,7 +368,8 @@ MVP 权限判断包含：
 ```text
 QqReplyEventSubscriber
   -> replyAgent.generateReply()
-  -> botClient.sendTextMessage()
+  -> botClient.sendMessageSegments()
+  -> NapCat send_msg
 ```
 
 第二版链路：
@@ -376,7 +377,8 @@ QqReplyEventSubscriber
 ```text
 QqReplyEventSubscriber
   -> agentRuntimeHarness.run()
-  -> reply: botClient.sendTextMessage()
+  -> reply: botClient.sendMessageSegments()
+  -> NapCat send_msg
   -> ignore: 不发送
   -> human_review: 记录审核
   -> action_candidate: 交给 risk/actions

@@ -36,13 +36,13 @@ describe('OneBotFastifyReverseWsServer', () => {
 
       const messagePromise = waitForMessage(socket);
       await server.sendAction({
-        action: 'send_group_msg',
-        params: { group_id: '123456', message: '你好' },
+        action: 'send_msg',
+        params: { message_type: 'group', group_id: '123456', message: '你好' },
         echo: 'echo-1',
       });
 
       await expect(messagePromise).resolves.toMatchObject({
-        action: 'send_group_msg',
+        action: 'send_msg',
         echo: 'echo-1',
       });
       socket.close();

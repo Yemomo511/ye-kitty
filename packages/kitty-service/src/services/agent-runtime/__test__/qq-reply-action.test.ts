@@ -119,14 +119,13 @@ describe('QqReplyActionExecutor', () => {
       },
     ]);
 
-    expect(replies).toEqual([
+    expect(replies).toEqual([]);
+    expect(segments).toEqual([
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        text: '主回复喵~',
+        segments: [{ type: 'text', text: '主回复喵~' }],
       },
-    ]);
-    expect(segments).toEqual([
       {
         conversationExternalId: '123456',
         conversationType: 'group',
@@ -205,7 +204,8 @@ describe('QqReplyActionExecutor', () => {
 
   test('外层文本和send_text重复时只发送一次', async () => {
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
-    const executor = new QqReplyActionExecutor(createTestBotClient({ replies }));
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const executor = new QqReplyActionExecutor(createTestBotClient({ replies, segments }));
 
     await executor.executeReply(createChatEvent(), '重复回复', [
       { type: 'send_text', text: '重复回复' },
@@ -213,16 +213,17 @@ describe('QqReplyActionExecutor', () => {
       { type: 'send_text', text: '追加一句' },
     ]);
 
-    expect(replies).toEqual([
+    expect(replies).toEqual([]);
+    expect(segments).toEqual([
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        text: '重复回复',
+        segments: [{ type: 'text', text: '重复回复' }],
       },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        text: '追加一句',
+        segments: [{ type: 'text', text: '追加一句' }],
       },
     ]);
   });

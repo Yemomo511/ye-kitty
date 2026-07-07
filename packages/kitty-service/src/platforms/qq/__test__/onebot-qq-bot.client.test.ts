@@ -4,7 +4,7 @@ import type { OneBotV11ActionRequest } from '../domain/onebot-v11';
 import type { OneBotFastifyReverseWsServer } from '../infrastructure/onebot-fastify-reverse-ws.server';
 
 describe('OneBotQqBotClient', () => {
-  test('发送群文本消息时生成 send_group_msg 动作', async () => {
+  test('发送群文本消息时生成统一 send_msg 动作', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {
       async sendAction(action: OneBotV11ActionRequest) {
@@ -21,15 +21,16 @@ describe('OneBotQqBotClient', () => {
 
     expect(sentActions).toHaveLength(1);
     expect(sentActions[0]).toMatchObject({
-      action: 'send_group_msg',
+      action: 'send_msg',
       params: {
+        message_type: 'group',
         group_id: '123456',
         message: [{ type: 'text', data: { text: '叶猫猫收到：你好' } }],
       },
     });
   });
 
-  test('发送好友文本消息时生成 send_private_msg 动作', async () => {
+  test('发送好友文本消息时生成统一 send_msg 动作', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {
       async sendAction(action: OneBotV11ActionRequest) {
@@ -46,8 +47,9 @@ describe('OneBotQqBotClient', () => {
 
     expect(sentActions).toHaveLength(1);
     expect(sentActions[0]).toMatchObject({
-      action: 'send_private_msg',
+      action: 'send_msg',
       params: {
+        message_type: 'private',
         user_id: '1463645455',
         message: [{ type: 'text', data: { text: '叶猫猫收到：你好' } }],
       },
@@ -81,8 +83,9 @@ describe('OneBotQqBotClient', () => {
     });
 
     expect(sentActions[0]).toMatchObject({
-      action: 'send_group_msg',
+      action: 'send_msg',
       params: {
+        message_type: 'group',
         group_id: '123456',
         message: [
           { type: 'text', data: { text: '好好好' } },

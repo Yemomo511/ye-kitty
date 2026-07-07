@@ -48,10 +48,10 @@ export class QqReplyActionExecutor {
       const conversationExternalId = stripQqConversationPrefix(message.conversationId);
 
       if (action.type === 'send_text') {
-        await this.botClient.sendTextMessage({
+        await this.botClient.sendMessageSegments({
           conversationExternalId,
           conversationType: message.conversationType,
-          text: action.text,
+          segments: [{ type: 'text', text: action.text }],
         });
         return;
       }

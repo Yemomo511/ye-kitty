@@ -51,19 +51,21 @@ export class OneBotWsExternalActionApi implements QqExternalActionApi {
    * @param input 发送目标和消息段
    */
   async sendMessage(input: QqSendMessageInput): Promise<void> {
-    const action = input.conversationType === 'group' ? 'send_group_msg' : 'send_private_msg';
+    const action = 'send_msg';
+    const messageType = input.conversationType === 'group' ? 'group' : 'private';
     const targetField = input.conversationType === 'group' ? 'group_id' : 'user_id';
 
     await this.sendWhitelistedAction({
       action,
       params: {
+        message_type: messageType,
         [targetField]: input.conversationExternalId,
         message: input.segments.map(toOneBotMessageSegment),
       },
       echo: this.createEcho(action),
     });
     writeDebugLog(
-      `🔍 [OneBotWsExternalActionApi-sendMessage] 已投递QQ消息段 action=${action} conversationType=${input.conversationType} segmentCount=${input.segments.length}`,
+      `🔍 [OneBotWsExternalActionApi-sendMessage] 已通过统一send_msg投递QQ消息段 conversationType=${input.conversationType} segmentCount=${input.segments.length}`,
     );
   }
 
