@@ -7,6 +7,12 @@ export type { AgentDecision } from './domain/agent-decision';
 export type { AgentObservation } from './domain/agent-observation';
 export type { QqReplyAction } from './domain/qq-reply-action';
 export type { SkillContent, SkillMetadata } from './domain/skill';
+export type {
+  SkillPromptDocument,
+  SkillPromptSection,
+  SkillReferenceIndex,
+  SkillReferencePromptDocument,
+} from './domain/skill-prompt-document';
 export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill-reference';
 export type { SkillSelectionContext } from './domain/skill-selection-context';
 export type { AgentConversationMessage } from './domain/agent-conversation-message';

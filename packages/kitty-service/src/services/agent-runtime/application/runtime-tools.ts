@@ -7,10 +7,10 @@ import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
 
 /** 最近消息工具名称 */
 export const GET_RECENT_MESSAGES_TOOL_NAME = 'get_recent_messages';
-/** 默认读取消息数 */
-const DEFAULT_RECENT_MESSAGE_LIMIT = 5;
-/** 最大读取消息数 */
-const MAX_RECENT_MESSAGE_LIMIT = 10;
+/** 私聊上下文窗口 */
+const PRIVATE_RECENT_MESSAGE_LIMIT = 100;
+/** 群聊上下文窗口 */
+const GROUP_RECENT_MESSAGE_LIMIT = 50;
 
 /**
  * 内置工具注册表
@@ -23,7 +23,7 @@ export class BuiltinRuntimeToolRegistry implements RuntimeToolRegistryPort {
       name: GET_RECENT_MESSAGES_TOOL_NAME,
       description: '读取当前会话最近消息，用于判断上下文和是否需要回复。',
       riskLevel: 'low',
-      inputSchemaDescription: '{ "limit": 可选数字，默认5，最大10 }',
+      inputSchemaDescription: '{}',
     },
   ];
 
@@ -60,7 +60,7 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
    */
   async execute(call: RuntimeToolCall): Promise<ToolExecutionResult> {
     if (call.toolName === GET_RECENT_MESSAGES_TOOL_NAME) {
-      return this.getRecentMessages(call.event, call.input);
+      return this.getRecentMessages(call.event);
     }
 
     return {
@@ -72,14 +72,14 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
   }
 
   // 读取当前会话最近消息。
-  private getRecentMessages(event: ChatEventContract, input: unknown): ToolExecutionResult {
-    const limit = normalizeLimit(input);
+  private getRecentMessages(event: ChatEventContract): ToolExecutionResult {
+    const limit = getRecentMessageLimit(event.conversationType);
     const messages = this.conversationHistory.getRecentMessages(event.conversationId, limit);
 
     console.info(
       `✅ [AgentRuntime-Tool-getRecentMessages] 已读取最近消息 conversationId=${maskId(
         String(event.conversationId),
-      )} count=${messages.length} limit=${limit}`,
+      )} conversationType=${event.conversationType} count=${messages.length} limit=${limit}`,
     );
 
     return {
@@ -91,14 +91,9 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
   }
 }
 
-// 读取工具limit，避免模型传入过大窗口。
-function normalizeLimit(input: unknown): number {
-  if (!isRecord(input) || typeof input.limit !== 'number') return DEFAULT_RECENT_MESSAGE_LIMIT;
-  if (!Number.isFinite(input.limit)) return DEFAULT_RECENT_MESSAGE_LIMIT;
-
-  const value = Math.trunc(input.limit);
-  if (value <= 0) return DEFAULT_RECENT_MESSAGE_LIMIT;
-  return Math.min(value, MAX_RECENT_MESSAGE_LIMIT);
+// 按会话类型选择上下文窗口，避免群聊噪声挤压私聊连续上下文。
+function getRecentMessageLimit(conversationType: ChatEventContract['conversationType']): number {
+  return conversationType === 'private' ? PRIVATE_RECENT_MESSAGE_LIMIT : GROUP_RECENT_MESSAGE_LIMIT;
 }
 
 // 格式化最近消息观察。
@@ -125,11 +120,6 @@ function toRecentMessageSummary(message: ChatEventContract): Record<string, stri
     text: message.message.text,
     receivedAt: message.receivedAt.toISOString(),
   };
-}
-
-// 判断普通对象。
-function isRecord(input: unknown): input is Record<string, unknown> {
-  return typeof input === 'object' && input !== null;
 }
 
 // 脱敏会话ID。

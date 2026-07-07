@@ -3,7 +3,7 @@ import type { ConversationId } from '@kitty/shared/types/ids';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 
 /** 单会话最多保留消息数 */
-const DEFAULT_MAX_MESSAGES_PER_CONVERSATION = 50;
+const DEFAULT_MAX_MESSAGES_PER_CONVERSATION = 100;
 
 /**
  * 进程内会话历史

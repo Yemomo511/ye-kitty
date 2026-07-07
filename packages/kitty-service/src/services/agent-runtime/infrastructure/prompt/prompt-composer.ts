@@ -2,7 +2,7 @@ import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contr
 import type { SkillContent } from '../../domain/skill';
 import { buildBaseAgentPrompt } from './base-agent.prompt';
 import { buildQqReplyPrompt } from './qq-reply.prompt';
-import { buildSkillPrompt } from './skill.prompt';
+import { buildEnabledSkillPrompt } from './skill.prompt';
 
 /**
  * QQ回复Prompt
@@ -26,7 +26,7 @@ export function composeQqReplyPrompt(input: {
   readonly event: ChatEventContract;
   readonly skills?: readonly SkillContent[];
 }): QqReplyPrompt {
-  const skillPrompt = buildSkillPrompt(input.skills ?? []);
+  const skillPrompt = buildEnabledSkillPrompt(input.skills ?? []);
 
   return {
     instructions: [buildBaseAgentPrompt(input.agentName), skillPrompt].filter(Boolean).join('\n\n'),

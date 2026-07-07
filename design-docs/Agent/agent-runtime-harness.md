@@ -79,17 +79,17 @@ flowchart TD
 2. 权限在 Harness，不在 Prompt。Prompt 可以提醒模型，但不能作为安全边界；工具必须经过注册、权限判断和审计。
 3. 市场 Skill 是外部协议，运行时 Skill 是内部结构。磁盘格式对齐市场，执行权限由 Ye-Kitty 决定。
 
-### Prompt 三层治理
+### Prompt 三章治理
 
-MVP 的 Harness System Prompt 采用三层描述，目标是让模型先接受系统级最高优先级约束，再理解外部环境、Skill 和 Tool 的用途，最后知道如何用 JSON 触发 Harness 行动。System Prompt 主要治理“何时感知外部环境、如何感知外部环境、风险不清时如何停止扩散”。
+MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协议、可变的外界上下文和运行观察拆开治理。第一章 System Prompt 只承载最高优先级约束和 JSON 输出协议；第二章 Outside Context Prompt 承载 Skill Prompt 与 Tool Prompt；第三章 Runtime Observation 承载本轮事件、工具结果和错误恢复信息。
 
-1. JSON 输出契约层：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`skill_reference_call`、`tool_call`、`reply`、`ignore`、`human_review` 六类决策。
-2. 外部环境感知与 Skill/Tool 定义层：明确外部环境只来自当前消息、会话信息、可见 Skill 目录、已启用 Skill 正文、已读取 Skill reference、可见 Tool 和工具观察；模型不得编造已经读取外部环境。首轮只展示 `name` 与 `description` 组成的可用 Skill 目录，当模型想使用某个方法论时，应先通过 `skill_call` 请求 Harness 按需注入正文；当已启用 Skill 需要补充材料时，再通过 `skill_reference_call` 请求读取 `references/` 下的允许文件；当消息依赖上文、历史消息、指代关系或多人互动时，应优先请求 `get_recent_messages`。
-3. JSON 结构层：按“AI 想做什么”来选择结构化 JSON。想调用 Skill 返回 `skill_call`，想读取 Skill 引用返回 `skill_reference_call`，想调用 Tool 返回 `tool_call`，想回复返回 `reply`，想静默返回 `ignore`，想转人工返回 `human_review`；同时给出六类 JSON 模板和 `reply.actions` 允许范围。
+1. 第一章 System Prompt：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`skill_reference_call`、`tool_call`、`reply`、`ignore`、`human_review` 六类决策。
+2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后。Skill 目录只展示 `name` 与 `description`；已启用 Skill 正文和 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
+3. 第三章 Runtime Observation：承载用户事件、当前轮次、工具结果和决策错误。Skill 和 Tool 的具体目录不再散落在运行观察中。
 
-这套分层参考 Codex 类 Harness 的思路：系统提示先说明 Agent 能力、工具边界和安全边界，再由 Observation/Input 承载本轮可见上下文。Ye-Kitty 当前 MVP 支持 `skill_call` 与 `skill_reference_call` 作为结构化请求协议，并采用渐进式上下文注入：启动期只扫描 Skill 元信息，首轮只给模型 `name` 与 `description` 组成的可用 Skill 目录，模型请求后由 Harness 按需读取 `SKILL.md` 正文或 `references/` 文件并注入下一轮 Observation。Skill 正文和 reference 都是方法论参考，不能覆盖 SystemPrompt、Harness 协议、工具权限和安全规则。
+这套分章参考 DeepAgent middleware 的渐进式披露思路：第一眼只给 Skill 索引，完整 Skill 由模型请求后进入后续上下文。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
 
-三层运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/harness-runtime.prompt.md`，代码只负责读取 Markdown 并与基础身份、Tool 协议和 Conversation Observation 拼接，避免前置约束长期内嵌在 TypeScript 字符串中。后续新增系统约束时应优先修改 Markdown，而不是把长文本重新写回 TypeScript。
+第一章运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md`。第二章由 `outside-context-prompt.ts` 组装 `skill.prompt.ts` 和 `tool.prompt.ts`。第三章由 `conversation-renderer.ts` 渲染运行观察。后续新增系统约束时应优先修改 Markdown；新增 Skill/Tool 目录结构时应优先修改对应 TS Prompt 模块。
 
 ## 关键实现
 
@@ -126,7 +126,7 @@ MVP 的 Harness System Prompt 采用三层描述，目标是让模型先接受�
 
 - 入口：`packages/kitty-service/src/services/agent-runtime/ports/tool-registry.port.ts`、`packages/kitty-service/src/services/agent-runtime/ports/tool-executor.port.ts`、`packages/kitty-service/src/services/agent-runtime/application/runtime-tools.ts`
 - 职责：`ToolRegistry` 暴露工具元信息，`ToolExecutor` 执行经过授权的工具调用。
-- 重要细节：MVP 已实现 `get_recent_messages` 只读工具，输入支持 `{ limit?: number }`，默认 5，最大 10，输出转成中文 Observation。
+- 重要细节：MVP 已实现 `get_recent_messages` 只读工具，私聊固定读取最近 100 条消息，群聊固定读取最近 50 条消息，输出转成中文 Observation。
 - 边界：MCP、内置工具、长期记忆工具都只是工具来源，不能成为信任边界。
 
 ### 模块六：PermissionPolicy
@@ -169,23 +169,28 @@ packages/kitty-service/src/services/agent-runtime/
     openai-harness-agent-runner.ts
     prompt/conversation-renderer.ts
     prompt/harness.prompt.ts
-    prompt/markdown/harness-runtime.prompt.md
+    prompt/outside-context-prompt.ts
+    prompt/skill.prompt.ts
+    prompt/tool.prompt.ts
+    prompt/markdown/System/harness-runtime.prompt.md
 ```
 
 ## 数据与接口
 
-| 名称                          | 方向 | 说明                                                                |
-| ----------------------------- | ---- | ------------------------------------------------------------------- |
-| `AgentRuntimeHarnessPort.run` | 输入 | 外部事件进入 Harness 的唯一运行入口。                               |
-| `AgentRuntimeRunResult`       | 输出 | MVP 返回 `reply`、`ignore` 或 `human_review`。                      |
-| `AgentDecision`               | 双向 | Runner 输出给 Harness 的结构化决策，包含 Skill、工具和最终决策。    |
-| `AgentConversationMessage`    | 输入 | Harness 渲染给 Runner 的平台无关 Observation 消息模型。             |
-| `SkillMetadata`               | 输入 | 启动期扫描的 Skill 元信息，首轮目录只渲染 `name` 和 `description`。 |
-| `SkillContent`                | 输入 | `skill_call` 命中后按需读取并注入 Observation 的 Skill 正文。       |
-| `SkillReferenceContent`       | 输入 | `skill_reference_call` 命中后按需读取并注入 Observation 的引用。    |
-| `RuntimeTool`                 | 输入 | Harness 暴露给 Runner 的工具描述，不包含直接执行权。                |
-| `PermissionDecision`          | 输出 | 权限策略返回 `allow`、`deny` 或 `human_review`。                    |
-| `ToolExecutionResult`         | 输出 | 工具执行结果，供 RunTrace 和下一轮 Observation 使用。               |
+| 名称                           | 方向 | 说明                                                                |
+| ------------------------------ | ---- | ------------------------------------------------------------------- |
+| `AgentRuntimeHarnessPort.run`  | 输入 | 外部事件进入 Harness 的唯一运行入口。                               |
+| `AgentRuntimeRunResult`        | 输出 | MVP 返回 `reply`、`ignore` 或 `human_review`。                      |
+| `AgentDecision`                | 双向 | Runner 输出给 Harness 的结构化决策，包含 Skill、工具和最终决策。    |
+| `AgentConversationMessage`     | 输入 | Harness 渲染给 Runner 的平台无关 Observation 消息模型。             |
+| `SkillMetadata`                | 输入 | 启动期扫描的 Skill 元信息，首轮目录只渲染 `name` 和 `description`。 |
+| `SkillContent`                 | 输入 | `skill_call` 命中后按需读取并注入 Observation 的 Skill 正文。       |
+| `SkillReferenceContent`        | 输入 | `skill_reference_call` 命中后按需读取并注入 Observation 的引用。    |
+| `SkillPromptDocument`          | 输入 | 第二章中用于定位、审计和压缩 Skill 正文的结构化 Prompt 文档。       |
+| `SkillReferencePromptDocument` | 输入 | 第二章中用于定位、审计和压缩 reference 正文的结构化 Prompt 文档。   |
+| `RuntimeTool`                  | 输入 | Harness 暴露给 Runner 的工具描述，不包含直接执行权。                |
+| `PermissionDecision`           | 输出 | 权限策略返回 `allow`、`deny` 或 `human_review`。                    |
+| `ToolExecutionResult`          | 输出 | 工具执行结果，供 RunTrace 和下一轮 Observation 使用。               |
 
 推荐端口：
 
@@ -266,7 +271,7 @@ SKILL.md frontmatter
   -> AgentRuntimeContext
 ```
 
-`allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`，并允许模型通过 `skill_call` 请求 Harness 启用某个本轮可见 Skill；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入下一轮 `skill_content` Observation。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入下一轮 `skill_reference` Observation。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
+`allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`，并允许模型通过 `skill_call` 请求 Harness 启用某个本轮可见 Skill；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入第二章 `2.1 Skill Prompt`，并被渲染为 `<skill_document>` 结构化文档。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入第二章 `<skill_reference_document>`。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
 
 ## 工具体系
 
@@ -390,7 +395,7 @@ QqReplyEventSubscriber
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
 - 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退。
-- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、按需正文注入、`references/` 合法读取和路径逃逸拒绝。
+- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取和路径逃逸拒绝。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
@@ -418,3 +423,4 @@ QqReplyEventSubscriber
 | 2026-07-06 | 设计中 | 已将第二版 Harness Agent 的循环、Skill 协议、工具治理、权限、日志、迁移和验收方案落入设计文档，并同步到 `Task.md`。 |
 | 2026-07-06 | 待验收 | MVP 已实现 Harness 主循环、OpenAI Harness Runner、进程内 `get_recent_messages`、Prompt 分层治理和 Skill 扩展字段。  |
 | 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 进入 Observation/Input。             |
+| 2026-07-07 | 待验收 | 完成 Prompt 三章治理：Skill Prompt 与 Tool Prompt 抽离到第二章 Outside Context，并引入结构化 Skill 文档。           |

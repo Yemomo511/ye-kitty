@@ -581,6 +581,42 @@ describe('AgentRuntimeHarness', () => {
     });
     expect(result.observation).not.toContain('B消息');
   });
+
+  test('最近消息工具在私聊读取100条消息', async () => {
+    const history = new InMemoryConversationHistory();
+    const executor = new BuiltinRuntimeToolExecutor(history);
+    const events = createSequentialChatEvents('qq:conversation:private', 'private', 120);
+    events.forEach((event) => history.recordMessage(event));
+
+    const result = await executor.execute({
+      event: events[119]!,
+      toolName: 'get_recent_messages',
+      input: { limit: 5 },
+    });
+    const structuredData = toStructuredMessages(result.structuredData);
+
+    expect(structuredData).toHaveLength(100);
+    expect(structuredData[0]).toMatchObject({ text: '消息21' });
+    expect(structuredData.at(-1)).toMatchObject({ text: '消息120' });
+  });
+
+  test('最近消息工具在群聊读取50条消息', async () => {
+    const history = new InMemoryConversationHistory();
+    const executor = new BuiltinRuntimeToolExecutor(history);
+    const events = createSequentialChatEvents('qq:conversation:group', 'group', 120);
+    events.forEach((event) => history.recordMessage(event));
+
+    const result = await executor.execute({
+      event: events[119]!,
+      toolName: 'get_recent_messages',
+      input: { limit: 100 },
+    });
+    const structuredData = toStructuredMessages(result.structuredData);
+
+    expect(structuredData).toHaveLength(50);
+    expect(structuredData[0]).toMatchObject({ text: '消息71' });
+    expect(structuredData.at(-1)).toMatchObject({ text: '消息120' });
+  });
 });
 
 function createHarness(
@@ -644,13 +680,14 @@ function createFallbackAgent(): QqReplyAgentPort {
 function createChatEvent(
   text: string,
   conversationId: string = 'qq:conversation:123456',
+  conversationType: ChatEventContract['conversationType'] = 'group',
 ): ChatEventContract {
   return {
     id: `chat-event-${text}` as ChatEventId,
     platform: 'qq',
     eventType: 'message.received',
     conversationId: conversationId as ConversationId,
-    conversationType: 'group',
+    conversationType,
     senderId: 'qq:participant:20000' as ParticipantId,
     senderDisplayName: '测试用户',
     message: {
@@ -661,4 +698,19 @@ function createChatEvent(
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
   };
+}
+
+function createSequentialChatEvents(
+  conversationId: string,
+  conversationType: ChatEventContract['conversationType'],
+  count: number,
+): ChatEventContract[] {
+  return Array.from({ length: count }, (_, index) =>
+    createChatEvent(`消息${index + 1}`, conversationId, conversationType),
+  );
+}
+
+function toStructuredMessages(value: unknown): Array<Record<string, string>> {
+  expect(Array.isArray(value)).toBe(true);
+  return value as Array<Record<string, string>>;
 }
