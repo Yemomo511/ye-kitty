@@ -39,10 +39,10 @@ NapCat 在本项目中作为 QQ 账号侧 OneBot v11 适配器运行。连接方
 
 ### 端口映射
 
-| 端口            | 所属进程      | 用途                                                                     |
-| --------------- | ------------- | ------------------------------------------------------------------------ |
-| `3001`          | Ye-Kitty      | OneBot v11 反向 WebSocket，供 NapCat 主动连接                            |
-| `16099 -> 6099` | NapCat Docker | 宿主机 `16099` 映射到容器内 WebUI `6099`，用于登录 QQ 和配置 OneBot 网络 |
+| 端口   | 所属进程      | 用途                                          |
+| ------ | ------------- | --------------------------------------------- |
+| `3001` | Ye-Kitty      | OneBot v11 反向 WebSocket，供 NapCat 主动连接 |
+| `6099` | NapCat Docker | NapCat WebUI，用于登录 QQ 和配置 OneBot 网络  |
 
 不要把 NapCat 的 `3001` 映射到宿主机，否则会和 Ye-Kitty 默认监听的 `3001` 冲突。
 
@@ -81,7 +81,7 @@ pnpm napcat:logs
 打开 WebUI：
 
 ```text
-http://127.0.0.1:16099/webui
+http://127.0.0.1:6099/webui
 ```
 
 在 NapCat WebUI 中新增或确认 WebSocket 客户端：

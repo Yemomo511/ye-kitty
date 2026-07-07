@@ -19,12 +19,12 @@ Ye-Kitty 当前是 WebSocket 服务端，NapCat 是 WebSocket 客户端。不要
 
 ## 端口约定
 
-| 端口            | 所属进程      | 用途                                                                     |
-| --------------- | ------------- | ------------------------------------------------------------------------ |
-| `3001`          | Ye-Kitty      | OneBot v11 反向 WebSocket，供 NapCat 主动连接                            |
-| `16099 -> 6099` | NapCat Docker | 宿主机 `16099` 映射到容器内 WebUI `6099`，用于登录 QQ 和配置 OneBot 网络 |
+| 端口   | 所属进程      | 用途                                          |
+| ------ | ------------- | --------------------------------------------- |
+| `3001` | Ye-Kitty      | OneBot v11 反向 WebSocket，供 NapCat 主动连接 |
+| `6099` | NapCat Docker | NapCat WebUI，用于登录 QQ 和配置 OneBot 网络  |
 
-官方 NapCat-Docker 示例常见会映射 `3001:3001`。本项目不要这样做，因为 Ye-Kitty 默认已经使用宿主机 `3001`。NapCat WebUI 容器内仍是 `6099`，但本项目默认映射到宿主机 `16099`，避免和本机已有 QQ 工具冲突。
+官方 NapCat-Docker 示例常见会映射 `3001:3001`。本项目不要这样做，因为 Ye-Kitty 默认已经使用宿主机 `3001`。NapCat WebUI 使用宿主机 `6099`。
 
 ## 启动 Ye-Kitty QQ 服务
 
@@ -63,7 +63,7 @@ pnpm napcat:logs
 打开：
 
 ```text
-http://127.0.0.1:16099/webui
+http://127.0.0.1:6099/webui
 ```
 
 WebUI 第一次登录 QQ 后，按 NapCat 提示修改 WebUI 密码。
