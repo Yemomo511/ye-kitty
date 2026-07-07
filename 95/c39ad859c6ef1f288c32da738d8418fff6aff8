@@ -1,0 +1,30 @@
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_54a728841601d0::t_51b732e1c51ec8 85-98,213-216,223,231,256,276-281,284
+packages/kitty-service/src/services/agent-runtime/domain/skill-prompt-document.ts
+  s_54a728841601d0::t_644052eb4ebc48 43-54,83-84
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/skill.prompt.ts
+  s_54a728841601d0::t_55270fd24327c6 35,50-58,104,172
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "95c39ad859c6ef1f288c32da738d8418fff6aff8",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_54a728841601d0": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f36d2-ac5d-7b42-90a0-c2e0afbddfc2",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
