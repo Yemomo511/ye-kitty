@@ -145,6 +145,42 @@ describe('OneBotQqBotClient', () => {
     ]);
   });
 
+  test('读取自定义表情时兼容NapCat返回URL字符串数组', async () => {
+    const server = {
+      async sendActionAndWait(action: OneBotV11ActionRequest) {
+        return {
+          status: 'ok',
+          retcode: 0,
+          data: [
+            'https://p.qpic.cn/qq_expression/3860284970/3860284970_0_0_0_D4720C24BBCFB6245E85A46CEBE9B43E_0_0/0',
+            'https://p.qpic.cn/qq_expression/3860284970/3860284970_0_0_0_892D127A739FFFE164B56A26B6462793_0_0/0',
+            'https://p.qpic.cn/qq_expression/3860284970/3860284970_0_0_0_D4720C24BBCFB6245E85A46CEBE9B43E_0_0/0',
+            '',
+          ],
+          echo: action.echo,
+        };
+      },
+    } as unknown as OneBotFastifyReverseWsServer;
+
+    const client = new OneBotQqBotClient(server);
+    const faces = await client.fetchCustomFaces();
+
+    expect(faces).toEqual([
+      {
+        id: 'D4720C24BBCFB6245E85A46CEBE9B43E',
+        file: 'https://p.qpic.cn/qq_expression/3860284970/3860284970_0_0_0_D4720C24BBCFB6245E85A46CEBE9B43E_0_0/0',
+        name: undefined,
+        summary: undefined,
+      },
+      {
+        id: '892D127A739FFFE164B56A26B6462793',
+        file: 'https://p.qpic.cn/qq_expression/3860284970/3860284970_0_0_0_892D127A739FFFE164B56A26B6462793_0_0/0',
+        name: undefined,
+        summary: undefined,
+      },
+    ]);
+  });
+
   test('戳一戳按会话类型生成对应动作', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {

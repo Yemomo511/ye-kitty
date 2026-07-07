@@ -223,6 +223,18 @@ function normalizeCustomFaces(data: unknown): readonly QqCustomFaceResource[] {
 
 // 提取单个可发送表情。
 function normalizeCustomFace(input: unknown): QqCustomFaceResource | undefined {
+  if (typeof input === 'string') {
+    const file = input.trim();
+    if (!file) return undefined;
+
+    return {
+      id: extractCustomFaceIdFromFile(file) ?? file,
+      file,
+      name: undefined,
+      summary: undefined,
+    };
+  }
+
   if (!isRecord(input)) return undefined;
 
   const file = readFirstString(input, ['file', 'url', 'path']);
@@ -233,11 +245,16 @@ function normalizeCustomFace(input: unknown): QqCustomFaceResource | undefined {
 
   const id = readFirstString(input, ['id', 'md5', 'file_id']) ?? file;
   return {
-    id,
+    id: extractCustomFaceIdFromFile(id) ?? id,
     file,
     name: readFirstString(input, ['name']),
     summary: readFirstString(input, ['summary']),
   };
+}
+
+// QQ表情URL通常携带32位哈希，优先用它作为缓存和展示ID。
+function extractCustomFaceIdFromFile(file: string): string | undefined {
+  return file.match(/[A-Fa-f0-9]{32}/)?.[0]?.toUpperCase();
 }
 
 // 从候选字段中读取第一个非空字符串。
