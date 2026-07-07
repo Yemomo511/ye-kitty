@@ -59,3 +59,4 @@
 | 2026-07-07 | 设计统一 send_msg 回复结构                  | 基于 NapCat WebUI 调试页确认 `send_msg` 参数，规划用统一 OneBot 11 消息段替代分散 QQ 发送动作。       |
 | 2026-07-07 | 约束消息发送统一 send_msg                   | 平台执行层不再调用 `send_group_msg` 或 `send_private_msg`，所有普通 QQ 消息统一发 NapCat `send_msg`。 |
 | 2026-07-07 | 新增自定义表情自主回复                      | 通过 `fetch_custom_face`、视觉 Agent 和 `get_custom_faces` 工具，让聊天 Agent 能自主选择自定义表情。  |
+| 2026-07-07 | 调整自定义表情推荐链路                      | `get_custom_faces` 不再做文本命中，改由视觉 Agent 根据聊天需求和表情描述推荐候选。                    |

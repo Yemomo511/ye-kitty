@@ -1,6 +1,10 @@
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { QqCustomFaceResource } from '@kitty/platforms/qq/infrastructure/api';
-import type { CustomFaceQuery, DescribedCustomFace } from '../domain/custom-face';
+import type {
+  CustomFaceQuery,
+  DescribedCustomFace,
+  RecommendedCustomFace,
+} from '../domain/custom-face';
 import type { CustomFaceVisionAgentPort } from '../ports/custom-face-vision-agent.port';
 
 /** 默认表情目录返回上限 */
@@ -11,7 +15,7 @@ const MAX_CUSTOM_FACE_LIMIT = 100;
 /**
  * 自定义表情目录
  *
- * 负责从QQ平台读取自定义表情，调用视觉Agent生成中文描述，并向聊天Agent提供可检索缓存。
+ * 负责从QQ平台读取自定义表情，调用视觉Agent生成中文描述，并向聊天Agent提供可推荐目录。
  * 刷新过程会触发 NapCat 只读动作和视觉模型请求。
  */
 export class CustomFaceCatalogService {
@@ -46,12 +50,44 @@ export class CustomFaceCatalogService {
    */
   list(query: CustomFaceQuery = {}): readonly DescribedCustomFace[] {
     const limit = normalizeLimit(query.limit);
-    const keyword = query.query?.trim().toLowerCase();
-    const candidates = keyword
-      ? this.faces.filter((face) => matchesCustomFace(face, keyword))
-      : this.faces;
+    return this.faces.slice(0, limit);
+  }
 
-    return candidates.slice(0, limit);
+  /**
+   * 根据聊天需求推荐表情
+   * @param query 聊天Agent的需求
+   * @returns 推荐表情
+   */
+  async recommend(query: CustomFaceQuery = {}): Promise<readonly RecommendedCustomFace[]> {
+    const limit = normalizeLimit(query.limit);
+    const demand = query.query?.trim();
+    const fallbackFaces = this.list({ limit });
+
+    if (!demand) return fallbackFaces;
+    if (!this.visionAgent) {
+      console.warn(
+        `⚠️ [AgentRuntime-CustomFaceCatalog-recommend] 视觉Agent未配置，已返回未过滤表情目录 count=${fallbackFaces.length} demandLength=${demand.length}`,
+      );
+      return fallbackFaces;
+    }
+
+    try {
+      const selections = await this.visionAgent.selectFaces(demand, this.faces, limit);
+      const recommendedFaces = toRecommendedFaces(this.faces, selections);
+      if (recommendedFaces.length > 0) return recommendedFaces;
+
+      console.warn(
+        `⚠️ [AgentRuntime-CustomFaceCatalog-recommend] 视觉Agent未推荐可用表情，已返回未过滤目录 count=${fallbackFaces.length} demandLength=${demand.length}`,
+      );
+      return fallbackFaces;
+    } catch (error) {
+      console.warn(
+        `⚠️ [AgentRuntime-CustomFaceCatalog-recommend] 自定义表情推荐失败，已返回未过滤目录 count=${fallbackFaces.length} demandLength=${demand.length} reason=${formatError(
+          error,
+        )}`,
+      );
+      return fallbackFaces;
+    }
   }
 
   /**
@@ -132,21 +168,29 @@ function toFallbackDescription(face: QqCustomFaceResource, reason: string): Desc
   };
 }
 
-// 检查表情是否命中检索词。
-function matchesCustomFace(face: DescribedCustomFace, keyword: string): boolean {
-  return [
-    face.id,
-    face.file,
-    face.name,
-    face.summary,
-    face.content,
-    face.emotion,
-    ...face.suitableScenes,
-    ...face.avoidScenes,
-    ...face.tags,
-  ]
-    .filter((value): value is string => Boolean(value))
-    .some((value) => value.toLowerCase().includes(keyword));
+// 按视觉Agent推荐顺序回查真实缓存，避免模型返回不存在的表情ID。
+function toRecommendedFaces(
+  faces: readonly DescribedCustomFace[],
+  selections: readonly { readonly id: string; readonly reason: string; readonly score: number }[],
+): readonly RecommendedCustomFace[] {
+  const faceById = new Map(faces.map((face) => [face.id, face]));
+  const recommendedFaces: RecommendedCustomFace[] = [];
+  const seenIds = new Set<string>();
+
+  for (const selection of selections) {
+    if (seenIds.has(selection.id)) continue;
+    const face = faceById.get(selection.id);
+    if (!face) continue;
+
+    seenIds.add(selection.id);
+    recommendedFaces.push({
+      ...face,
+      recommendationReason: selection.reason,
+      recommendationScore: selection.score,
+    });
+  }
+
+  return recommendedFaces;
 }
 
 // 限制工具输出规模。

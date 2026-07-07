@@ -89,7 +89,7 @@ QQ 动作只能出现在最终 `reply.actions` 中。动作只是意图声明，
 { "type": "image", "data": { "file": "custom-face://cat" } }
 ```
 
-自定义表情必须先通过 `get_custom_faces` 工具读取目录，再把工具结果里的 `file` 放进 `image` 段。当前实现不接受 `reply`、`dice`、`rps`、`json`、`node`、`record`、`video`、`file`、`music`、`markdown`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。
+自定义表情必须先通过 `get_custom_faces` 工具提交表情需求，由视觉Agent基于已理解描述推荐候选，再把工具结果里的 `file` 放进 `image` 段。当前实现不接受 `reply`、`dice`、`rps`、`json`、`node`、`record`、`video`、`file`、`music`、`markdown`、`forward`、`contact`、`location`、`xml`、`poke`、`miniapp`、`onlinefile`、`flashtransfer` 等段。
 
 ## 其他动作
 

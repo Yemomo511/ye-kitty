@@ -1,5 +1,9 @@
 import type { QqCustomFaceResource } from '@kitty/platforms/qq/infrastructure/api';
-import type { CustomFaceDescription } from '../domain/custom-face';
+import type {
+  CustomFaceDescription,
+  CustomFaceSelection,
+  DescribedCustomFace,
+} from '../domain/custom-face';
 
 /**
  * 自定义表情视觉理解端口
@@ -13,4 +17,17 @@ export interface CustomFaceVisionAgentPort {
    * @returns 中文描述
    */
   describeFace(face: QqCustomFaceResource): Promise<CustomFaceDescription>;
+
+  /**
+   * 选择自定义表情
+   * @param demand 聊天Agent的表情需求
+   * @param faces 已理解表情目录
+   * @param limit 返回上限
+   * @returns 推荐结果
+   */
+  selectFaces(
+    demand: string,
+    faces: readonly DescribedCustomFace[],
+    limit: number,
+  ): Promise<readonly CustomFaceSelection[]>;
 }

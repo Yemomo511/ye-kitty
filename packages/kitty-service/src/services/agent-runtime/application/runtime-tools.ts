@@ -1,5 +1,6 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { ConversationId } from '@kitty/shared/types/ids';
+import type { RecommendedCustomFace } from '../domain/custom-face';
 import type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from '../domain/tool';
 import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
@@ -41,9 +42,10 @@ export class BuiltinRuntimeToolRegistry implements RuntimeToolRegistryPort {
         ? [
             {
               name: GET_CUSTOM_FACES_TOOL_NAME,
-              description: '读取已理解的QQ自定义表情目录，用于选择合适表情回复。',
+              description:
+                '根据聊天需求读取视觉Agent推荐后的QQ自定义表情目录，用于选择合适表情回复。',
               riskLevel: 'low' as const,
-              inputSchemaDescription: '{ "query"?: string, "limit"?: number }',
+              inputSchemaDescription: '{ "query"?: string 表情需求, "limit"?: number }',
             },
           ]
         : []),
@@ -116,24 +118,16 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
     await catalog.ensureReady();
     const query = isRecord(input) && typeof input.query === 'string' ? input.query : undefined;
     const limit = isRecord(input) && typeof input.limit === 'number' ? input.limit : undefined;
-    const matchedFaces = catalog.list({ query, limit });
-    const shouldFallbackToCatalog = Boolean(query?.trim()) && matchedFaces.length === 0;
-    const faces = shouldFallbackToCatalog ? catalog.list({ limit }) : matchedFaces;
+    const faces = await catalog.recommend({ query, limit });
 
-    if (shouldFallbackToCatalog && faces.length > 0) {
-      console.warn(
-        `⚠️ [AgentRuntime-Tool-getCustomFaces] 自定义表情查询未命中，已返回未过滤目录 count=${faces.length} queryLength=${query?.length ?? 0}`,
-      );
-    } else {
-      console.info(
-        `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情目录 count=${faces.length} queryLength=${query?.length ?? 0}`,
-      );
-    }
+    console.info(
+      `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情目录 count=${faces.length} demandLength=${query?.trim().length ?? 0}`,
+    );
 
     return {
       toolName: GET_CUSTOM_FACES_TOOL_NAME,
       success: true,
-      observation: formatCustomFacesObservation(faces, shouldFallbackToCatalog),
+      observation: formatCustomFacesObservation(faces),
       structuredData: faces.map((face) => ({
         id: face.id,
         file: face.file,
@@ -143,6 +137,8 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
         avoidScenes: face.avoidScenes,
         tags: face.tags,
         confidence: face.confidence,
+        recommendationReason: face.recommendationReason,
+        recommendationScore: face.recommendationScore,
       })),
     };
   }
@@ -168,18 +164,14 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
 }
 
 // 格式化自定义表情目录观察。
-function formatCustomFacesObservation(
-  faces: readonly ReturnType<CustomFaceCatalogService['list']>[number][],
-  isQueryFallback = false,
-): string {
+function formatCustomFacesObservation(faces: readonly RecommendedCustomFace[]): string {
   if (faces.length === 0) return '当前没有可用自定义表情。';
 
   return [
-    ...(isQueryFallback ? ['查询词未命中，已返回当前可用自定义表情候选。'] : []),
     `可用自定义表情 ${faces.length} 个：`,
     ...faces.map(
       (face, index) =>
-        `${index + 1}. id=${face.id} file=${face.file} 内容=${face.content} 情绪=${face.emotion} 适用=${face.suitableScenes.join('、') || '未知'} 避免=${face.avoidScenes.join('、') || '未知'} 标签=${face.tags.join('、') || '无'} 置信度=${face.confidence}`,
+        `${index + 1}. id=${face.id} file=${face.file} 内容=${face.content} 情绪=${face.emotion} 适用=${face.suitableScenes.join('、') || '未知'} 避免=${face.avoidScenes.join('、') || '未知'} 标签=${face.tags.join('、') || '无'} 置信度=${face.confidence}${face.recommendationReason ? ` 推荐理由=${face.recommendationReason}` : ''}${typeof face.recommendationScore === 'number' ? ` 推荐分=${face.recommendationScore}` : ''}`,
     ),
   ].join('\n');
 }

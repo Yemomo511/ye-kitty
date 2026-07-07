@@ -113,9 +113,9 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
         ...toolRegistry.listTools(),
         {
           name: GET_CUSTOM_FACES_TOOL_NAME,
-          description: '读取已理解的QQ自定义表情目录，用于选择合适表情回复。',
+          description: '根据聊天需求读取视觉Agent推荐后的QQ自定义表情目录，用于选择合适表情回复。',
           riskLevel: 'low',
-          inputSchemaDescription: '{ "query"?: string, "limit"?: number }',
+          inputSchemaDescription: '{ "query"?: string 表情需求, "limit"?: number }',
         },
       ],
     }),

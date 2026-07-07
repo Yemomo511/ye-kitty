@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest';
 import {
   loadCustomFaceVisionAgentConfig,
   parseCustomFaceDescription,
+  parseCustomFaceSelections,
 } from '../infrastructure/openai-custom-face-vision.agent';
 
 describe('parseCustomFaceDescription', () => {
@@ -44,5 +45,47 @@ describe('parseCustomFaceDescription', () => {
       model: 'gpt-4.1-mini',
       timeoutMs: 30000,
     });
+  });
+});
+
+describe('parseCustomFaceSelections', () => {
+  test('解析视觉Agent表情推荐输出', () => {
+    expect(
+      parseCustomFaceSelections(
+        `
+        {
+          "selections": [
+            {
+              "id": "face-1",
+              "reason": "适合表达震惊和吐槽",
+              "score": 0.93
+            }
+          ]
+        }
+      `,
+        5,
+      ),
+    ).toEqual([
+      {
+        id: 'face-1',
+        reason: '适合表达震惊和吐槽',
+        score: 0.93,
+      },
+    ]);
+  });
+
+  test('忽略缺少关键字段的推荐项', () => {
+    expect(
+      parseCustomFaceSelections(
+        '{"selections":[{"id":"face-1"},{"id":"face-2","reason":"适合","score":2}]}',
+        5,
+      ),
+    ).toEqual([
+      {
+        id: 'face-2',
+        reason: '适合',
+        score: 1,
+      },
+    ]);
   });
 });

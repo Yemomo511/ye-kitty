@@ -34,7 +34,9 @@ export type { CustomFaceVisionAgentPort } from './ports/custom-face-vision-agent
 export type {
   CustomFaceDescription,
   CustomFaceQuery,
+  CustomFaceSelection,
   DescribedCustomFace,
+  RecommendedCustomFace,
 } from './domain/custom-face';
 export {
   AgentRuntimeHarness,
@@ -72,6 +74,7 @@ export {
   OpenAiCustomFaceVisionAgent,
   loadCustomFaceVisionAgentConfig,
   parseCustomFaceDescription,
+  parseCustomFaceSelections,
   type OpenAiCustomFaceVisionAgentConfig,
 } from './infrastructure/openai-custom-face-vision.agent';
 export {

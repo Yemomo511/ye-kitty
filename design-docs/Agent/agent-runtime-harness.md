@@ -308,7 +308,7 @@ NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`
 
 ## 自定义表情理解与选择
 
-自定义表情采用“平台读取、视觉理解、目录缓存、聊天选择”的链路。`OneBotWsExternalActionApi.fetchCustomFaces` 只调用 NapCat `fetch_custom_face` 并归一化可发送资源；`CustomFaceCatalogService` 调用独立视觉 Agent 生成中文描述，并把结果缓存为聊天 Agent 可读取的目录。聊天 Agent 不直接理解图片，只能通过 `get_custom_faces` 工具读取目录，再用 `send_msg` 的 `image` 段发送工具返回的 `file`。
+自定义表情采用“平台读取、视觉理解、目录缓存、视觉推荐、聊天最终决策”的链路。`OneBotWsExternalActionApi.fetchCustomFaces` 只调用 NapCat `fetch_custom_face` 并归一化可发送资源；`CustomFaceCatalogService` 调用独立视觉 Agent 生成中文描述，并把结果缓存为聊天 Agent 可读取的目录。聊天 Agent 不直接理解图片；当它需要自定义表情时，通过 `get_custom_faces` 提交表情需求，视觉 Agent 基于已缓存描述推荐候选，聊天 Agent 再用 `send_msg` 的 `image` 段发送工具返回的 `file`。
 
 启动期由 `packages/kitty-service/scripts/start-platform-qq.ts` 组装 `CustomFaceCatalogService`。NapCat 连接建立后触发一次刷新；缓存为空且聊天 Agent 调用 `get_custom_faces` 时，会再尝试一次懒刷新。视觉 Agent 使用 `YE_KITTY_VISION_AGENT_MODEL`、`YE_KITTY_VISION_AGENT_API_KEY`、`YE_KITTY_VISION_AGENT_BASE_URL` 和 `YE_KITTY_VISION_AGENT_TIMEOUT_MS` 独立配置；未配置视觉模型或单张表情理解失败时，目录保留可发送表情，并用平台 `summary/name` 生成低置信度降级描述。
 
@@ -319,7 +319,7 @@ NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`
 | 工具                  | 风险等级 | 说明                                                            |
 | --------------------- | -------- | --------------------------------------------------------------- |
 | `get_recent_messages` | low      | 已实现。读取当前会话最近消息，帮助 Agent 判断上下文和是否回复。 |
-| `get_custom_faces`    | low      | 已实现。读取已理解的 QQ 自定义表情目录，帮助 Agent 选择表情。   |
+| `get_custom_faces`    | low      | 已实现。按聊天需求返回视觉 Agent 推荐后的 QQ 自定义表情候选。   |
 | `search_memory`       | medium   | 后续阶段。查询长期记忆或项目知识库。                            |
 
 工具调用过程：
@@ -438,7 +438,7 @@ QqReplyEventSubscriber
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
 - 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 静默、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情和 `text` + `face` 混排消息段映射。
 - Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议和戳一戳独占说明。
-- 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、检索和返回摘要。
+- 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、视觉推荐和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
 

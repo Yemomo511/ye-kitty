@@ -1,6 +1,10 @@
 import { Agent, OpenAIProvider, Runner, user } from '@openai/agents';
 import type { QqCustomFaceResource } from '@kitty/platforms/qq/infrastructure/api';
-import type { CustomFaceDescription } from '../domain/custom-face';
+import type {
+  CustomFaceDescription,
+  CustomFaceSelection,
+  DescribedCustomFace,
+} from '../domain/custom-face';
 import type { CustomFaceVisionAgentPort } from '../ports/custom-face-vision-agent.port';
 
 /**
@@ -65,6 +69,43 @@ export class OpenAiCustomFaceVisionAgent implements CustomFaceVisionAgentPort {
 
     return parseCustomFaceDescription(String(result.finalOutput ?? '').trim());
   }
+
+  /**
+   * 选择自定义表情
+   * @param demand 聊天Agent的表情需求
+   * @param faces 已理解表情目录
+   * @param limit 返回上限
+   * @returns 推荐结果
+   */
+  async selectFaces(
+    demand: string,
+    faces: readonly DescribedCustomFace[],
+    limit: number,
+  ): Promise<readonly CustomFaceSelection[]> {
+    const agent = new Agent({
+      name: '叶猫猫表情选择Agent',
+      model: this.config.model,
+      instructions: buildSelectionInstructions(),
+    });
+    const result = await withTimeout(
+      this.runner.run(agent, [
+        user([
+          {
+            type: 'input_text',
+            text: [
+              '请根据聊天Agent的需求，从已理解的QQ自定义表情目录中选择最合适的表情。',
+              `需求：${demand}`,
+              `最多返回：${limit}`,
+              `表情目录：${JSON.stringify(faces.map(toSelectionCandidate))}`,
+            ].join('\n'),
+          },
+        ]),
+      ]),
+      this.config.timeoutMs,
+    );
+
+    return parseCustomFaceSelections(String(result.finalOutput ?? '').trim(), limit);
+  }
 }
 
 /**
@@ -109,6 +150,20 @@ function buildVisionInstructions(): string {
   ].join('\n');
 }
 
+// 构建表情选择约束。
+function buildSelectionInstructions(): string {
+  return [
+    '你是叶猫猫的QQ自定义表情选择Agent。',
+    '你只能根据聊天Agent需求和已理解表情描述选择表情，不负责聊天，不调用任何工具。',
+    '优先选择情绪、适用场景、标签和聊天需求最贴合的表情。',
+    '如果没有完美匹配，也要返回相对最合适的候选，并在reason里说明差距。',
+    '只能输出单个JSON对象，不能输出Markdown或解释文字。',
+    'JSON字段：selections。',
+    'selections 是数组，每项字段为 id, reason, score。',
+    'id 必须来自输入表情目录；reason 用中文简述推荐理由；score 是0到1之间的数字。',
+  ].join('\n');
+}
+
 // 解析视觉Agent输出。
 export function parseCustomFaceDescription(rawOutput: string): CustomFaceDescription {
   if (!rawOutput) throw new Error('视觉Agent返回空描述');
@@ -134,6 +189,56 @@ export function parseCustomFaceDescription(rawOutput: string): CustomFaceDescrip
     avoidScenes,
     tags,
     confidence,
+  };
+}
+
+/**
+ * 解析视觉Agent推荐输出
+ * @param rawOutput 模型原始输出
+ * @param limit 返回上限
+ * @returns 推荐结果
+ */
+export function parseCustomFaceSelections(
+  rawOutput: string,
+  limit = 30,
+): readonly CustomFaceSelection[] {
+  if (!rawOutput) throw new Error('视觉Agent返回空推荐');
+
+  const parsed = JSON.parse(stripCodeFence(rawOutput)) as unknown;
+  if (!isRecord(parsed)) throw new Error('视觉Agent推荐不是对象');
+
+  const selections = Array.isArray(parsed.selections) ? parsed.selections : [];
+  return selections
+    .map(normalizeSelection)
+    .filter((selection): selection is CustomFaceSelection => Boolean(selection))
+    .slice(0, limit);
+}
+
+// 压缩表情描述，只交给选择Agent必要语义。
+function toSelectionCandidate(face: DescribedCustomFace): Record<string, unknown> {
+  return {
+    id: face.id,
+    content: face.content,
+    emotion: face.emotion,
+    suitableScenes: face.suitableScenes,
+    avoidScenes: face.avoidScenes,
+    tags: face.tags,
+    confidence: face.confidence,
+  };
+}
+
+// 读取单条推荐。
+function normalizeSelection(input: unknown): CustomFaceSelection | undefined {
+  if (!isRecord(input)) return undefined;
+
+  const id = normalizeText(input.id);
+  const reason = normalizeText(input.reason);
+  if (!id || !reason) return undefined;
+
+  return {
+    id,
+    reason,
+    score: normalizeConfidence(input.score),
   };
 }
 
