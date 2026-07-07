@@ -1,0 +1,32 @@
+.gitignore
+  s_66f55bcd93a9c2::t_1a85e4996d1949 3
+README.md
+  s_66f55bcd93a9c2::t_08c414c7397202 26-27
+deploy/napcat/onebot11.example.json
+  s_66f55bcd93a9c2::t_fb61aafb6c4470 1-23
+package.json
+  s_66f55bcd93a9c2::t_6601a77416d8ea 32-35
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.5",
+  "base_commit_sha": "b569507250e31c16be256643fcc75a42013b11d0",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_66f55bcd93a9c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3a63-17d4-72e3-ad47-bfd86f2f8447",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
