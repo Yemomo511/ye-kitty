@@ -12,6 +12,13 @@ describe('parseQqReplyAgentResult', () => {
       JSON.stringify({
         text: '先回复一句',
         actions: [
+          {
+            type: 'send_text_with_face',
+            segments: [
+              { type: 'text', text: '好好好' },
+              { type: 'face', faceId: '66' },
+            ],
+          },
           { type: 'send_face', faceId: '66' },
           { type: 'send_custom_image', file: 'https://example.com/cat.png' },
           {
@@ -30,6 +37,13 @@ describe('parseQqReplyAgentResult', () => {
     expect(result).toEqual({
       text: '先回复一句',
       actions: [
+        {
+          type: 'send_text_with_face',
+          segments: [
+            { type: 'text', text: '好好好' },
+            { type: 'face', faceId: '66' },
+          ],
+        },
         { type: 'send_face', faceId: '66' },
         { type: 'send_custom_image', file: 'https://example.com/cat.png' },
         {

@@ -54,7 +54,7 @@ describe('OneBotQqBotClient', () => {
     });
   });
 
-  test('发送表情、商城表情和图片消息段时生成受控消息段动作', async () => {
+  test('发送文本、内置表情、商城表情和图片消息段时生成受控消息段动作', async () => {
     const sentActions: OneBotV11ActionRequest[] = [];
     const server = {
       async sendAction(action: OneBotV11ActionRequest) {
@@ -67,6 +67,7 @@ describe('OneBotQqBotClient', () => {
       conversationExternalId: '123456',
       conversationType: 'group',
       segments: [
+        { type: 'text', text: '好好好' },
         { type: 'face', id: '66' },
         {
           type: 'mface',
@@ -84,6 +85,7 @@ describe('OneBotQqBotClient', () => {
       params: {
         group_id: '123456',
         message: [
+          { type: 'text', data: { text: '好好好' } },
           { type: 'face', data: { id: '66' } },
           {
             type: 'mface',

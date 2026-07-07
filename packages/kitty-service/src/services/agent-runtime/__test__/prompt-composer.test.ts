@@ -196,6 +196,8 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('"type": "skill_call"');
     expect(prompt.instructions).toContain('"type": "skill_reference_call"');
     expect(prompt.instructions).toContain('"type": "tool_call"');
+    expect(prompt.instructions).toContain('send_text_with_face');
+    expect(prompt.instructions).toContain('当使用 `poke_sender` 时');
     expect(prompt.input).toContain('# 第二章节: Outside Context Prompt');
     expect(prompt.input.indexOf('## 2.1 Skill Prompt')).toBeLessThan(
       prompt.input.indexOf('## 2.2 Tool Prompt'),

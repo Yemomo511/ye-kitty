@@ -12,10 +12,25 @@ import { parseQqReplyAction } from '../domain/qq-reply-action';
 import type { QqReplyAction } from '../ports/qq-reply-agent.port';
 
 describe('parseQqReplyAction', () => {
-  test('解析6类QQ动作', () => {
+  test('解析QQ动作', () => {
     expect(parseQqReplyAction({ type: 'send_text', text: '  你好喵~  ' })).toEqual({
       type: 'send_text',
       text: '你好喵~',
+    });
+    expect(
+      parseQqReplyAction({
+        type: 'send_text_with_face',
+        segments: [
+          { type: 'text', text: ' 好好好 ' },
+          { type: 'face', faceId: ' 66 ' },
+        ],
+      }),
+    ).toEqual({
+      type: 'send_text_with_face',
+      segments: [
+        { type: 'text', text: '好好好' },
+        { type: 'face', faceId: '66' },
+      ],
     });
     expect(parseQqReplyAction({ type: 'send_face', faceId: ' 66 ' })).toEqual({
       type: 'send_face',
@@ -51,6 +66,21 @@ describe('parseQqReplyAction', () => {
     expect(parseQqReplyAction({ type: 'reply_to_message', text: '不允许' })).toBeUndefined();
     expect(parseQqReplyAction({ type: 'mention_sender', text: '不允许' })).toBeUndefined();
     expect(parseQqReplyAction({ type: 'send_text', text: '   ' })).toBeUndefined();
+    expect(
+      parseQqReplyAction({
+        type: 'send_text_with_face',
+        segments: [{ type: 'text', text: '只有文字' }],
+      }),
+    ).toBeUndefined();
+    expect(
+      parseQqReplyAction({
+        type: 'send_text_with_face',
+        segments: [
+          { type: 'text', text: '好' },
+          { type: 'face', faceId: '66\n77' },
+        ],
+      }),
+    ).toBeUndefined();
     expect(parseQqReplyAction({ type: 'send_face', faceId: '66\n77' })).toBeUndefined();
     expect(
       parseQqReplyAction({
@@ -65,16 +95,19 @@ describe('parseQqReplyAction', () => {
 });
 
 describe('QqReplyActionExecutor', () => {
-  test('将6类动作映射为QQ发送端口输入', async () => {
+  test('将文本、表情和图片动作映射为QQ发送端口输入', async () => {
     const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
     const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
-    const pokes: Array<Parameters<QqBotClientPort['sendPoke']>[0]> = [];
-    const reactions: Array<Parameters<QqBotClientPort['reactToMessage']>[0]> = [];
-    const executor = new QqReplyActionExecutor(
-      createTestBotClient({ replies, segments, pokes, reactions }),
-    );
+    const executor = new QqReplyActionExecutor(createTestBotClient({ replies, segments }));
 
     await executor.executeReply(createChatEvent(), '主回复喵~', [
+      {
+        type: 'send_text_with_face',
+        segments: [
+          { type: 'text', text: '好好好' },
+          { type: 'face', faceId: '66' },
+        ],
+      },
       { type: 'send_face', faceId: '66' },
       { type: 'send_custom_image', file: 'https://example.com/cat.png' },
       {
@@ -84,8 +117,6 @@ describe('QqReplyActionExecutor', () => {
         key: 'market-key',
         summary: '摸摸头',
       },
-      { type: 'poke_sender' },
-      { type: 'react_to_message', emojiId: '128512' },
     ]);
 
     expect(replies).toEqual([
@@ -96,6 +127,14 @@ describe('QqReplyActionExecutor', () => {
       },
     ]);
     expect(segments).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'text', text: '好好好' },
+          { type: 'face', id: '66' },
+        ],
+      },
       {
         conversationExternalId: '123456',
         conversationType: 'group',
@@ -120,6 +159,18 @@ describe('QqReplyActionExecutor', () => {
         ],
       },
     ]);
+  });
+
+  test('互动动作绑定当前消息上下文', async () => {
+    const pokes: Array<Parameters<QqBotClientPort['sendPoke']>[0]> = [];
+    const reactions: Array<Parameters<QqBotClientPort['reactToMessage']>[0]> = [];
+    const executor = new QqReplyActionExecutor(createTestBotClient({ pokes, reactions }));
+
+    await executor.executeReply(createChatEvent(), undefined, [{ type: 'poke_sender' }]);
+    await executor.executeReply(createChatEvent(), undefined, [
+      { type: 'react_to_message', emojiId: '128512' },
+    ]);
+
     expect(pokes).toEqual([
       {
         conversationExternalId: '123456',
@@ -130,12 +181,32 @@ describe('QqReplyActionExecutor', () => {
     expect(reactions).toEqual([{ messageExternalId: 'message-1', emojiId: '128512' }]);
   });
 
-  test('戳一戳和表情回应只能绑定当前消息上下文', async () => {
+  test('戳一戳会独占本轮回复并忽略文本', async () => {
+    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
     const pokes: Array<Parameters<QqBotClientPort['sendPoke']>[0]> = [];
+    const executor = new QqReplyActionExecutor(createTestBotClient({ replies, segments, pokes }));
+
+    await executor.executeReply(createChatEvent(), '不要发出去', [
+      { type: 'send_face', faceId: '66' },
+      { type: 'poke_sender' },
+    ]);
+
+    expect(replies).toEqual([]);
+    expect(segments).toEqual([]);
+    expect(pokes).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        userExternalId: '20000',
+      },
+    ]);
+  });
+
+  test('表情回应只能绑定当前消息上下文', async () => {
     const reactions: Array<Parameters<QqBotClientPort['reactToMessage']>[0]> = [];
-    const executor = new QqReplyActionExecutor(createTestBotClient({ pokes, reactions }));
+    const executor = new QqReplyActionExecutor(createTestBotClient({ reactions }));
     const actions = [
-      parseQqReplyAction({ type: 'poke_sender', userExternalId: '99999' }),
       parseQqReplyAction({
         type: 'react_to_message',
         messageExternalId: 'evil-message',
@@ -145,13 +216,6 @@ describe('QqReplyActionExecutor', () => {
 
     await executor.executeReply(createChatEvent(), undefined, actions);
 
-    expect(pokes).toEqual([
-      {
-        conversationExternalId: '123456',
-        conversationType: 'group',
-        userExternalId: '20000',
-      },
-    ]);
     expect(reactions).toEqual([{ messageExternalId: 'message-1', emojiId: '128512' }]);
   });
 
@@ -161,14 +225,14 @@ describe('QqReplyActionExecutor', () => {
     const executor = new QqReplyActionExecutor(
       createTestBotClient({
         reactions,
-        async sendPoke() {
+        async sendMessageSegments() {
           throw new Error('NapCat暂不可用');
         },
       }),
     );
 
     await executor.executeReply(createChatEvent(), undefined, [
-      { type: 'poke_sender' },
+      { type: 'send_face', faceId: '66' },
       { type: 'react_to_message', emojiId: '128512' },
     ]);
 
@@ -201,6 +265,7 @@ function createTestBotClient(options: {
   readonly segments?: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]>;
   readonly pokes?: Array<Parameters<QqBotClientPort['sendPoke']>[0]>;
   readonly reactions?: Array<Parameters<QqBotClientPort['reactToMessage']>[0]>;
+  readonly sendMessageSegments?: QqBotClientPort['sendMessageSegments'];
   readonly sendPoke?: QqBotClientPort['sendPoke'];
 }): QqBotClientPort {
   return {
@@ -208,6 +273,7 @@ function createTestBotClient(options: {
       options.replies?.push(input);
     },
     async sendMessageSegments(input) {
+      if (options.sendMessageSegments) return await options.sendMessageSegments(input);
       options.segments?.push(input);
     },
     async sendPoke(input) {

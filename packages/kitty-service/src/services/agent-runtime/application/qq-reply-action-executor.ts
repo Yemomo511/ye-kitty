@@ -56,6 +56,18 @@ export class QqReplyActionExecutor {
         return;
       }
 
+      if (action.type === 'send_text_with_face') {
+        await this.botClient.sendMessageSegments({
+          conversationExternalId,
+          conversationType: message.conversationType,
+          segments: action.segments.map((segment) => {
+            if (segment.type === 'text') return { type: 'text', text: segment.text };
+            return { type: 'face', id: segment.faceId };
+          }),
+        });
+        return;
+      }
+
       if (action.type === 'send_face') {
         await this.botClient.sendMessageSegments({
           conversationExternalId,
@@ -119,6 +131,10 @@ function normalizeReplyActions(
   text: string | undefined,
   actions: readonly QqReplyAction[],
 ): readonly QqReplyAction[] {
+  // 戳一戳是轻量互动，不和文本回复混发，避免用户收到“戳一下又补一句”的噪音。
+  const pokeAction = actions.find((action) => action.type === 'poke_sender');
+  if (pokeAction) return [pokeAction];
+
   const normalizedActions: QqReplyAction[] = [];
   const normalizedText = text?.trim();
   if (normalizedText) normalizedActions.push({ type: 'send_text', text: normalizedText });

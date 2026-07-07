@@ -21,6 +21,7 @@ function renderConversationMessage(message: AgentConversationMessage): string {
       `发送者ID：${event.senderId}`,
       `发送者昵称：${event.senderDisplayName ?? '未知'}`,
       `用户消息文本：${event.message.text}`,
+      `提及QQ：${event.message.mentions.length > 0 ? event.message.mentions.join(', ') : '无'}`,
       `消息接收时间：${event.receivedAt.toISOString()}`,
     ].join('\n');
   }

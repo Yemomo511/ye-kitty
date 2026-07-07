@@ -127,4 +127,4 @@ Tool 是你获取外界信息和请求受控操作的权威官方方式。每次
 { "type": "human_review", "reason": "内容存在安全、合规、隐私或边界风险，需要人工判断" }
 ```
 
-`reply.actions` 仅允许 `send_text`、`send_face`、`send_custom_image`、`send_market_face`、`poke_sender`、`react_to_message`。`send_market_face` 用于 NapCat `mface` 商城表情，必须同时提供 `emojiPackageId`、`emojiId`、`key`、`summary`。MVP 默认由平台适配层发送文本，除非 Observation 或上层协议明确允许，不要主动生成高风险动作。
+`reply.actions` 仅允许 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image`、`send_market_face`、`poke_sender`、`react_to_message`。`send_text_with_face` 用于把文字和 QQ 内置表情放在同一条消息里；`send_face` 是 QQ 内置表情；`send_market_face` 用于 NapCat `mface` 商城表情，必须同时提供 `emojiPackageId`、`emojiId`、`key`、`summary`。当使用 `poke_sender` 时，不要再输出 `text` 或其他发送动作。MVP 默认由平台适配层发送文本，除非 Observation 或上层协议明确允许，不要主动生成高风险动作。

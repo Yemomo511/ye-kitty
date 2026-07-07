@@ -77,10 +77,12 @@ const enabledChatStyleSkill: SkillContent = {
 /** Agent Harness真实模型评估用例 */
 export const agentEvalCases: readonly AgentEvalCase[] = [
   {
-    name: '命中QQ群聊方法论时启用Skill',
-    inputSummary: '用户要求叶猫猫按 QQ 群聊方式判断是否参与。',
+    name: '群聊明确@叶猫猫时启用QQ聊天Skill',
+    inputSummary: '群聊用户明确@叶猫猫，并要求按 QQ 群聊方式判断是否参与。',
     observation: createObservation({
-      event: createChatEvent('叶猫猫，按 QQ 群聊方式判断一下这句话要不要回复。', 'group', 'skill'),
+      event: createChatEvent('@叶猫猫 按 QQ 群聊方式判断一下这句话要不要回复。', 'group', 'skill', [
+        '10000',
+      ]),
       availableSkills: [qqChatSkill],
       tools: toolRegistry.listTools(),
     }),
@@ -126,7 +128,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
     name: '旁人闲聊可保持静默',
     inputSummary: '群聊旁人普通闲聊，没有点名叶猫猫。',
     observation: createObservation({
-      event: createChatEvent('我先去吃饭了，等会儿回来。', 'group', 'ignore'),
+      event: createChatEvent('我先去吃饭了，等会儿回来。', 'group', 'ignore', []),
       availableSkills: [],
       tools: [],
     }),
@@ -173,6 +175,7 @@ function createChatEvent(
   text: string,
   conversationType: ChatEventContract['conversationType'],
   idSuffix: string,
+  mentions: readonly string[] = [],
 ): ChatEventContract {
   return {
     id: `eval-chat-event-${idSuffix}` as ChatEventId,
@@ -186,7 +189,7 @@ function createChatEvent(
       id: `eval-message-${idSuffix}` as MessageId,
       type: 'text',
       text,
-      mentions: [],
+      mentions,
     },
     receivedAt: new Date('2026-07-06T00:00:00.000Z'),
   };

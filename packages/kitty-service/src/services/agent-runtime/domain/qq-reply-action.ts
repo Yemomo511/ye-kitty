@@ -12,8 +12,14 @@ export type QqReplyAction =
     }
   | {
       /** 动作类型 */
+      readonly type: 'send_text_with_face';
+      /** 同一条QQ消息内的文本和内置表情段 */
+      readonly segments: readonly QqTextWithFaceSegment[];
+    }
+  | {
+      /** 动作类型 */
       readonly type: 'send_face';
-      /** QQ商城表情ID */
+      /** QQ内置表情ID */
       readonly faceId: string;
     }
   | {
@@ -45,6 +51,21 @@ export type QqReplyAction =
       readonly emojiId: string;
     };
 
+/** QQ文本与内置表情混排段 */
+export type QqTextWithFaceSegment =
+  | {
+      /** 消息段类型 */
+      readonly type: 'text';
+      /** 文本内容 */
+      readonly text: string;
+    }
+  | {
+      /** 消息段类型 */
+      readonly type: 'face';
+      /** QQ内置表情ID */
+      readonly faceId: string;
+    };
+
 /**
  * 解析QQ回复动作
  * @param input 模型输出动作
@@ -56,6 +77,11 @@ export function parseQqReplyAction(input: unknown): QqReplyAction | undefined {
   if (input.type === 'send_text') {
     const text = normalizeText(input.text);
     return text ? { type: 'send_text', text } : undefined;
+  }
+
+  if (input.type === 'send_text_with_face') {
+    const segments = normalizeTextWithFaceSegments(input.segments);
+    return segments ? { type: 'send_text_with_face', segments } : undefined;
   }
 
   if (input.type === 'send_face') {
@@ -85,6 +111,38 @@ export function parseQqReplyAction(input: unknown): QqReplyAction | undefined {
   if (input.type === 'react_to_message') {
     const emojiId = normalizeToken(input.emojiId);
     return emojiId ? { type: 'react_to_message', emojiId } : undefined;
+  }
+
+  return undefined;
+}
+
+// 混排消息必须同时包含文本和QQ内置表情，避免替代普通文本或单独表情动作。
+function normalizeTextWithFaceSegments(
+  value: unknown,
+): readonly QqTextWithFaceSegment[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+
+  const segments = value
+    .map(normalizeTextWithFaceSegment)
+    .filter((segment): segment is QqTextWithFaceSegment => Boolean(segment));
+  const hasText = segments.some((segment) => segment.type === 'text');
+  const hasFace = segments.some((segment) => segment.type === 'face');
+
+  return hasText && hasFace ? segments : undefined;
+}
+
+// 只接受文本和QQ内置表情两种段，其他平台段必须走独立白名单动作。
+function normalizeTextWithFaceSegment(input: unknown): QqTextWithFaceSegment | undefined {
+  if (!isRecord(input) || typeof input.type !== 'string') return undefined;
+
+  if (input.type === 'text') {
+    const text = normalizeText(input.text);
+    return text ? { type: 'text', text } : undefined;
+  }
+
+  if (input.type === 'face') {
+    const faceId = normalizeToken(input.faceId);
+    return faceId ? { type: 'face', faceId } : undefined;
   }
 
   return undefined;

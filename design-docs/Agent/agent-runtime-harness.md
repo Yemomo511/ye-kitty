@@ -278,16 +278,19 @@ SKILL.md frontmatter
 
 QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/src/services/agent-runtime/domain/qq-reply-action.ts`。模型只能在 `reply.actions` 中声明项目允许的动作，不能指定任意群、任意好友、任意消息或任意 NapCat action；`QqReplyActionExecutor` 会把动作绑定到当前收到的 QQ 消息上下文，再交给 `QqBotClientPort`。
 
+群聊触发采用保守门禁：`QqReplyEventSubscriber` 只把明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息交给 Agent，未 @ 或只 @ 其他人的普通群聊直接跳过。私聊仍由 QQ 好友白名单控制，不要求 @。
+
 当前允许的 QQ 回复动作：
 
-| 动作                | 平台消息段或动作         | 说明                                                                               |
-| ------------------- | ------------------------ | ---------------------------------------------------------------------------------- |
-| `send_text`         | `text`                   | 发送一段补充文本。                                                                 |
-| `send_face`         | `face`                   | 发送 QQ 内置表情，字段是 `faceId`。                                                |
-| `send_custom_image` | `image`                  | 发送图片文件、URL 或 NapCat 可识别资源。                                           |
-| `send_market_face`  | `mface`                  | 发送 NapCat 商城表情，字段必须包含 `emojiPackageId`、`emojiId`、`key`、`summary`。 |
-| `poke_sender`       | `group_poke/friend_poke` | 只戳当前消息发送者。                                                               |
-| `react_to_message`  | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                   |
+| 动作                  | 平台消息段或动作         | 说明                                                                                    |
+| --------------------- | ------------------------ | --------------------------------------------------------------------------------------- |
+| `send_text`           | `text`                   | 发送一段补充文本。                                                                      |
+| `send_text_with_face` | `text` + `face`          | 在同一条 QQ 消息中发送文本和内置表情，字段是 `segments[].text` 或 `segments[].faceId`。 |
+| `send_face`           | `face`                   | 单独发送 QQ 内置表情，字段是 `faceId`。                                                 |
+| `send_custom_image`   | `image`                  | 发送图片文件、URL 或 NapCat 可识别资源。                                                |
+| `send_market_face`    | `mface`                  | 发送 NapCat 商城表情，字段必须包含 `emojiPackageId`、`emojiId`、`key`、`summary`。      |
+| `poke_sender`         | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                    |
+| `react_to_message`    | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                        |
 
 NapCat 源码中 `mface` 对应 OneBot 商城表情消息段，发送时会转换为内部 `marketFaceElement`。因此 Ye-Kitty 不把它当作普通图片表情，也不暴露 `fetch_custom_face`、`add_custom_face` 等收藏管理接口；Agent 只能在已经知道完整 `mface` 元数据时发送。
 
@@ -412,8 +415,8 @@ QqReplyEventSubscriber
 ## 测试方案
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
-- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖 NapCat `mface` 商城表情消息段映射。
-- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取和路径逃逸拒绝。
+- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 静默、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情和 `text` + `face` 混排消息段映射。
+- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议和戳一戳独占说明。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。

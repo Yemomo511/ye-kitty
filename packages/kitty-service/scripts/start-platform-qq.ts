@@ -44,6 +44,7 @@ const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.botClient,
   createQqReplyAgent(agentConfig, skillRuntime),
   skillRuntime,
+  { selfQqId: qqConfig.selfQqId },
 );
 
 // 5. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。

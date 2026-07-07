@@ -6,6 +6,12 @@ import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import { QqReplyActionExecutor } from './qq-reply-action-executor';
 import type { SkillRuntimeService } from './skill-runtime.service';
 
+/** QQ回复订阅器配置 */
+export interface QqReplyEventSubscriberConfig {
+  /** 机器人QQ号，用于判断群聊是否明确@叶猫猫 */
+  readonly selfQqId: string;
+}
+
 /**
  * QQ回复事件订阅器
  *
@@ -20,6 +26,7 @@ export class QqReplyEventSubscriber {
     botClient: QqBotClientPort,
     private readonly replyAgent: QqReplyAgentPort,
     private readonly skillRuntime?: SkillRuntimeService,
+    private readonly config?: QqReplyEventSubscriberConfig,
   ) {
     this.actionExecutor = new QqReplyActionExecutor(botClient);
   }
@@ -43,6 +50,16 @@ export class QqReplyEventSubscriber {
   async handleMessage(message: ChatEventContract): Promise<void> {
     if (!isQqReceivedMessage(message)) return;
 
+    const mentionsAgent = isMentioningAgent(message, this.config?.selfQqId);
+    if (message.conversationType === 'group' && !mentionsAgent) {
+      writeDebugLog(
+        `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 跳过未@叶猫猫的群聊消息 messageId=${maskId(
+          message.message.id,
+        )} mentionCount=${message.message.mentions.length}`,
+      );
+      return;
+    }
+
     if (message.message.text.trim().length === 0) {
       writeDebugLog(
         `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 跳过空文本消息 conversationType=${message.conversationType} messageId=${maskId(
@@ -61,7 +78,7 @@ export class QqReplyEventSubscriber {
       platform: message.platform,
       conversationType: message.conversationType,
       messageText: message.message.text,
-      mentionsAgent: message.message.mentions.length > 0,
+      mentionsAgent,
       receivedAt: message.receivedAt,
     });
     const reply = await this.replyAgent.generateReply({ event: message, availableSkills });
@@ -78,6 +95,13 @@ export class QqReplyEventSubscriber {
 // 识别 QQ 标准收信事件，避免 Agent Runtime 处理非目标消息。
 function isQqReceivedMessage(message: ChatEventContract): boolean {
   return message.platform === 'qq' && message.eventType === 'message.received';
+}
+
+// 群聊只把明确@机器人QQ号的消息交给模型，避免叶猫猫主动打断普通闲聊。
+function isMentioningAgent(message: ChatEventContract, selfQqId: string | undefined): boolean {
+  if (message.conversationType !== 'group') return false;
+  if (!selfQqId) return false;
+  return message.message.mentions.includes(selfQqId);
 }
 
 // 脱敏消息ID，仅保留排障所需的尾部特征。

@@ -13,7 +13,10 @@ describe('qq-chat Skill动作协议', () => {
     expect(content).toContain('references/qq-action-json.md');
     expect(content).toContain('references/qq-action-style.md');
     expect(content).toContain('send_text');
+    expect(content).toContain('send_text_with_face');
     expect(content).toContain('react_to_message');
+    expect(content).toContain('当准备戳一戳时');
+    expect(content).not.toContain('send_face` 是 QQ 商城表情');
     expect(content).not.toContain('group_poke');
     expect(content).not.toContain('send_group_msg');
   });
@@ -36,8 +39,11 @@ describe('qq-chat Skill动作协议', () => {
     const styleReference = await loader.loadSkillReference(skill, 'qq-action-style.md');
 
     expect(jsonReference.content).toContain('poke_sender');
+    expect(jsonReference.content).toContain('send_text_with_face');
+    expect(jsonReference.content).toContain('戳一戳时不要填写外层 `text`');
     expect(jsonReference.content).toContain('不能指定其他用户');
     expect(styleReference.content).toContain('避免打断多人对话');
+    expect(styleReference.content).toContain('文字和 QQ 内置表情出现在同一条消息');
     expect(styleReference.content).not.toContain('reply_to_message');
   });
 });

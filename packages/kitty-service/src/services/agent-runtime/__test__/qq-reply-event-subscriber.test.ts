@@ -51,6 +51,7 @@ describe('QqReplyEventSubscriber', () => {
           },
         },
       ),
+      { selfQqId: '10000' },
     );
 
     await subscriber.start();
@@ -88,6 +89,8 @@ describe('QqReplyEventSubscriber', () => {
       new TestQqMessageService(),
       botClient,
       new SafeQqReplyAgent(failedAgent, new FallbackQqReplyAgent()),
+      undefined,
+      { selfQqId: '10000' },
     );
 
     await subscriber.handleMessage(createChatEvent({ text: '模型失败后的消息' }));
@@ -107,6 +110,8 @@ describe('QqReplyEventSubscriber', () => {
       new TestQqMessageService(),
       botClient,
       replyAgent,
+      undefined,
+      { selfQqId: '10000' },
     );
 
     await subscriber.handleMessage(createChatEvent({ platform: 'feishu' }));
@@ -145,6 +150,7 @@ describe('QqReplyEventSubscriber', () => {
           loadSkillContent,
         },
       ),
+      { selfQqId: '10000' },
     );
 
     await subscriber.handleMessage(createChatEvent());
@@ -183,36 +189,14 @@ describe('QqReplyEventSubscriber', () => {
           };
         },
       },
+      undefined,
+      { selfQqId: '10000' },
     );
 
     await subscriber.handleMessage(createChatEvent());
 
-    expect(replies[0]?.text).toBe('先用文字接住你');
-    expect(segments).toEqual([
-      {
-        conversationExternalId: '123456',
-        conversationType: 'group',
-        segments: [{ type: 'face', id: '66' }],
-      },
-      {
-        conversationExternalId: '123456',
-        conversationType: 'group',
-        segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
-      },
-      {
-        conversationExternalId: '123456',
-        conversationType: 'group',
-        segments: [
-          {
-            type: 'mface',
-            emojiPackageId: 123,
-            emojiId: 'abc123',
-            key: 'market-key',
-            summary: '摸摸头',
-          },
-        ],
-      },
-    ]);
+    expect(replies).toEqual([]);
+    expect(segments).toEqual([]);
     expect(pokes).toEqual([
       {
         conversationExternalId: '123456',
@@ -220,10 +204,43 @@ describe('QqReplyEventSubscriber', () => {
         userExternalId: '20000',
       },
     ]);
-    expect(reactions).toEqual([
+    expect(reactions).toEqual([]);
+  });
+
+  test('执行Agent返回的文字和QQ内置表情混排动作', async () => {
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ segments }),
       {
-        messageExternalId: 'message-1',
-        emojiId: '128512',
+        async generateReply() {
+          return {
+            actions: [
+              {
+                type: 'send_text_with_face',
+                segments: [
+                  { type: 'text', text: '好好好' },
+                  { type: 'face', faceId: '66' },
+                ],
+              },
+            ],
+          };
+        },
+      },
+      undefined,
+      { selfQqId: '10000' },
+    );
+
+    await subscriber.handleMessage(createChatEvent());
+
+    expect(segments).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [
+          { type: 'text', text: '好好好' },
+          { type: 'face', id: '66' },
+        ],
       },
     ]);
   });
@@ -237,23 +254,79 @@ describe('QqReplyEventSubscriber', () => {
       createTestBotClient({
         replies,
         reactions,
-        async sendPoke() {
+        async sendMessageSegments() {
           throw new Error('NapCat暂不可用');
         },
       }),
       {
         async generateReply() {
           return {
-            actions: [{ type: 'poke_sender' }, { type: 'react_to_message', emojiId: '128512' }],
+            actions: [
+              { type: 'send_face', faceId: '66' },
+              { type: 'react_to_message', emojiId: '128512' },
+            ],
           };
         },
       },
+      undefined,
+      { selfQqId: '10000' },
     );
 
     await subscriber.handleMessage(createChatEvent());
 
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('QQ动作执行失败'));
     expect(reactions).toEqual([{ messageExternalId: 'message-1', emojiId: '128512' }]);
+  });
+
+  test('群聊未@叶猫猫或只@其他人时不触发Agent', async () => {
+    const agentInputs: QqReplyAgentInput[] = [];
+    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ replies }),
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: '不应该触发' };
+        },
+      },
+      undefined,
+      { selfQqId: '10000' },
+    );
+
+    await subscriber.handleMessage(createChatEvent({ mentions: [] }));
+    await subscriber.handleMessage(createChatEvent({ mentions: ['20001'] }));
+
+    expect(agentInputs).toEqual([]);
+    expect(replies).toEqual([]);
+  });
+
+  test('私聊不需要@也会触发Agent', async () => {
+    const agentInputs: QqReplyAgentInput[] = [];
+    const replies: Array<Parameters<QqBotClientPort['sendTextMessage']>[0]> = [];
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ replies }),
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: '私聊收到' };
+        },
+      },
+      undefined,
+      { selfQqId: '10000' },
+    );
+
+    await subscriber.handleMessage(createChatEvent({ conversationType: 'private', mentions: [] }));
+
+    expect(agentInputs).toHaveLength(1);
+    expect(replies).toEqual([
+      {
+        conversationExternalId: '123456',
+        conversationType: 'private',
+        text: '私聊收到',
+      },
+    ]);
   });
 });
 
@@ -267,6 +340,8 @@ function createChatEvent(
   options: {
     readonly text?: string;
     readonly platform?: ChatEventContract['platform'] | 'feishu';
+    readonly conversationType?: ChatEventContract['conversationType'];
+    readonly mentions?: readonly string[];
   } = {},
 ): ChatEventContract {
   return {
@@ -274,14 +349,14 @@ function createChatEvent(
     platform: (options.platform ?? 'qq') as ChatEventContract['platform'],
     eventType: 'message.received',
     conversationId: 'qq:conversation:123456' as ConversationId,
-    conversationType: 'group',
+    conversationType: options.conversationType ?? 'group',
     senderId: 'qq:participant:20000' as ParticipantId,
     senderDisplayName: '测试用户',
     message: {
       id: 'message-1' as MessageId,
       type: 'text',
       text: options.text ?? '你好',
-      mentions: [],
+      mentions: options.mentions ?? ['10000'],
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
   };
@@ -300,6 +375,7 @@ function createTestBotClient(options: {
   readonly segments?: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]>;
   readonly pokes?: Array<Parameters<QqBotClientPort['sendPoke']>[0]>;
   readonly reactions?: Array<Parameters<QqBotClientPort['reactToMessage']>[0]>;
+  readonly sendMessageSegments?: QqBotClientPort['sendMessageSegments'];
   readonly sendPoke?: QqBotClientPort['sendPoke'];
 }): QqBotClientPort {
   return {
@@ -307,6 +383,7 @@ function createTestBotClient(options: {
       options.replies?.push(input);
     },
     async sendMessageSegments(input) {
+      if (options.sendMessageSegments) return await options.sendMessageSegments(input);
       options.segments?.push(input);
     },
     async sendPoke(input) {
