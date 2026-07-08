@@ -1,0 +1,34 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_d9f7c1a11671c7::t_6aa8afc256bca5 315
+design-docs/Task.md
+  s_d9f7c1a11671c7::t_5bef6510543696 63
+packages/kitty-service/src/services/agent-runtime/__test__/custom-face-catalog.test.ts
+  s_d9f7c1a11671c7::t_da7868e6f6d56e 71-74,76,96,98-99,162-165,174
+packages/kitty-service/src/services/agent-runtime/__test__/custom-face-vision-agent.test.ts
+  s_d9f7c1a11671c7::t_daf5d8038b6f2a 3,52-88
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-custom-face-vision.agent.ts
+  s_d9f7c1a11671c7::t_7795de518ca772 25-40,47,56-70,75,91-105,110,170-198,326-377
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "fe3a29d03675ec06fea74c9ba9d4d303f7af5015",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_d9f7c1a11671c7": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f3fd0-cd02-7910-bd17-859c8e091232",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
