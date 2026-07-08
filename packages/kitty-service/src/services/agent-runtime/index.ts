@@ -31,6 +31,11 @@ export type {
   AgentRuntimeRunResult,
 } from './ports/agent-runtime-harness.port';
 export type { ConversationHistoryPort } from './ports/conversation-history.port';
+export type {
+  GroupChatCadenceDecision,
+  GroupChatCadencePort,
+  GroupChatCadenceTriggerMode,
+} from './ports/group-chat-cadence.port';
 export type { SkillMarketPort } from './ports/skill-market.port';
 export type { SkillContentLoaderPort } from './ports/skill-content-loader.port';
 export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.port';
@@ -52,6 +57,10 @@ export {
 } from './application/agent-runtime-harness';
 export { FallbackQqReplyAgent } from './application/fallback-qq-reply.agent';
 export { InMemoryConversationHistory } from './application/in-memory-conversation-history';
+export {
+  GroupChatCadenceController,
+  type GroupChatCadenceConfig,
+} from './application/group-chat-cadence-controller';
 export { QqReplyEventSubscriber } from './application/qq-reply-event-subscriber';
 export {
   DEFAULT_VISIBLE_SKILL_LIMIT,
@@ -70,6 +79,7 @@ export { QqReplyActionExecutor } from './application/qq-reply-action-executor';
 export {
   createQqReplyAgent,
   loadQqReplyAgentConfig,
+  type QqReplyAgentRuntimeDependencies,
   type QqReplyAgentRuntimeConfig,
 } from './application/qq-reply-agent.factory';
 export {

@@ -24,6 +24,12 @@ export interface AgentObservation {
   readonly conversationMessages: readonly AgentConversationMessage[];
   /** Harness Prompt显式状态 */
   readonly promptState: HarnessPromptState;
+  /** 本轮回复意图 */
+  readonly replyIntent?: 'normal' | 'required_group_reply';
+  /** 本轮必须调用的工具 */
+  readonly requiredToolCalls?: readonly string[];
+  /** 最近消息窗口提示 */
+  readonly recentMessageLimitHint?: 100;
   /** 当前轮次 */
   readonly turnIndex: number;
   /** 最大轮次 */

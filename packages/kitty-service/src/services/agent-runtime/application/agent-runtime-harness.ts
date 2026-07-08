@@ -114,6 +114,9 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           latestObservation: getLatestObservation(conversationMessages),
           decisionHistory,
         }),
+        replyIntent: input.replyIntent,
+        requiredToolCalls: input.requiredToolCalls,
+        recentMessageLimitHint: input.recentMessageLimitHint,
         turnIndex,
         maxTurns: this.config.maxTurns,
         toolCallCount,
@@ -127,6 +130,29 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         );
 
         if (isFinalAgentDecision(decision)) {
+          const requiredReplyViolation = validateRequiredGroupReply(decision, toolResults);
+          if (input.replyIntent === 'required_group_reply' && requiredReplyViolation) {
+            decisionErrorCount += 1;
+            phase = 'ready_to_decide';
+            decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, false));
+            const result = {
+              toolName: 'required_group_reply',
+              success: false,
+              observation: requiredReplyViolation,
+              errorMessage: '强制群聊回复协议未满足',
+            };
+            toolResults.push(result);
+            conversationMessages.push({
+              type: 'decision_error',
+              observation: result.observation,
+              errorMessage: result.errorMessage,
+            });
+            console.warn(
+              `⚠️ [AgentRuntime-Harness-run] 强制群聊回复协议未满足，已转为下一轮观察 traceId=${traceId} turn=${turnIndex} decisionType=${decision.type}`,
+            );
+            continue;
+          }
+
           phase = decision.type === 'human_review' ? 'human_review' : 'finalized';
           decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, true));
           return toRunResult(decision, traceId);
@@ -547,4 +573,28 @@ function getLatestObservation(messages: readonly AgentConversationMessage[]): st
 // 生成Skill引用状态键。
 function toReferenceKey(reference: SkillReferenceContent): string {
   return `${reference.skill.name}:${reference.referencePath}`;
+}
+
+// 校验节奏门控触发的强制群聊回复是否已读取上下文并最终回复。
+function validateRequiredGroupReply(
+  decision: AgentDecision,
+  toolResults: readonly ToolExecutionResult[],
+): string | undefined {
+  const hasRecentMessages = toolResults.some(
+    (result) => result.toolName === 'get_recent_messages' && result.success,
+  );
+
+  if (!hasRecentMessages) {
+    return '本轮由群聊节奏门控触发，必须先调用 get_recent_messages 读取最近100条群消息，再基于上下文回复。请先返回 tool_call。';
+  }
+
+  if (decision.type !== 'reply') {
+    return '本轮由群聊节奏门控触发，已读取最近群消息后必须输出 reply，不能返回 ignore 或 human_review。请基于最近100条群消息给出一条自然短回复。';
+  }
+
+  if (!decision.text?.trim() && (!decision.actions || decision.actions.length === 0)) {
+    return '本轮由群聊节奏门控触发，reply 必须包含文本或受控动作，不能返回空回复。';
+  }
+
+  return undefined;
 }

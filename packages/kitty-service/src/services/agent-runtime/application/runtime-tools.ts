@@ -14,7 +14,7 @@ export const GET_CUSTOM_FACES_TOOL_NAME = 'get_custom_faces';
 /** 私聊上下文窗口 */
 const PRIVATE_RECENT_MESSAGE_LIMIT = 100;
 /** 群聊上下文窗口 */
-const GROUP_RECENT_MESSAGE_LIMIT = 50;
+const GROUP_RECENT_MESSAGE_LIMIT = 100;
 
 /** 内置工具依赖 */
 export interface BuiltinRuntimeToolDependencies {

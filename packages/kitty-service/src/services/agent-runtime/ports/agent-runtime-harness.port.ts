@@ -12,6 +12,12 @@ export interface AgentRuntimeRunInput {
   readonly event: ChatEventContract;
   /** 本轮可请求的Skill目录 */
   readonly availableSkills?: readonly SkillMetadata[];
+  /** 本轮回复意图 */
+  readonly replyIntent?: 'normal' | 'required_group_reply';
+  /** 本轮必须调用的工具 */
+  readonly requiredToolCalls?: readonly string[];
+  /** 最近消息窗口提示 */
+  readonly recentMessageLimitHint?: 100;
 }
 
 /**

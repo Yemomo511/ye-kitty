@@ -1,8 +1,10 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { QqReplyEventSubscriber } from '../application/qq-reply-event-subscriber';
 import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
+import { InMemoryConversationHistory } from '../application/in-memory-conversation-history';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
 import { SkillRuntimeService } from '../application/skill-runtime.service';
+import type { GroupChatCadencePort } from '../ports/group-chat-cadence.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { QqOutboundMessageSegment } from '@kitty/platforms/qq/infrastructure/api';
 import { PlatformMessageService } from '@kitty/platforms/shared';
@@ -306,6 +308,102 @@ describe('QqReplyEventSubscriber', () => {
 
     expect(agentInputs).toEqual([]);
     expect(replies).toEqual([]);
+  });
+
+  test('未@群聊命中节奏门控时强制触发Agent并先写入消息池', async () => {
+    const agentInputs: QqReplyAgentInput[] = [];
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const conversationHistory = new InMemoryConversationHistory();
+    const cadenceEvents: ChatEventContract[] = [];
+    let markReplyCount = 0;
+    const cadence: GroupChatCadencePort = {
+      recordMessage(event) {
+        cadenceEvents.push(event);
+      },
+      shouldTrigger() {
+        return {
+          type: 'trigger',
+          triggerMode: 'random_window',
+          replyRequired: true,
+          requiresRecentMessages: true,
+          recentMessageLimit: 100,
+          reason: '命中随机回复片段',
+        };
+      },
+      markReplySent() {
+        markReplyCount += 1;
+      },
+    };
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ segments }),
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: '我看完群聊接一句' };
+        },
+      },
+      undefined,
+      { selfQqId: '10000' },
+      conversationHistory,
+      cadence,
+    );
+
+    const event = createChatEvent({ mentions: [] });
+    await subscriber.handleMessage(event);
+
+    expect(conversationHistory.getRecentMessages(event.conversationId, 100)).toEqual([event]);
+    expect(cadenceEvents).toEqual([event]);
+    expect(agentInputs).toHaveLength(1);
+    expect(agentInputs[0]).toMatchObject({
+      replyIntent: 'required_group_reply',
+      requiredToolCalls: ['get_recent_messages'],
+      recentMessageLimitHint: 100,
+    });
+    expect(segments).toHaveLength(1);
+    expect(markReplyCount).toBe(1);
+  });
+
+  test('节奏门控未触发时仍然先写入消息池但不标记回复', async () => {
+    const agentInputs: QqReplyAgentInput[] = [];
+    const conversationHistory = new InMemoryConversationHistory();
+    let markReplyCount = 0;
+    const cadence: GroupChatCadencePort = {
+      recordMessage() {},
+      shouldTrigger() {
+        return {
+          type: 'wait',
+          replyRequired: false,
+          requiresRecentMessages: true,
+          recentMessageLimit: 100,
+          reason: '未命中随机回复片段',
+        };
+      },
+      markReplySent() {
+        markReplyCount += 1;
+      },
+    };
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({}),
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: '不应该触发' };
+        },
+      },
+      undefined,
+      { selfQqId: '10000' },
+      conversationHistory,
+      cadence,
+    );
+
+    const event = createChatEvent({ mentions: [] });
+    await subscriber.handleMessage(event);
+
+    expect(conversationHistory.getRecentMessages(event.conversationId, 100)).toEqual([event]);
+    expect(agentInputs).toEqual([]);
+    expect(markReplyCount).toBe(0);
   });
 
   test('私聊不需要@也会触发Agent', async () => {

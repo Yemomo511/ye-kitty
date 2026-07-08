@@ -18,12 +18,13 @@ export class QqReplyActionExecutor {
    * @param message 当前QQ消息
    * @param text 兼容文本回复
    * @param actions 受控动作
+   * @returns 是否发出外部动作
    */
   async executeReply(
     message: ChatEventContract,
     text: string | undefined,
     actions: readonly QqReplyAction[],
-  ): Promise<void> {
+  ): Promise<boolean> {
     const normalizedActions = normalizeReplyActions(text, actions);
 
     if (normalizedActions.length === 0) {
@@ -32,19 +33,21 @@ export class QqReplyActionExecutor {
           message.message.id,
         )}`,
       );
-      return;
+      return false;
     }
 
+    let sent = false;
     for (const action of normalizedActions) {
-      await this.executeReplyAction(message, action);
+      sent = (await this.executeReplyAction(message, action)) || sent;
     }
+    return sent;
   }
 
   // 将单个动作转换为 QQ 平台端口调用，单次失败不影响后续动作。
   private async executeReplyAction(
     message: ChatEventContract,
     action: QqReplyAction,
-  ): Promise<void> {
+  ): Promise<boolean> {
     try {
       const conversationExternalId = stripQqConversationPrefix(message.conversationId);
 
@@ -52,12 +55,12 @@ export class QqReplyActionExecutor {
         await this.sendMessageSegments(message, conversationExternalId, [
           { type: 'text', text: action.text },
         ]);
-        return;
+        return true;
       }
 
       if (action.type === 'send_msg') {
         await this.sendMessageSegments(message, conversationExternalId, action.message);
-        return;
+        return true;
       }
 
       if (action.type === 'send_text_with_face') {
@@ -69,21 +72,21 @@ export class QqReplyActionExecutor {
             return { type: 'face', id: segment.faceId };
           }),
         );
-        return;
+        return true;
       }
 
       if (action.type === 'send_face') {
         await this.sendMessageSegments(message, conversationExternalId, [
           { type: 'face', id: action.faceId },
         ]);
-        return;
+        return true;
       }
 
       if (action.type === 'send_custom_image') {
         await this.sendMessageSegments(message, conversationExternalId, [
           { type: 'image', file: action.file },
         ]);
-        return;
+        return true;
       }
 
       if (action.type === 'send_market_face') {
@@ -96,7 +99,7 @@ export class QqReplyActionExecutor {
             summary: action.summary,
           },
         ]);
-        return;
+        return true;
       }
 
       if (action.type === 'poke_sender') {
@@ -105,19 +108,21 @@ export class QqReplyActionExecutor {
           conversationType: message.conversationType,
           userExternalId: stripQqParticipantPrefix(message.senderId),
         });
-        return;
+        return true;
       }
 
       await this.botClient.reactToMessage({
         messageExternalId: stripQqMessagePrefix(message.message.id),
         emojiId: action.emojiId,
       });
+      return true;
     } catch (error) {
       console.warn(
         `⚠️ [AgentRuntime-QqReplyActionExecutor-executeReplyAction] QQ动作执行失败，已继续后续动作 actionType=${action.type} conversationType=${message.conversationType} messageId=${maskId(
           message.message.id,
         )} reason=${formatError(error)}`,
       );
+      return false;
     }
   }
 

@@ -2,6 +2,11 @@ import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contr
 import type { PlatformMessageService } from '@kitty/platforms/shared';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
+import type { ConversationHistoryPort } from '../ports/conversation-history.port';
+import type {
+  GroupChatCadenceDecision,
+  GroupChatCadencePort,
+} from '../ports/group-chat-cadence.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import { QqReplyActionExecutor } from './qq-reply-action-executor';
 import type { SkillRuntimeService } from './skill-runtime.service';
@@ -27,6 +32,8 @@ export class QqReplyEventSubscriber {
     private readonly replyAgent: QqReplyAgentPort,
     private readonly skillRuntime?: SkillRuntimeService,
     private readonly config?: QqReplyEventSubscriberConfig,
+    private readonly conversationHistory?: ConversationHistoryPort,
+    private readonly groupChatCadence?: GroupChatCadencePort,
   ) {
     this.actionExecutor = new QqReplyActionExecutor(botClient);
   }
@@ -50,12 +57,16 @@ export class QqReplyEventSubscriber {
   async handleMessage(message: ChatEventContract): Promise<void> {
     if (!isQqReceivedMessage(message)) return;
 
+    this.conversationHistory?.recordMessage(message);
+    this.groupChatCadence?.recordMessage(message);
+
     const mentionsAgent = isMentioningAgent(message, this.config?.selfQqId);
-    if (message.conversationType === 'group' && !mentionsAgent) {
+    const cadenceDecision = this.decideGroupCadence(message, mentionsAgent);
+    if (cadenceDecision.type !== 'trigger') {
       writeDebugLog(
-        `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 跳过未@叶猫猫的群聊消息 messageId=${maskId(
+        `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 跳过群聊消息 messageId=${maskId(
           message.message.id,
-        )} mentionCount=${message.message.mentions.length}`,
+        )} mentionCount=${message.message.mentions.length} reason=${cadenceDecision.reason}`,
       );
       return;
     }
@@ -81,14 +92,62 @@ export class QqReplyEventSubscriber {
       mentionsAgent,
       receivedAt: message.receivedAt,
     });
-    const reply = await this.replyAgent.generateReply({ event: message, availableSkills });
+    const reply = await this.replyAgent.generateReply({
+      event: message,
+      availableSkills,
+      ...(cadenceDecision.replyRequired
+        ? {
+            replyIntent: 'required_group_reply' as const,
+            requiredToolCalls: ['get_recent_messages'],
+            recentMessageLimitHint: 100 as const,
+          }
+        : {}),
+    });
 
-    await this.actionExecutor.executeReply(message, reply.text, reply.actions ?? []);
+    const sent = await this.actionExecutor.executeReply(message, reply.text, reply.actions ?? []);
+    if (sent) this.groupChatCadence?.markReplySent(message);
     console.info(
       `✅ [AgentRuntime-QQReplySubscriber-handleMessage] 已发送QQ回复 conversationType=${message.conversationType} messageId=${maskId(
         message.message.id,
       )} replyLength=${reply.text?.length ?? 0} actionCount=${reply.actions?.length ?? 0}`,
     );
+  }
+
+  // 群聊先过节奏门控，私聊保持直接触发。
+  private decideGroupCadence(
+    message: ChatEventContract,
+    mentionsAgent: boolean,
+  ): GroupChatCadenceDecision {
+    if (message.conversationType !== 'group') {
+      return {
+        type: 'trigger',
+        replyRequired: false,
+        requiresRecentMessages: true,
+        recentMessageLimit: 100,
+        reason: '私聊不走群聊节奏门控',
+      };
+    }
+
+    if (this.groupChatCadence) return this.groupChatCadence.shouldTrigger(message);
+
+    if (mentionsAgent) {
+      return {
+        type: 'trigger',
+        triggerMode: 'mention',
+        replyRequired: false,
+        requiresRecentMessages: true,
+        recentMessageLimit: 100,
+        reason: '群聊消息明确@叶猫猫，立即触发回复',
+      };
+    }
+
+    return {
+      type: 'ignore',
+      replyRequired: false,
+      requiresRecentMessages: true,
+      recentMessageLimit: 100,
+      reason: '未配置群聊节奏门控，未@群聊保持旧逻辑静默',
+    };
   }
 }
 

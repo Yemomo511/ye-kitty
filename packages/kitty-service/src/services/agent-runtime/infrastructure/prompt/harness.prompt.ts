@@ -68,10 +68,33 @@ function buildObservationPrompt(observation: AgentObservation): string {
     '# 第三章节: Runtime Observation',
     '本章节只承载本轮 Agent 循环思考所需的运行状态、外部观察和历史回灌。',
     renderPromptState(observation.promptState),
+    renderReplyIntent(observation),
     `当前轮次：${observation.turnIndex}/${observation.maxTurns}`,
     `已调用工具次数：${observation.toolCallCount}/${observation.maxToolCalls}`,
     renderConversationMessages(observation.conversationMessages),
   ].join('\n\n');
+}
+
+// 渲染本轮回复意图，强制群聊回复时给模型明确行动边界。
+function renderReplyIntent(observation: AgentObservation): string {
+  if (observation.replyIntent !== 'required_group_reply') {
+    return [
+      '<reply_intent>',
+      'mode: normal',
+      '说明：请按常规 Harness 协议判断是否回复、静默或转人工。',
+      '</reply_intent>',
+    ].join('\n');
+  }
+
+  return [
+    '<reply_intent>',
+    'mode: required_group_reply',
+    '说明：本轮由群聊节奏门控触发，必须先调用 get_recent_messages 读取最近100条群消息，再基于群聊上下文输出 reply。',
+    '禁止：不能返回 ignore；不能在未读取 get_recent_messages 前直接 reply。',
+    `required_tools: ${observation.requiredToolCalls?.join(', ') ?? 'get_recent_messages'}`,
+    `recent_message_limit: ${observation.recentMessageLimitHint ?? 100}`,
+    '</reply_intent>',
+  ].join('\n');
 }
 
 // 渲染Harness显式状态快照。
