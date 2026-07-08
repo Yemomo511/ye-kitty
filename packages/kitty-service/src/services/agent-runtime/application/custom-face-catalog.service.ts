@@ -12,15 +12,36 @@ const DEFAULT_CUSTOM_FACE_LIMIT = 30;
 /** 最大表情目录返回上限 */
 const MAX_CUSTOM_FACE_LIMIT = 100;
 
+/** 自定义表情目录状态 */
+export type CustomFaceCatalogStatus = 'idle' | 'refreshing' | 'ready' | 'failed';
+
+/** 自定义表情目录快照 */
+export interface CustomFaceCatalogSnapshot {
+  /** 当前状态 */
+  readonly status: CustomFaceCatalogStatus;
+  /** 最后刷新成功时间 */
+  readonly refreshedAt?: Date;
+  /** 最后失败原因 */
+  readonly lastFailureReason?: string;
+  /** 已缓存表情数量 */
+  readonly faceCount: number;
+}
+
 /**
  * 自定义表情目录
  *
  * 负责从QQ平台读取自定义表情，调用视觉Agent生成中文描述，并向聊天Agent提供可推荐目录。
- * 刷新过程会触发 NapCat 只读动作和视觉模型请求。
+ * 只有刷新过程会触发 NapCat 只读动作和视觉模型请求，聊天期只读取内存缓存。
  */
 export class CustomFaceCatalogService {
   // 已理解表情缓存
   private faces: DescribedCustomFace[] = [];
+  // 当前目录状态
+  private status: CustomFaceCatalogStatus = 'idle';
+  // 最后成功刷新时间
+  private refreshedAt?: Date;
+  // 最近一次刷新失败原因
+  private lastFailureReason?: string;
   // 防止重复刷新
   private refreshTask?: Promise<void>;
 
@@ -54,57 +75,66 @@ export class CustomFaceCatalogService {
   }
 
   /**
-   * 根据聊天需求推荐表情
+   * 读取目录快照
+   * @returns 当前目录状态
+   */
+  getSnapshot(): CustomFaceCatalogSnapshot {
+    return {
+      status: this.status,
+      refreshedAt: this.refreshedAt,
+      lastFailureReason: this.lastFailureReason,
+      faceCount: this.faces.length,
+    };
+  }
+
+  /**
+   * 读取启动期缓存表情
    * @param query 聊天Agent的需求
-   * @returns 推荐表情
+   * @returns 缓存表情
    */
   async recommend(query: CustomFaceQuery = {}): Promise<readonly RecommendedCustomFace[]> {
     const limit = normalizeLimit(query.limit);
     const demand = query.query?.trim();
     const fallbackFaces = this.list({ limit });
 
-    if (!demand) return fallbackFaces;
-    if (!this.visionAgent) {
-      console.warn(
-        `⚠️ [AgentRuntime-CustomFaceCatalog-recommend] 视觉Agent未配置，已返回未过滤表情目录 count=${fallbackFaces.length} demandLength=${demand.length}`,
+    if (demand) {
+      console.info(
+        `✅ [AgentRuntime-CustomFaceCatalog-recommend] 已读取启动期缓存目录 count=${fallbackFaces.length} demandLength=${demand.length} status=${this.status}`,
       );
-      return fallbackFaces;
     }
 
-    try {
-      const selections = await this.visionAgent.selectFaces(demand, this.faces, limit);
-      const recommendedFaces = toRecommendedFaces(this.faces, selections);
-      if (recommendedFaces.length > 0) return recommendedFaces;
-
-      console.warn(
-        `⚠️ [AgentRuntime-CustomFaceCatalog-recommend] 视觉Agent未推荐可用表情，已返回未过滤目录 count=${fallbackFaces.length} demandLength=${demand.length}`,
-      );
-      return fallbackFaces;
-    } catch (error) {
-      console.warn(
-        `⚠️ [AgentRuntime-CustomFaceCatalog-recommend] 自定义表情推荐失败，已返回未过滤目录 count=${fallbackFaces.length} demandLength=${demand.length} reason=${formatError(
-          error,
-        )}`,
-      );
-      return fallbackFaces;
-    }
+    return fallbackFaces;
   }
 
   // 执行真实刷新。
   private async refreshNow(): Promise<void> {
+    this.status = 'refreshing';
     console.info('🚧 [AgentRuntime-CustomFaceCatalog-refresh] 开始刷新QQ自定义表情目录');
-    const rawFaces = await this.botClient.fetchCustomFaces();
-    const uniqueFaces = dedupeFaces(rawFaces);
-    const describedFaces: DescribedCustomFace[] = [];
+    try {
+      const rawFaces = await this.botClient.fetchCustomFaces();
+      const uniqueFaces = dedupeFaces(rawFaces);
+      const describedFaces: DescribedCustomFace[] = [];
 
-    for (const face of uniqueFaces) {
-      describedFaces.push(await this.describeFace(face));
+      for (const face of uniqueFaces) {
+        describedFaces.push(await this.describeFace(face));
+      }
+
+      this.faces = describedFaces;
+      this.status = 'ready';
+      this.refreshedAt = new Date();
+      this.lastFailureReason = undefined;
+      console.info(
+        `✅ [AgentRuntime-CustomFaceCatalog-refresh] QQ自定义表情目录刷新完成 count=${describedFaces.length}`,
+      );
+    } catch (error) {
+      const reason = formatError(error);
+      this.status = 'failed';
+      this.lastFailureReason = reason;
+      console.warn(
+        `⚠️ [AgentRuntime-CustomFaceCatalog-refresh] QQ自定义表情目录刷新失败，已保留旧缓存 count=${this.faces.length} reason=${reason}`,
+      );
+      throw error;
     }
-
-    this.faces = describedFaces;
-    console.info(
-      `✅ [AgentRuntime-CustomFaceCatalog-refresh] QQ自定义表情目录刷新完成 count=${describedFaces.length}`,
-    );
   }
 
   // 对单个表情生成描述；视觉失败时使用平台摘要降级。
@@ -160,45 +190,20 @@ function toFallbackDescription(face: QqCustomFaceResource, reason: string): Desc
   };
 }
 
-// 按视觉Agent推荐顺序回查真实缓存，避免模型返回不存在的表情ID。
-function toRecommendedFaces(
-  faces: readonly DescribedCustomFace[],
-  selections: readonly { readonly id: string; readonly reason: string; readonly score: number }[],
-): readonly RecommendedCustomFace[] {
-  const faceById = new Map(faces.map((face) => [face.id, face]));
-  const recommendedFaces: RecommendedCustomFace[] = [];
-  const seenIds = new Set<string>();
-
-  for (const selection of selections) {
-    if (seenIds.has(selection.id)) continue;
-    const face = faceById.get(selection.id);
-    if (!face) continue;
-
-    seenIds.add(selection.id);
-    recommendedFaces.push({
-      ...face,
-      recommendationReason: selection.reason,
-      recommendationScore: selection.score,
-    });
-  }
-
-  return recommendedFaces;
-}
-
 // 限制工具输出规模。
 function normalizeLimit(limit: number | undefined): number {
   if (!limit || !Number.isSafeInteger(limit) || limit <= 0) return DEFAULT_CUSTOM_FACE_LIMIT;
   return Math.min(limit, MAX_CUSTOM_FACE_LIMIT);
 }
 
-// 脱敏表情ID。
-function maskId(value: string): string {
-  if (value.length <= 4) return '****';
-  return `****${value.slice(-4)}`;
-}
-
 // 压缩错误内容。
 function formatError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+// 脱敏表情ID。
+function maskId(value: string): string {
+  if (value.length <= 4) return '****';
+  return `****${value.slice(-4)}`;
 }

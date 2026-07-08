@@ -10,7 +10,7 @@ export function buildQqReplyPrompt(event: ChatEventContract): string {
     '请根据下面的 QQ 消息生成一条回复。',
     '你可以直接返回一段自然语言文本，也可以返回 JSON：{"text":"文字回复","actions":[...]}。',
     'actions 仅允许 send_msg、send_text、send_text_with_face、send_face、send_custom_image、send_market_face、poke_sender、react_to_message。',
-    '普通 QQ 消息优先使用 send_msg；自定义表情必须先通过 get_custom_faces 提交表情需求，由视觉Agent基于已理解描述推荐候选，再选择工具返回的 file 放入 image 段。',
+    '普通 QQ 消息优先使用 send_msg；自定义表情必须先通过 get_custom_faces 读取启动期缓存目录，再根据工具返回的内容、情绪、适用场景和 file 自行选择 image 段。',
     'send_text_with_face 用于把文字和 QQ 内置表情放在同一条消息里；send_market_face 用于 NapCat mface 商城表情，必须包含 emojiPackageId、emojiId、key、summary。',
     '不要把同一句话同时放进 text 和发送动作，避免 QQ 群聊重复回复。',
     '当使用 poke_sender 时，不要再输出 text 或其他发送动作。',
