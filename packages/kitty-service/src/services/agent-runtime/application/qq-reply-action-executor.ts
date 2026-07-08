@@ -109,7 +109,7 @@ export class QqReplyActionExecutor {
       }
 
       await this.botClient.reactToMessage({
-        messageExternalId: message.message.id,
+        messageExternalId: stripQqMessagePrefix(message.message.id),
         emojiId: action.emojiId,
       });
     } catch (error) {
@@ -218,12 +218,13 @@ function withTriggerContext(
   segments: readonly QqOutboundMessageSegment[],
 ): readonly QqOutboundMessageSegment[] {
   const senderExternalId = stripQqParticipantPrefix(message.senderId);
+  const messageExternalId = stripQqMessagePrefix(message.message.id);
   const hasSenderAt = segments.some(
     (segment) => segment.type === 'at' && segment.qq === senderExternalId,
   );
 
   return [
-    { type: 'reply', id: message.message.id },
+    { type: 'reply', id: messageExternalId },
     ...(hasSenderAt
       ? []
       : [{ type: 'at', qq: senderExternalId } satisfies QqOutboundMessageSegment]),
@@ -239,6 +240,11 @@ function stripQqConversationPrefix(conversationId: ConversationId): string {
 // 还原 OneBot 互动动作需要的发送者 QQ 号。
 function stripQqParticipantPrefix(senderId: string): string {
   return String(senderId).replace('qq:participant:', '');
+}
+
+// 还原 NapCat reply 和表情回应需要的平台原始消息ID。
+function stripQqMessagePrefix(messageId: string): string {
+  return String(messageId).replace('qq:message:', '');
 }
 
 // 脱敏消息ID，仅保留排障所需的尾部特征。

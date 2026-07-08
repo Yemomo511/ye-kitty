@@ -431,7 +431,7 @@ function createChatEvent(): ChatEventContract {
     senderId: 'qq:participant:20000' as ParticipantId,
     senderDisplayName: '测试用户',
     message: {
-      id: 'message-1' as MessageId,
+      id: 'qq:message:message-1' as MessageId,
       type: 'text',
       text: '你好',
       mentions: [],
