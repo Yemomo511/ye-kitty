@@ -1,0 +1,41 @@
+skills/qq-chat/SKILL.md
+  h_b866b1ed626949 30-41
+  s_a093c9578fc5dd::t_4bd2b533780d4e 42-43,48
+design-docs/Agent/agent-runtime-harness.md
+  s_a093c9578fc5dd::t_40b4c9a399d526 313,315,321-325
+design-docs/Task.md
+  s_a093c9578fc5dd::t_712609608c1b7e 62-64
+packages/kitty-service/src/services/agent-runtime/__test__/custom-face-catalog.test.ts
+  s_a093c9578fc5dd::t_472619d1837e10 39-43,47-50,78-107,133,139-146,149,164,172-199,203-205,231
+packages/kitty-service/src/services/agent-runtime/application/custom-face-catalog.service.ts
+  s_a093c9578fc5dd::t_f18368fc61525f 15-29,34,39-44,78-91,93,100-102,106,111,113-116,118-120,122-137,204-209
+packages/kitty-service/src/services/agent-runtime/application/runtime-tools.ts
+  s_a093c9578fc5dd::t_f491a6db6ae8a0 45,119-121,123-125,127-155,179-193,196,246-251
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md
+  s_a093c9578fc5dd::t_400c169488d9a9 130
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/qq-reply.prompt.ts
+  s_a093c9578fc5dd::t_0804156b97a6eb 13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "de0c3a6bd3e4c52561f741f4383c394b8ad996da",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_a093c9578fc5dd": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f4024-e269-7ad3-ac97-fc1811cc5d60",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
