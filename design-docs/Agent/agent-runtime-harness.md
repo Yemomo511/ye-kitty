@@ -312,7 +312,7 @@ NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`
 
 自定义表情采用“平台读取、视觉理解、目录缓存、视觉推荐、聊天最终决策”的链路。`OneBotWsExternalActionApi.fetchCustomFaces` 只调用 NapCat `fetch_custom_face` 并归一化可发送资源；`CustomFaceCatalogService` 调用独立视觉 Agent 生成中文描述，并把结果缓存为聊天 Agent 可读取的目录。聊天 Agent 不直接理解图片；当它需要自定义表情时，通过 `get_custom_faces` 提交表情需求，视觉 Agent 基于已缓存描述推荐候选，聊天 Agent 再用 `send_msg` 的 `image` 段发送工具返回的 `file`。
 
-启动期由 `packages/kitty-service/scripts/start-platform-qq.ts` 组装 `CustomFaceCatalogService`。NapCat 连接建立后触发一次刷新；缓存为空且聊天 Agent 调用 `get_custom_faces` 时，会再尝试一次懒刷新。视觉 Agent 使用 `YE_KITTY_VISION_AGENT_MODEL`、`YE_KITTY_VISION_AGENT_API_KEY`、`YE_KITTY_VISION_AGENT_BASE_URL` 和 `YE_KITTY_VISION_AGENT_TIMEOUT_MS` 独立配置；未配置视觉模型或单张表情理解失败时，目录保留可发送表情，并用平台 `summary/name` 生成低置信度降级描述。
+启动期由 `packages/kitty-service/scripts/start-platform-qq.ts` 组装 `CustomFaceCatalogService`。NapCat 连接建立后触发一次刷新；后续聊天 Agent 调用 `get_custom_faces` 时只读取启动期缓存，不再重新拉取平台自定义表情或重新理解图片，默认同一进程会话内自定义表情列表不变化。视觉 Agent 使用 `YE_KITTY_VISION_AGENT_MODEL`、`YE_KITTY_VISION_AGENT_API_KEY`、`YE_KITTY_VISION_AGENT_BASE_URL` 和 `YE_KITTY_VISION_AGENT_TIMEOUT_MS` 独立配置；未配置视觉模型或单张表情理解失败时，目录保留可发送表情，并用平台 `summary/name` 生成低置信度降级描述。
 
 ## 工具体系
 

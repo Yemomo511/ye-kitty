@@ -68,9 +68,12 @@ describe('CustomFaceCatalogService', () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('自定义表情理解失败'));
   });
 
-  test('缓存为空时工具触发懒刷新并返回紧凑目录', async () => {
+  test('缓存为空时工具只返回空目录且不触发懒刷新', async () => {
+    const fetchCustomFaces = vi.fn(async () => [
+      { id: 'face-1', file: 'custom-face://cat', summary: '猫猫震惊' },
+    ]);
     const catalog = new CustomFaceCatalogService(
-      createBotClient([{ id: 'face-1', file: 'custom-face://cat', summary: '猫猫震惊' }]),
+      createBotClient([], { fetchCustomFaces }),
       createVisionAgent(),
     );
     const registry = new BuiltinRuntimeToolRegistry({ customFaceCatalog: catalog });
@@ -90,14 +93,10 @@ describe('CustomFaceCatalogService', () => {
 
     expect(result).toMatchObject({
       success: true,
-      observation: expect.stringContaining('可用自定义表情 1 个'),
+      observation: '当前没有可用自定义表情。',
     });
-    expect(result.structuredData).toEqual([
-      expect.objectContaining({
-        id: 'face-1',
-        file: 'custom-face://cat',
-      }),
-    ]);
+    expect(result.structuredData).toEqual([]);
+    expect(fetchCustomFaces).not.toHaveBeenCalled();
   });
 
   test('工具读取表情时由视觉Agent根据需求推荐候选', async () => {
@@ -160,7 +159,10 @@ function createVisionAgent(): CustomFaceVisionAgentPort {
   };
 }
 
-function createBotClient(faces: readonly QqCustomFaceResource[]): QqBotClientPort {
+function createBotClient(
+  faces: readonly QqCustomFaceResource[],
+  overrides: Partial<Pick<QqBotClientPort, 'fetchCustomFaces'>> = {},
+): QqBotClientPort {
   return {
     async sendTextMessage() {},
     async sendMessageSegments() {},
@@ -169,6 +171,7 @@ function createBotClient(faces: readonly QqCustomFaceResource[]): QqBotClientPor
     async fetchCustomFaces() {
       return faces;
     },
+    ...overrides,
   };
 }
 

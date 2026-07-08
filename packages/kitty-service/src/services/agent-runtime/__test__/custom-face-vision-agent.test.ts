@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import {
+  extractResponsesText,
   loadCustomFaceVisionAgentConfig,
   parseCustomFaceDescription,
   parseCustomFaceSelections,
@@ -45,6 +46,43 @@ describe('parseCustomFaceDescription', () => {
       model: 'gpt-4.1-mini',
       timeoutMs: 30000,
     });
+  });
+});
+
+describe('extractResponsesText', () => {
+  test('从Responses原始消息内容提取输出文本', () => {
+    const response = {
+      output: [
+        {
+          type: 'message',
+          role: 'assistant',
+          content: [
+            {
+              type: 'output_text',
+              text: '{"content":"猫猫大笑","emotion":"开心","suitableScenes":["庆祝"],"avoidScenes":["严肃通知"],"tags":["猫","开心"],"confidence":0.95}',
+            },
+          ],
+        },
+      ],
+    };
+
+    expect(parseCustomFaceDescription(extractResponsesText(response))).toMatchObject({
+      content: '猫猫大笑',
+      emotion: '开心',
+      suitableScenes: ['庆祝'],
+      avoidScenes: ['严肃通知'],
+      tags: ['猫', '开心'],
+      confidence: 0.95,
+    });
+  });
+
+  test('优先兼容SDK聚合后的output_text字段', () => {
+    expect(
+      extractResponsesText({
+        output_text: '{"selections":[{"id":"face-1","reason":"很贴合开心场景","score":0.9}]}',
+        output: [],
+      }),
+    ).toBe('{"selections":[{"id":"face-1","reason":"很贴合开心场景","score":0.9}]}');
   });
 });
 

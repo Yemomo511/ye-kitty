@@ -60,4 +60,5 @@
 | 2026-07-07 | 约束消息发送统一 send_msg                   | 平台执行层不再调用 `send_group_msg` 或 `send_private_msg`，所有普通 QQ 消息统一发 NapCat `send_msg`。 |
 | 2026-07-07 | 新增自定义表情自主回复                      | 通过 `fetch_custom_face`、视觉 Agent 和 `get_custom_faces` 工具，让聊天 Agent 能自主选择自定义表情。  |
 | 2026-07-07 | 调整自定义表情推荐链路                      | `get_custom_faces` 不再做文本命中，改由视觉 Agent 根据聊天需求和表情描述推荐候选。                    |
+| 2026-07-08 | 固化自定义表情启动期缓存                    | `get_custom_faces` 只读取启动期缓存，不在聊天过程中重新拉取或理解自定义表情。                         |
 | 2026-07-07 | 新增 QQ 引用提醒回复                        | 所有 Agent 普通 `send_msg` 回复由执行层自动引用触发消息并 @ 当前发送者，模型不能手写任意引用消息。    |

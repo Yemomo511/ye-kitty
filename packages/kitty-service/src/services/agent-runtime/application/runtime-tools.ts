@@ -115,7 +115,6 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
       };
     }
 
-    await catalog.ensureReady();
     const query = isRecord(input) && typeof input.query === 'string' ? input.query : undefined;
     const limit = isRecord(input) && typeof input.limit === 'number' ? input.limit : undefined;
     const faces = await catalog.recommend({ query, limit });

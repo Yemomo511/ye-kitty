@@ -90,14 +90,6 @@ export class CustomFaceCatalogService {
     }
   }
 
-  /**
-   * 确保目录已有数据
-   */
-  async ensureReady(): Promise<void> {
-    if (this.faces.length > 0) return;
-    await this.refresh();
-  }
-
   // 执行真实刷新。
   private async refreshNow(): Promise<void> {
     console.info('🚧 [AgentRuntime-CustomFaceCatalog-refresh] 开始刷新QQ自定义表情目录');
