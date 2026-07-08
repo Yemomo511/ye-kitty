@@ -121,17 +121,29 @@ export class QqReplyActionExecutor {
     }
   }
 
-  // 所有普通 QQ send_msg 都引用触发消息并提醒发送者，避免群聊里回复脱离上下文。
+  // 文字类消息保留上下文，自定义表情裸发，避免群聊重复提醒。
   private async sendMessageSegments(
     message: ChatEventContract,
     conversationExternalId: string,
     segments: readonly QqOutboundMessageSegment[],
   ): Promise<void> {
-    await this.botClient.sendMessageSegments({
-      conversationExternalId,
-      conversationType: message.conversationType,
-      segments: withTriggerContext(message, segments),
-    });
+    const { contextualSegments, standaloneImageSegments } = splitStandaloneImageSegments(segments);
+
+    if (contextualSegments.length > 0) {
+      await this.botClient.sendMessageSegments({
+        conversationExternalId,
+        conversationType: message.conversationType,
+        segments: withTriggerContext(message, contextualSegments),
+      });
+    }
+
+    if (standaloneImageSegments.length > 0) {
+      await this.botClient.sendMessageSegments({
+        conversationExternalId,
+        conversationType: message.conversationType,
+        segments: standaloneImageSegments,
+      });
+    }
   }
 }
 
@@ -187,6 +199,17 @@ function readActionTextSegments(action: QqReplyAction): readonly string[] {
       .filter(Boolean);
   }
   return [];
+}
+
+// 自定义表情通过 image 段单独发送，避免表情消息携带引用和 @ 造成重复提醒。
+function splitStandaloneImageSegments(segments: readonly QqOutboundMessageSegment[]): {
+  readonly contextualSegments: readonly QqOutboundMessageSegment[];
+  readonly standaloneImageSegments: readonly QqOutboundMessageSegment[];
+} {
+  const contextualSegments = segments.filter((segment) => segment.type !== 'image');
+  const standaloneImageSegments = segments.filter((segment) => segment.type === 'image');
+
+  return { contextualSegments, standaloneImageSegments };
 }
 
 // 为普通消息补齐当前触发消息上下文。
