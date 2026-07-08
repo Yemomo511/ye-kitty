@@ -14,7 +14,7 @@ Harness的核心关键在于Prompt 对于 AI 的指导，告诉 AI 有哪些工�
 
 - 铁律3: **所有注入到Prompt的内容都必须有对应的模板结构**。例如 Skill，应该包含哪些部分，如何将一个Skill 元信息列表用自然语言表达出来，其主要核心目的是能够快速定位，快速阅读。并且拥有对应的注意力。一个井井有条的顺序说明比一个随心所欲的描述有效的多！
 
-- 铁律4: **System Prompt、Outside Context Prompt、Runtime Observation 必须分章治理**。第一章只放最高优先级系统协议；第二章放外界上下文，包括 Skill Prompt 与 Tool Prompt；第三章放运行观察，包括用户事件、工具结果和错误恢复信息。Skill 与 Tool 的具体目录不得混入第一章。
+- 铁律4: **System Prompt、Outside Context Prompt、Runtime Observation 必须分章治理**。第一章只放最高优先级系统协议；第二章放外界上下文，包括 Skill Prompt 与 Tool Prompt，并维护在 `instructions` 中；第三章放每轮运行观察，包括用户事件、工具结果和错误恢复信息，并维护在每次循环的 `input` 中。Skill 与 Tool 的具体目录不得混入第一章，也不得混入第三章运行观察。
 
 - 铁律5: **Skill Prompt 与 Tool Prompt 必须独立成文件再聚合**。Skill Prompt 负责把 Skill 元信息、结构化 Skill 文档和 reference 文档映射为 Prompt；Tool Prompt 负责把可见工具映射为 Prompt；`outside-context-prompt.ts` 只负责组装第二章，不直接拼具体目录细节。
 

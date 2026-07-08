@@ -21,12 +21,12 @@ const harnessRuntimePromptPath = join(
 /**
  * Harness Prompt
  *
- * instructions 承载身份、循环协议和工具约束，input 承载本轮观察。
+ * instructions 承载身份、循环协议、Skill目录和工具目录，input 只承载本轮循环观察。
  */
 export interface HarnessPrompt {
-  /** 第一章系统指令 */
+  /** 第一章系统指令与第二章外界能力目录 */
   readonly instructions: string;
-  /** 第二章外界上下文与第三章观察 */
+  /** 第三章本轮循环观察 */
   readonly input: string;
 }
 
@@ -41,7 +41,11 @@ export function composeHarnessPrompt(
   observation: AgentObservation,
 ): HarnessPrompt {
   return {
-    instructions: [buildBaseAgentPrompt(agentName), buildHarnessRuntimePrompt()]
+    instructions: [
+      buildBaseAgentPrompt(agentName),
+      buildHarnessRuntimePrompt(),
+      buildOutsideContextPrompt(observation.conversationMessages, observation.tools),
+    ]
       .filter(Boolean)
       .join('\n\n'),
     input: buildObservationPrompt(observation),
@@ -61,15 +65,13 @@ function readMarkdownPrompt(promptPath: string): string {
 // 构建本轮观察。
 function buildObservationPrompt(observation: AgentObservation): string {
   return [
-    buildOutsideContextPrompt(observation.conversationMessages, observation.tools),
-    [
-      '# 第三章节: Runtime Observation',
-      renderPromptState(observation.promptState),
-      `当前轮次：${observation.turnIndex}/${observation.maxTurns}`,
-      `已调用工具次数：${observation.toolCallCount}/${observation.maxToolCalls}`,
-      renderConversationMessages(observation.conversationMessages),
-    ].join('\n\n'),
-  ].join('\n');
+    '# 第三章节: Runtime Observation',
+    '本章节只承载本轮 Agent 循环思考所需的运行状态、外部观察和历史回灌。',
+    renderPromptState(observation.promptState),
+    `当前轮次：${observation.turnIndex}/${observation.maxTurns}`,
+    `已调用工具次数：${observation.toolCallCount}/${observation.maxToolCalls}`,
+    renderConversationMessages(observation.conversationMessages),
+  ].join('\n\n');
 }
 
 // 渲染Harness显式状态快照。

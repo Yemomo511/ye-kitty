@@ -81,15 +81,15 @@ flowchart TD
 
 ### Prompt 三章治理
 
-MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协议、可变的外界上下文和运行观察拆开治理。第一章 System Prompt 只承载最高优先级约束、状态机转移和 JSON 输出协议；第二章 Outside Context Prompt 承载 Skill Prompt 与 Tool Prompt；第三章 Runtime Observation 承载本轮显式状态、用户事件、工具结果和错误恢复信息。
+MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协议、稳定外界能力目录和每轮运行观察拆开治理。第一章 System Prompt 只承载最高优先级约束、状态机转移和 JSON 输出协议；第二章 Outside Context Prompt 维护在 `instructions` 中，承载 Skill Prompt 与 Tool Prompt；第三章 Runtime Observation 维护在 `input` 中，只承载本轮显式状态、用户事件、工具结果和错误恢复信息。
 
 1. 第一章 System Prompt：拆分为宪法约束、状态机约束和 JSON 行动契约；强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`skill_reference_call`、`tool_call`、`reply`、`ignore`、`human_review` 六类决策。
-2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后。Skill 目录只展示 `name` 与 `description`；已启用 Skill 正文和 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
-3. 第三章 Runtime Observation：承载 `<run_state>`、`<decision_history>`、用户事件、当前轮次、工具结果和决策错误。Skill 和 Tool 的具体目录不再散落在运行观察中。
+2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后，并随 `instructions` 传入模型。Skill 目录只展示 `name` 与 `description`；已启用 Skill 正文和 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
+3. 第三章 Runtime Observation：承载 `<run_state>`、`<decision_history>`、用户事件、当前轮次、工具结果和决策错误，并作为每次 Agent 循环的 `input`。Skill 和 Tool 的具体目录不再散落在运行观察中。
 
-这套分章参考 DeepAgents 的状态分层、渐进式披露和上下文压缩思想：稳定宪法与工具目录不随轮次漂移，运行状态由 Harness 显式维护并渲染成快照，完整 Skill 由模型请求后进入后续上下文。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
+这套分章参考 DeepAgents 的状态分层、渐进式披露和上下文压缩思想：稳定宪法、Skill 目录和 Tool 目录由 `instructions` 维护，运行状态由 Harness 显式维护并在每轮 `input` 中渲染成快照，完整 Skill 由模型请求后进入后续 instruction 上下文。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
 
-第一章运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md`。第二章由 `outside-context-prompt.ts` 组装 `skill.prompt.ts` 和 `tool.prompt.ts`。第三章由 `harness.prompt.ts` 渲染 `HarnessPromptState`，并由 `conversation-renderer.ts` 渲染事件与观察。后续新增系统约束时应优先修改 Markdown；新增 Skill/Tool 目录结构时应优先修改对应 TS Prompt 模块。
+第一章运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md`。第二章由 `outside-context-prompt.ts` 组装 `skill.prompt.ts` 和 `tool.prompt.ts`，并由 `composeHarnessPrompt()` 拼入 `instructions`。第三章由 `harness.prompt.ts` 渲染 `HarnessPromptState`，并由 `conversation-renderer.ts` 渲染事件与观察，最终作为每轮 `input`。后续新增系统约束时应优先修改 Markdown；新增 Skill/Tool 目录结构时应优先修改对应 TS Prompt 模块。
 
 ## 关键实现
 
@@ -470,10 +470,11 @@ QqReplyEventSubscriber
 | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
 | 2026-07-06 | 设计中 | 已将第二版 Harness Agent 的循环、Skill 协议、工具治理、权限、日志、迁移和验收方案落入设计文档，并同步到 `Task.md`。 |
 | 2026-07-06 | 待验收 | MVP 已实现 Harness 主循环、OpenAI Harness Runner、进程内 `get_recent_messages`、Prompt 分层治理和 Skill 扩展字段。  |
-| 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 进入 Observation/Input。             |
+| 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 由 Harness 按需注入 Prompt。         |
 | 2026-07-07 | 待验收 | 完成 Prompt 三章治理：Skill Prompt 与 Tool Prompt 抽离到第二章 Outside Context，并引入结构化 Skill 文档。           |
 | 2026-07-07 | 待验收 | 扩展 QQ 受控回复动作，新增 NapCat `mface` 商城表情发送能力，并补充解析、执行和 OneBot 映射测试。                    |
 | 2026-07-07 | 待验收 | 新增自定义表情目录工具、独立视觉 Agent 配置和 `send_msg` 图片段发送能力，支持聊天 Agent 自主选择自定义表情。        |
 | 2026-07-07 | 待验收 | 所有 Agent 普通 `send_msg` 回复自动引用触发消息并 @ 当前发送者，模型不能手写任意 `reply` 消息段。                   |
 | 2026-07-08 | 待验收 | 调整自定义表情发送方式：文字消息保留引用和 @，自定义表情 `image` 段单独发送且不携带 @/reply 上下文。                |
 | 2026-07-08 | 待验收 | 优化 Harness Prompt 宪法与状态机：第一章拆成宪法、状态机和行动契约，第三章渲染显式 `HarnessPromptState`。           |
+| 2026-07-08 | 待验收 | 调整 Prompt 承载边界：第二章 Outside Context 进入 `instructions`，第三章 `input` 只保留本轮循环观察。               |
