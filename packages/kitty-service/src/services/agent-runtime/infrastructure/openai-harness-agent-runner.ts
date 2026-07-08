@@ -2,6 +2,7 @@ import { Agent, OpenAIProvider, Runner } from '@openai/agents';
 import type { AgentDecision } from '../domain/agent-decision';
 import type { AgentObservation } from '../domain/agent-observation';
 import type { QqReplyAction } from '../ports/qq-reply-agent.port';
+import { parseQqReplyAction } from '../domain/qq-reply-action';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import { composeHarnessPrompt } from './prompt/harness.prompt';
 
@@ -96,11 +97,23 @@ function toAgentDecision(input: unknown): AgentDecision | undefined {
     };
   }
 
+  if (input.type === 'skill_reference_call') {
+    const skillName = typeof input.skillName === 'string' ? input.skillName.trim() : '';
+    const referencePath = typeof input.referencePath === 'string' ? input.referencePath.trim() : '';
+    if (!skillName || !referencePath) return undefined;
+    return {
+      type: 'skill_reference_call',
+      skillName,
+      referencePath,
+      reason: readReason(input.reason),
+    };
+  }
+
   if (input.type === 'reply') {
     const text = typeof input.text === 'string' ? input.text.trim() : undefined;
     const actions = Array.isArray(input.actions)
       ? input.actions
-          .map(toQqReplyAction)
+          .map(parseQqReplyAction)
           .filter((action): action is QqReplyAction => Boolean(action))
       : undefined;
     if (!text && (!actions || actions.length === 0)) return undefined;
@@ -118,37 +131,6 @@ function toAgentDecision(input: unknown): AgentDecision | undefined {
 
   if (input.type === 'human_review') {
     return { type: 'human_review', reason: readReason(input.reason) };
-  }
-
-  return undefined;
-}
-
-// 校验QQ受控动作。
-function toQqReplyAction(input: unknown): QqReplyAction | undefined {
-  if (!isRecord(input) || typeof input.type !== 'string') return undefined;
-
-  if (input.type === 'send_text' && typeof input.text === 'string' && input.text.trim()) {
-    return { type: 'send_text', text: input.text.trim() };
-  }
-
-  if (input.type === 'send_face' && typeof input.faceId === 'string' && input.faceId.trim()) {
-    return { type: 'send_face', faceId: input.faceId.trim() };
-  }
-
-  if (input.type === 'send_custom_image' && typeof input.file === 'string' && input.file.trim()) {
-    return { type: 'send_custom_image', file: input.file.trim() };
-  }
-
-  if (input.type === 'poke_sender') {
-    return { type: 'poke_sender' };
-  }
-
-  if (
-    input.type === 'react_to_message' &&
-    typeof input.emojiId === 'string' &&
-    input.emojiId.trim()
-  ) {
-    return { type: 'react_to_message', emojiId: input.emojiId.trim() };
   }
 
   return undefined;

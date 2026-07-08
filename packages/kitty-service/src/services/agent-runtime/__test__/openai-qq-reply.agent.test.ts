@@ -12,8 +12,22 @@ describe('parseQqReplyAgentResult', () => {
       JSON.stringify({
         text: '先回复一句',
         actions: [
+          {
+            type: 'send_text_with_face',
+            segments: [
+              { type: 'text', text: '好好好' },
+              { type: 'face', faceId: '66' },
+            ],
+          },
           { type: 'send_face', faceId: '66' },
           { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+          {
+            type: 'send_market_face',
+            emojiPackageId: 123,
+            emojiId: 'abc123',
+            key: 'market-key',
+            summary: '摸摸头',
+          },
           { type: 'poke_sender' },
           { type: 'react_to_message', emojiId: '128512' },
         ],
@@ -23,8 +37,22 @@ describe('parseQqReplyAgentResult', () => {
     expect(result).toEqual({
       text: '先回复一句',
       actions: [
+        {
+          type: 'send_text_with_face',
+          segments: [
+            { type: 'text', text: '好好好' },
+            { type: 'face', faceId: '66' },
+          ],
+        },
         { type: 'send_face', faceId: '66' },
         { type: 'send_custom_image', file: 'https://example.com/cat.png' },
+        {
+          type: 'send_market_face',
+          emojiPackageId: 123,
+          emojiId: 'abc123',
+          key: 'market-key',
+          summary: '摸摸头',
+        },
         { type: 'poke_sender' },
         { type: 'react_to_message', emojiId: '128512' },
       ],
@@ -81,6 +109,24 @@ describe('parseAgentDecision', () => {
       skillName: 'qq-chat',
       input: { goal: '判断是否需要参与群聊' },
       reason: '需要群聊方法论',
+    });
+  });
+
+  test('解析Skill引用调用决策', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'skill_reference_call',
+          skillName: 'chat-style',
+          referencePath: 'examples.md',
+          reason: '需要读取示例',
+        }),
+      ),
+    ).toEqual({
+      type: 'skill_reference_call',
+      skillName: 'chat-style',
+      referencePath: 'examples.md',
+      reason: '需要读取示例',
     });
   });
 

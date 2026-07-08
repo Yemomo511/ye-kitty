@@ -5,6 +5,7 @@ import type {
   QqReplyAgentPort,
   QqReplyAgentResult,
 } from '../ports/qq-reply-agent.port';
+import { parseQqReplyAction } from '../domain/qq-reply-action';
 import { composeQqReplyPrompt } from './prompt/prompt-composer';
 
 /**
@@ -86,43 +87,12 @@ function toQqReplyAgentResult(input: unknown): QqReplyAgentResult | undefined {
   const text = typeof input.text === 'string' ? input.text.trim() : undefined;
   const actions = Array.isArray(input.actions)
     ? input.actions
-        .map(toQqReplyAction)
+        .map(parseQqReplyAction)
         .filter((action): action is QqReplyAction => Boolean(action))
     : undefined;
 
   if (!text && (!actions || actions.length === 0)) return undefined;
   return { text: text || undefined, actions };
-}
-
-// 校验模型动作，过滤不在白名单内的内容。
-function toQqReplyAction(input: unknown): QqReplyAction | undefined {
-  if (!isRecord(input) || typeof input.type !== 'string') return undefined;
-
-  if (input.type === 'send_text' && typeof input.text === 'string' && input.text.trim()) {
-    return { type: 'send_text', text: input.text.trim() };
-  }
-
-  if (input.type === 'send_face' && typeof input.faceId === 'string' && input.faceId.trim()) {
-    return { type: 'send_face', faceId: input.faceId.trim() };
-  }
-
-  if (input.type === 'send_custom_image' && typeof input.file === 'string' && input.file.trim()) {
-    return { type: 'send_custom_image', file: input.file.trim() };
-  }
-
-  if (input.type === 'poke_sender') {
-    return { type: 'poke_sender' };
-  }
-
-  if (
-    input.type === 'react_to_message' &&
-    typeof input.emojiId === 'string' &&
-    input.emojiId.trim()
-  ) {
-    return { type: 'react_to_message', emojiId: input.emojiId.trim() };
-  }
-
-  return undefined;
 }
 
 // 判断普通对象。

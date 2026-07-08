@@ -29,7 +29,11 @@
     "format:check": "prettier --check .",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
-    "check": "pnpm lint && pnpm format:check && pnpm test"
+    "napcat:up": "docker compose -f deploy/napcat/compose.yml up -d",
+    "napcat:down": "docker compose -f deploy/napcat/compose.yml down",
+    "napcat:restart": "docker compose -f deploy/napcat/compose.yml restart",
+    "napcat:logs": "docker logs -f ye-kitty-napcat",
+    "check": "pnpm lint && pnpm format:check && pnpm test && pnpm --filter @ye-kitty/kitty-service eval:agent:warn"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

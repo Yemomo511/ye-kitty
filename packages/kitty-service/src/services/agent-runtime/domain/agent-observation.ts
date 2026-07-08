@@ -1,4 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { AgentConversationMessage } from './agent-conversation-message';
 import type { SkillContent, SkillMetadata } from './skill';
 import type { RuntimeTool, ToolExecutionResult } from './tool';
 
@@ -18,6 +19,8 @@ export interface AgentObservation {
   readonly tools: readonly RuntimeTool[];
   /** 工具结果 */
   readonly toolResults: readonly ToolExecutionResult[];
+  /** 对话观察消息 */
+  readonly conversationMessages: readonly AgentConversationMessage[];
   /** 当前轮次 */
   readonly turnIndex: number;
   /** 最大轮次 */

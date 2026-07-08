@@ -18,12 +18,42 @@ export interface QqTextMessageSegment {
   readonly text: string;
 }
 
-/** QQ商城表情消息段 */
+/** QQ内置表情消息段 */
 export interface QqFaceMessageSegment {
   /** 消息段类型 */
   readonly type: 'face';
   /** 表情ID */
   readonly id: string;
+}
+
+/** QQ@消息段 */
+export interface QqAtMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'at';
+  /** 被@的QQ号 */
+  readonly qq: string;
+}
+
+/** QQ引用消息段 */
+export interface QqReplyMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'reply';
+  /** 被引用的QQ消息ID */
+  readonly id: string;
+}
+
+/** QQ商城表情消息段 */
+export interface QqMarketFaceMessageSegment {
+  /** 消息段类型 */
+  readonly type: 'mface';
+  /** 表情包ID */
+  readonly emojiPackageId: number;
+  /** 表情ID */
+  readonly emojiId: string;
+  /** NapCat发送所需key */
+  readonly key: string;
+  /** 表情摘要 */
+  readonly summary: string;
 }
 
 /** QQ图片或自定义表情消息段 */
@@ -34,9 +64,26 @@ export interface QqImageMessageSegment {
   readonly file: string;
 }
 
+/** QQ自定义表情资源 */
+export interface QqCustomFaceResource {
+  /** 表情稳定ID */
+  readonly id: string;
+  /** NapCat可发送资源 */
+  readonly file: string;
+  /** 表情名称 */
+  readonly name?: string;
+  /** 平台摘要 */
+  readonly summary?: string;
+}
+
 /** Ye-Kitty首版允许发送的QQ消息段 */
 export type QqOutboundMessageSegment =
-  QqTextMessageSegment | QqFaceMessageSegment | QqImageMessageSegment;
+  | QqTextMessageSegment
+  | QqAtMessageSegment
+  | QqReplyMessageSegment
+  | QqFaceMessageSegment
+  | QqMarketFaceMessageSegment
+  | QqImageMessageSegment;
 
 /** 发送QQ消息输入 */
 export interface QqSendMessageInput extends QqActionTarget {
@@ -94,4 +141,10 @@ export interface QqExternalActionApi {
    * @param input 消息和表情目标
    */
   reactToMessage(input: QqReactToMessageInput): Promise<void>;
+
+  /**
+   * 读取QQ自定义表情
+   * @returns 可发送表情资源
+   */
+  fetchCustomFaces(): Promise<readonly QqCustomFaceResource[]>;
 }

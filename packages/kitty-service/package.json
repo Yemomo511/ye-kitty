@@ -9,6 +9,8 @@
     "start-platform:qq": "tsx scripts/start-platform-qq.ts",
     "lint": "eslint .",
     "validate:architecture": "node scripts/validate-architecture.mjs",
+    "eval:agent": "node --import tsx eval/index.ts",
+    "eval:agent:warn": "node --import tsx eval/run-agent-eval-warn.ts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run validate:architecture && pnpm run typecheck && vitest run"
   },

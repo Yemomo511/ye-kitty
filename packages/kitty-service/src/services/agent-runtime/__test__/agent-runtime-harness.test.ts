@@ -12,6 +12,7 @@ import type { AgentObservation } from '../domain/agent-observation';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
+import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   ChatEventId,
@@ -161,6 +162,14 @@ describe('AgentRuntimeHarness', () => {
     expect(observations[0]?.availableSkills[0]?.name).toBe('qq-chat');
     expect(observations[0]?.enabledSkills).toEqual([]);
     expect(observations[1]?.enabledSkills[0]?.body).toBe('保持自然。');
+    expect(observations[1]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'skill_content',
+          skill: expect.objectContaining({ body: '保持自然。' }),
+        }),
+      ]),
+    );
     expect(observations[1]?.toolResults[0]?.observation).toContain(
       '正文将在下一轮模型上下文中生效',
     );
@@ -309,6 +318,224 @@ describe('AgentRuntimeHarness', () => {
     });
   });
 
+  test('未启用Skill时不能读取references', async () => {
+    const loadSkillReference = vi.fn(async () => ({
+      skill: {
+        name: 'chat-style',
+        description: '聊天风格',
+        rootPath: '/tmp/skills/chat-style',
+      },
+      referencePath: 'examples.md',
+      absolutePath: '/tmp/skills/chat-style/references/examples.md',
+      content: '不应读取。',
+    }));
+    const observations: AgentObservation[] = [];
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          if (observation.turnIndex === 1) {
+            return {
+              type: 'skill_reference_call',
+              skillName: 'chat-style',
+              referencePath: 'examples.md',
+              reason: '尝试读取引用',
+            };
+          }
+
+          return { type: 'human_review', reason: '引用不可用' };
+        },
+      },
+      createSkillContentLoader(),
+      { loadSkillReference },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('引用测试'),
+      availableSkills: [
+        {
+          name: 'chat-style',
+          description: '聊天风格',
+          rootPath: '/tmp/skills/chat-style',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({ type: 'human_review' });
+    expect(loadSkillReference).not.toHaveBeenCalled();
+    expect(observations[1]?.toolResults[0]).toMatchObject({
+      toolName: 'skill_reference_call:chat-style',
+      success: false,
+      errorMessage: 'Skill未启用',
+    });
+  });
+
+  test('已启用Skill后可以按需读取references', async () => {
+    const observations: AgentObservation[] = [];
+    const loadSkillReference = vi.fn(async () => ({
+      skill: {
+        name: 'chat-style',
+        description: '聊天风格',
+        rootPath: '/tmp/skills/chat-style',
+      },
+      referencePath: 'examples.md',
+      absolutePath: '/tmp/skills/chat-style/references/examples.md',
+      content: '示例：短句回复。',
+    }));
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          if (observation.turnIndex === 1) {
+            return {
+              type: 'skill_call',
+              skillName: 'chat-style',
+              input: {},
+              reason: '需要聊天风格',
+            };
+          }
+
+          if (observation.turnIndex === 2) {
+            return {
+              type: 'skill_reference_call',
+              skillName: 'chat-style',
+              referencePath: 'examples.md',
+              reason: '需要示例',
+            };
+          }
+
+          return { type: 'reply', text: '我会短句回复。', reason: '引用已读取' };
+        },
+      },
+      createSkillContentLoader(),
+      { loadSkillReference },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('引用成功测试'),
+      availableSkills: [
+        {
+          name: 'chat-style',
+          description: '聊天风格',
+          rootPath: '/tmp/skills/chat-style',
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({ type: 'reply', text: '我会短句回复。' });
+    expect(loadSkillReference).toHaveBeenCalledTimes(1);
+    expect(observations[2]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'skill_reference',
+          reference: expect.objectContaining({ content: '示例：短句回复。' }),
+        }),
+      ]),
+    );
+  });
+
+  test('重复读取同一reference不会重复加载', async () => {
+    const loadSkillReference = vi.fn(async () => ({
+      skill: {
+        name: 'chat-style',
+        description: '聊天风格',
+        rootPath: '/tmp/skills/chat-style',
+      },
+      referencePath: 'examples.md',
+      absolutePath: '/tmp/skills/chat-style/references/examples.md',
+      content: '示例。',
+    }));
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          if (observation.turnIndex === 1) {
+            return { type: 'skill_call', skillName: 'chat-style', input: {}, reason: '启用' };
+          }
+
+          if (observation.turnIndex < 4) {
+            return {
+              type: 'skill_reference_call',
+              skillName: 'chat-style',
+              referencePath: 'examples.md',
+              reason: '重复读取',
+            };
+          }
+
+          return { type: 'reply', text: '已完成', reason: '引用已存在' };
+        },
+      },
+      createSkillContentLoader(),
+      { loadSkillReference },
+    );
+
+    await harness.run({
+      event: createChatEvent('重复引用测试'),
+      availableSkills: [
+        {
+          name: 'chat-style',
+          description: '聊天风格',
+          rootPath: '/tmp/skills/chat-style',
+        },
+      ],
+    });
+
+    expect(loadSkillReference).toHaveBeenCalledTimes(1);
+  });
+
+  test('reference读取超过上限时拒绝', async () => {
+    const loadSkillReference = vi.fn(async (_skill, referencePath) => ({
+      skill: {
+        name: 'chat-style',
+        description: '聊天风格',
+        rootPath: '/tmp/skills/chat-style',
+      },
+      referencePath,
+      absolutePath: `/tmp/skills/chat-style/references/${referencePath}`,
+      content: '示例。',
+    }));
+    const observations: AgentObservation[] = [];
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          if (observation.turnIndex === 1) {
+            return { type: 'skill_call', skillName: 'chat-style', input: {}, reason: '启用' };
+          }
+
+          if (observation.turnIndex <= 5) {
+            return {
+              type: 'skill_reference_call',
+              skillName: 'chat-style',
+              referencePath: `examples-${observation.turnIndex}.md`,
+              reason: '读取多个引用',
+            };
+          }
+
+          return { type: 'reply', text: '已停止', reason: '达到上限' };
+        },
+      },
+      createSkillContentLoader(),
+      { loadSkillReference },
+    );
+
+    await harness.run({
+      event: createChatEvent('引用上限测试'),
+      availableSkills: [
+        {
+          name: 'chat-style',
+          description: '聊天风格',
+          rootPath: '/tmp/skills/chat-style',
+        },
+      ],
+    });
+
+    expect(loadSkillReference).toHaveBeenCalledTimes(3);
+    expect(observations[5]?.toolResults.at(-1)).toMatchObject({
+      success: false,
+      errorMessage: 'Skill引用读取超限',
+    });
+  });
+
   test('ignore和human_review通过旧端口适配为空动作', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const ignoreAgent = new HarnessQqReplyAgentAdapter(
@@ -354,11 +581,48 @@ describe('AgentRuntimeHarness', () => {
     });
     expect(result.observation).not.toContain('B消息');
   });
+
+  test('最近消息工具在私聊读取100条消息', async () => {
+    const history = new InMemoryConversationHistory();
+    const executor = new BuiltinRuntimeToolExecutor(history);
+    const events = createSequentialChatEvents('qq:conversation:private', 'private', 120);
+    events.forEach((event) => history.recordMessage(event));
+
+    const result = await executor.execute({
+      event: events[119]!,
+      toolName: 'get_recent_messages',
+      input: { limit: 5 },
+    });
+    const structuredData = toStructuredMessages(result.structuredData);
+
+    expect(structuredData).toHaveLength(100);
+    expect(structuredData[0]).toMatchObject({ text: '消息21' });
+    expect(structuredData.at(-1)).toMatchObject({ text: '消息120' });
+  });
+
+  test('最近消息工具在群聊读取50条消息', async () => {
+    const history = new InMemoryConversationHistory();
+    const executor = new BuiltinRuntimeToolExecutor(history);
+    const events = createSequentialChatEvents('qq:conversation:group', 'group', 120);
+    events.forEach((event) => history.recordMessage(event));
+
+    const result = await executor.execute({
+      event: events[119]!,
+      toolName: 'get_recent_messages',
+      input: { limit: 100 },
+    });
+    const structuredData = toStructuredMessages(result.structuredData);
+
+    expect(structuredData).toHaveLength(50);
+    expect(structuredData[0]).toMatchObject({ text: '消息71' });
+    expect(structuredData.at(-1)).toMatchObject({ text: '消息120' });
+  });
 });
 
 function createHarness(
   runner: AgentRunnerPort,
   skillContentLoader: SkillContentLoaderPort | undefined = createSkillContentLoader(),
+  skillReferenceLoader: SkillReferenceLoaderPort | undefined = createSkillReferenceLoader(),
 ): AgentRuntimeHarness {
   const history = new InMemoryConversationHistory();
   return new AgentRuntimeHarness(
@@ -367,10 +631,12 @@ function createHarness(
     new BuiltinRuntimeToolExecutor(history),
     history,
     skillContentLoader,
+    skillReferenceLoader,
     createFallbackAgent(),
     {
-      maxTurns: 4,
+      maxTurns: 6,
       maxToolCalls: 3,
+      maxSkillReferences: 3,
     },
   );
 }
@@ -390,6 +656,19 @@ function createSkillContentLoader(): SkillContentLoaderPort {
   };
 }
 
+function createSkillReferenceLoader(): SkillReferenceLoaderPort {
+  return {
+    async loadSkillReference(skill, referencePath) {
+      return {
+        skill: skill.metadata,
+        referencePath,
+        absolutePath: `${skill.metadata.rootPath}/references/${referencePath}`,
+        content: '测试引用。',
+      };
+    },
+  };
+}
+
 function createFallbackAgent(): QqReplyAgentPort {
   return {
     async generateReply(input) {
@@ -401,13 +680,14 @@ function createFallbackAgent(): QqReplyAgentPort {
 function createChatEvent(
   text: string,
   conversationId: string = 'qq:conversation:123456',
+  conversationType: ChatEventContract['conversationType'] = 'group',
 ): ChatEventContract {
   return {
     id: `chat-event-${text}` as ChatEventId,
     platform: 'qq',
     eventType: 'message.received',
     conversationId: conversationId as ConversationId,
-    conversationType: 'group',
+    conversationType,
     senderId: 'qq:participant:20000' as ParticipantId,
     senderDisplayName: '测试用户',
     message: {
@@ -418,4 +698,19 @@ function createChatEvent(
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
   };
+}
+
+function createSequentialChatEvents(
+  conversationId: string,
+  conversationType: ChatEventContract['conversationType'],
+  count: number,
+): ChatEventContract[] {
+  return Array.from({ length: count }, (_, index) =>
+    createChatEvent(`消息${index + 1}`, conversationId, conversationType),
+  );
+}
+
+function toStructuredMessages(value: unknown): Array<Record<string, string>> {
+  expect(Array.isArray(value)).toBe(true);
+  return value as Array<Record<string, string>>;
 }

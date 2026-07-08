@@ -6,10 +6,14 @@ import {
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
 import {
   createQqReplyAgent,
+  CustomFaceCatalogService,
+  DefaultSkillSelector,
+  FilesystemSkillReferenceLoader,
   FilesystemSkillMarket,
   loadQqReplyAgentConfig,
+  loadCustomFaceVisionAgentConfig,
   MarkdownSkillContentLoader,
-  QqReplySkillSelector,
+  OpenAiCustomFaceVisionAgent,
   QqReplyEventSubscriber,
   SkillRuntimeService,
 } from '../src/services/agent-runtime';
@@ -28,23 +32,44 @@ const skillMarket = new FilesystemSkillMarket(skillsRoot);
 const skillMetadataList = await skillMarket.listSkillMetadata();
 const skillRuntime = new SkillRuntimeService(
   skillMetadataList,
-  new QqReplySkillSelector(),
+  new DefaultSkillSelector(),
   new MarkdownSkillContentLoader(skillMetadataList),
+  new FilesystemSkillReferenceLoader(),
 );
 console.info(
   `✅ [AgentRuntime-SkillBootstrap] 已加载Skill元信息 count=${skillMetadataList.length}`,
 );
 
-// 4. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
+// 4. 创建自定义表情目录，NapCat连接建立后刷新缓存。
+const visionAgentConfig = loadCustomFaceVisionAgentConfig();
+const customFaceCatalog = new CustomFaceCatalogService(
+  qqRuntime.botClient,
+  visionAgentConfig ? new OpenAiCustomFaceVisionAgent(visionAgentConfig) : undefined,
+);
+qqRuntime.onClientConnected(() => {
+  void customFaceCatalog.refresh().catch((error) => {
+    console.warn(
+      `⚠️ [AgentRuntime-CustomFaceBootstrap] 自定义表情目录刷新失败，QQ主链路继续运行 reason=${formatError(
+        error,
+      )}`,
+    );
+  });
+});
+console.info(
+  `✅ [AgentRuntime-CustomFaceBootstrap] 自定义表情目录已注册 visionEnabled=${visionAgentConfig ? 'true' : 'false'}`,
+);
+
+// 5. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
-  createQqReplyAgent(agentConfig, skillRuntime),
+  createQqReplyAgent(agentConfig, skillRuntime, customFaceCatalog),
   skillRuntime,
+  { selfQqId: qqConfig.selfQqId },
 );
 
-// 5. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+// 6. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
 console.info(
   `🚧 [QQPlatform-Start] 正在启动QQ实验通道 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
 );
@@ -62,7 +87,7 @@ process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
 });
 
-// 6. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
+// 7. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
 process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
@@ -138,4 +163,10 @@ function unwrapEnvValue(rawValue: string): string {
   if (!shouldUnwrap) return rawValue;
 
   return rawValue.slice(1, -1);
+}
+
+// 压缩错误内容
+function formatError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }

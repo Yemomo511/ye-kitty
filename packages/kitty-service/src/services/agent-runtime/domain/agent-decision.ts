@@ -28,6 +28,16 @@ export type AgentDecision =
     }
   | {
       /** 决策类型 */
+      readonly type: 'skill_reference_call';
+      /** Skill名称 */
+      readonly skillName: string;
+      /** 引用路径 */
+      readonly referencePath: string;
+      /** 调用原因 */
+      readonly reason: string;
+    }
+  | {
+      /** 决策类型 */
       readonly type: 'reply';
       /** 回复文本 */
       readonly text?: string;
@@ -58,7 +68,9 @@ export function isFinalAgentDecision(
   decision: AgentDecision,
 ): decision is Exclude<
   AgentDecision,
-  { readonly type: 'tool_call' } | { readonly type: 'skill_call' }
+  | { readonly type: 'tool_call' }
+  | { readonly type: 'skill_call' }
+  | { readonly type: 'skill_reference_call' }
 > {
   return (
     decision.type === 'reply' || decision.type === 'ignore' || decision.type === 'human_review'

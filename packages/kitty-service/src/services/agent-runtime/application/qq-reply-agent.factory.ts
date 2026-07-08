@@ -1,11 +1,16 @@
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
+import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
+import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
 import { InMemoryConversationHistory } from './in-memory-conversation-history';
 import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtime-tools';
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
 import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
+
+/** Harness 单次运行默认最大轮次 */
+export const DEFAULT_HARNESS_MAX_TURNS = 100;
 
 /**
  * QQ回复Agent运行配置
@@ -33,14 +38,16 @@ export interface QqReplyAgentRuntimeConfig {
  */
 export function createQqReplyAgent(
   config: QqReplyAgentRuntimeConfig,
-  skillContentLoader?: SkillContentLoaderPort,
+  skillContentLoader?: SkillContentLoaderPort & Partial<SkillReferenceLoaderPort>,
+  customFaceCatalog?: CustomFaceCatalogService,
 ): QqReplyAgentPort {
   const fallbackAgent = new FallbackQqReplyAgent();
   if (!config.openAiApiKey) return fallbackAgent;
 
   const conversationHistory = new InMemoryConversationHistory();
-  const toolRegistry = new BuiltinRuntimeToolRegistry();
-  const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory);
+  const toolDependencies = { customFaceCatalog };
+  const toolRegistry = new BuiltinRuntimeToolRegistry(toolDependencies);
+  const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies);
   const runner = new OpenAiHarnessAgentRunner({
     apiKey: config.openAiApiKey,
     baseURL: config.openAiBaseUrl,
@@ -54,10 +61,14 @@ export function createQqReplyAgent(
     toolExecutor,
     conversationHistory,
     skillContentLoader,
+    skillContentLoader?.loadSkillReference
+      ? (skillContentLoader as SkillReferenceLoaderPort)
+      : undefined,
     fallbackAgent,
     {
-      maxTurns: 4,
+      maxTurns: DEFAULT_HARNESS_MAX_TURNS,
       maxToolCalls: 3,
+      maxSkillReferences: 3,
     },
   );
 

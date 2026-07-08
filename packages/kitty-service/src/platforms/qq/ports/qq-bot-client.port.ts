@@ -1,4 +1,5 @@
 import type {
+  QqCustomFaceResource,
   QqOutboundMessageSegment,
   QqReactToMessageInput,
 } from '../infrastructure/api/qq-external-action.api';
@@ -55,4 +56,10 @@ export interface QqBotClientPort {
    * @param input 消息和表情目标
    */
   reactToMessage(input: QqReactToMessageInput): Promise<void>;
+
+  /**
+   * 读取QQ自定义表情
+   * @returns 可发送表情资源
+   */
+  fetchCustomFaces(): Promise<readonly QqCustomFaceResource[]>;
 }
