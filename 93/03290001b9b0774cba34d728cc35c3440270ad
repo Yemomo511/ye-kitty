@@ -1,0 +1,77 @@
+design-docs/QQ/chat-time.md
+  s_8181e789a0581a::t_d9fa4b083e06d4 15
+  h_b866b1ed626949 16-17,19,21-26,28,34-37,39,41
+  s_8181e789a0581a::t_23dd5119348d5d 12-14
+  s_775b916103bae2::t_2a7ea7876817d9 1-11,18,20,27,29-33,38,40,42-56
+design-docs/Agent/agent-runtime-harness.md
+  s_775b916103bae2::t_574db5a8638ba5 130,284,445
+design-docs/Task.md
+  s_775b916103bae2::t_7d907a81a6c209 20,47-70
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_775b916103bae2::t_42e5573baa8155 13-14,66-67,71,74-75
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_775b916103bae2::t_3c3280cbd3d00b 589-690,755,768-769,772-781
+packages/kitty-service/src/services/agent-runtime/__test__/group-chat-cadence-controller.test.ts
+  s_775b916103bae2::t_5169e4ec29c3ff 1-140
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_775b916103bae2::t_547156e8d2d1c9 4,7,313-408
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_775b916103bae2::t_0a51d43f5144b3 117-119,133-155,577-600
+packages/kitty-service/src/services/agent-runtime/application/group-chat-cadence-controller.ts
+  s_775b916103bae2::t_4e9131599421fc 1-341
+packages/kitty-service/src/services/agent-runtime/application/in-memory-conversation-history.ts
+  s_775b916103bae2::t_05792c4b2faa1f 15,24,26,28-30,33,36-39,43
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-action-executor.ts
+  s_775b916103bae2::t_eabded21880222 21,27,36,39,41,43,50,58,63,75,82,89,102,111,118,125
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_775b916103bae2::t_0a66d4201ba951 2,34-41,51,56-57
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_775b916103bae2::t_3e43ab95a799cf 5-9,35-36,60-62,64-65,67,69,95-105,107-108,115-151
+packages/kitty-service/src/services/agent-runtime/application/runtime-tools.ts
+  s_775b916103bae2::t_278869d86839ea 17
+packages/kitty-service/src/services/agent-runtime/domain/agent-observation.ts
+  s_775b916103bae2::t_2ca6febd775167 27-32
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_775b916103bae2::t_65c7f354c661ec 34-38,60-63,82
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  s_775b916103bae2::t_bed80f322c1f02 71,78-99
+packages/kitty-service/src/services/agent-runtime/ports/agent-runtime-harness.port.ts
+  s_775b916103bae2::t_adb758c271cbd4 15-20
+packages/kitty-service/src/services/agent-runtime/ports/conversation-history.port.ts
+  s_775b916103bae2::t_d9fb82b08bc80a 13,15
+packages/kitty-service/src/services/agent-runtime/ports/group-chat-cadence.port.ts
+  s_775b916103bae2::t_e403a4eccca87e 1-50
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_775b916103bae2::t_723499c01a6b9f 19-24
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9303290001b9b0774cba34d728cc35c3440270ad",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_775b916103bae2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f41d2-36c4-7ff1-a532-6386aaa8ef42",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    },
+    "s_8181e789a0581a": {
+      "agent_id": {
+        "tool": "trae-cue",
+        "id": "ai_tab-icr-bf6a425e-e366-4df0-83d2-7f89bfb7c497",
+        "model": "default"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
