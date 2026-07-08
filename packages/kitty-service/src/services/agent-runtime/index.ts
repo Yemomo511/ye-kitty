@@ -5,6 +5,13 @@ export type {
 } from './ports/qq-reply-agent.port';
 export type { AgentDecision } from './domain/agent-decision';
 export type { AgentObservation } from './domain/agent-observation';
+export type {
+  HarnessPromptBudgetState,
+  HarnessPromptContextState,
+  HarnessPromptDecisionHistoryItem,
+  HarnessPromptPhase,
+  HarnessPromptState,
+} from './domain/harness-prompt-state';
 export type { QqReplyAction } from './domain/qq-reply-action';
 export type { SkillContent, SkillMetadata } from './domain/skill';
 export type {

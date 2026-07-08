@@ -1,5 +1,6 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { AgentConversationMessage } from './agent-conversation-message';
+import type { HarnessPromptState } from './harness-prompt-state';
 import type { SkillContent, SkillMetadata } from './skill';
 import type { RuntimeTool, ToolExecutionResult } from './tool';
 
@@ -21,6 +22,8 @@ export interface AgentObservation {
   readonly toolResults: readonly ToolExecutionResult[];
   /** 对话观察消息 */
   readonly conversationMessages: readonly AgentConversationMessage[];
+  /** Harness Prompt显式状态 */
+  readonly promptState: HarnessPromptState;
   /** 当前轮次 */
   readonly turnIndex: number;
   /** 最大轮次 */

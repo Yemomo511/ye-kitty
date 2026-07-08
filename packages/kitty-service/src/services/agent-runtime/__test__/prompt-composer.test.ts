@@ -174,6 +174,7 @@ describe('Agent Runtime Prompt组织', () => {
           ],
         },
       ],
+      promptState: createPromptState(),
       turnIndex: 1,
       maxTurns: 4,
       toolCallCount: 0,
@@ -181,17 +182,16 @@ describe('Agent Runtime Prompt组织', () => {
     });
 
     expect(prompt.instructions).toContain('# 第一章节: Harness System Prompt');
-    expect(prompt.instructions).toContain('最高优先级系统约束');
-    expect(prompt.instructions).toContain('## 1.1 JSON 输出契约');
-    expect(prompt.instructions).toContain('## 1.2 外界上下文读取规则');
-    expect(prompt.instructions).toContain('## 1.3 JSON结构');
-    expect(prompt.instructions).toContain('每一轮输出都必须是单个 JSON 对象');
-    expect(prompt.instructions).toContain('当你想调用 Skill 时，返回 `skill_call`');
+    expect(prompt.instructions).toContain('## 1.1 宪法约束');
+    expect(prompt.instructions).toContain('## 1.2 状态机约束');
+    expect(prompt.instructions).toContain('## 1.3 JSON 行动契约');
+    expect(prompt.instructions).toContain('每一轮输出必须是单个 JSON 对象');
+    expect(prompt.instructions).toContain('当你想启用 Skill 时');
     expect(prompt.instructions).not.toContain('可请求Skill目录');
     expect(prompt.instructions).not.toContain('用于 QQ 回复');
     expect(prompt.instructions).not.toContain('能力说明：');
     expect(prompt.instructions).not.toContain('群聊回复短一点。');
-    expect(prompt.instructions).not.toContain('get_recent_messages');
+    expect(prompt.instructions).not.toContain('读取最近消息');
     expect(prompt.instructions).toContain('存在安全、合规、隐私或边界风险');
     expect(prompt.instructions).toContain('"type": "skill_call"');
     expect(prompt.instructions).toContain('"type": "skill_reference_call"');
@@ -203,6 +203,10 @@ describe('Agent Runtime Prompt组织', () => {
       prompt.input.indexOf('## 2.2 Tool Prompt'),
     );
     expect(prompt.input).toContain('### 2.2.1 get_recent_messages');
+    expect(prompt.input).toContain('<run_state>');
+    expect(prompt.input).toContain('phase: initial_observe');
+    expect(prompt.input).toContain('tool_budget: 0/3');
+    expect(prompt.input).toContain('<decision_history>');
     expect(prompt.input).toContain('当前轮次：1/4');
     expect(prompt.input).toContain('可请求Skill目录');
     expect(prompt.input).toContain('用于 QQ 回复');
@@ -261,6 +265,19 @@ describe('Agent Runtime Prompt组织', () => {
           },
         },
       ],
+      promptState: createPromptState({
+        phase: 'skill_loaded',
+        enabledSkillNames: ['qq-chat'],
+        decisionHistory: [
+          {
+            turnIndex: 1,
+            decisionType: 'skill_call',
+            target: 'qq-chat',
+            success: true,
+            reason: '需要群聊方法论',
+          },
+        ],
+      }),
       turnIndex: 2,
       maxTurns: 4,
       toolCallCount: 0,
@@ -310,6 +327,10 @@ describe('Agent Runtime Prompt组织', () => {
           },
         },
       ],
+      promptState: createPromptState({
+        phase: 'reference_loaded',
+        loadedReferenceKeys: ['chat-style:examples.md'],
+      }),
       turnIndex: 3,
       maxTurns: 4,
       toolCallCount: 0,
@@ -343,6 +364,7 @@ describe('Agent Runtime Prompt组织', () => {
         { type: 'user_event', event: createChatEvent() },
         { type: 'skill_catalog', skills: [] },
       ],
+      promptState: createPromptState(),
       turnIndex: 1,
       maxTurns: 4,
       toolCallCount: 0,
@@ -383,5 +405,51 @@ function createChatEvent(): ChatEventContract {
       mentions: [],
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
+  };
+}
+
+function createPromptState(
+  input: {
+    readonly phase?:
+      | 'initial_observe'
+      | 'skill_loaded'
+      | 'reference_loaded'
+      | 'tool_observing'
+      | 'ready_to_decide'
+      | 'finalized'
+      | 'fallback'
+      | 'human_review';
+    readonly enabledSkillNames?: readonly string[];
+    readonly loadedReferenceKeys?: readonly string[];
+    readonly decisionHistory?: readonly {
+      readonly turnIndex: number;
+      readonly decisionType:
+        'tool_call' | 'skill_call' | 'skill_reference_call' | 'reply' | 'ignore' | 'human_review';
+      readonly target?: string;
+      readonly success?: boolean;
+      readonly reason: string;
+    }[];
+  } = {},
+) {
+  return {
+    traceId: 'agent-run:test',
+    phase: input.phase ?? 'initial_observe',
+    budget: {
+      turnIndex: 1,
+      maxTurns: 4,
+      toolCallCount: 0,
+      maxToolCalls: 3,
+      skillReferenceCount: input.loadedReferenceKeys?.length ?? 0,
+      maxSkillReferences: 3,
+      decisionErrorCount: 0,
+    },
+    context: {
+      availableSkillNames: ['qq-chat'],
+      enabledSkillNames: input.enabledSkillNames ?? [],
+      loadedReferenceKeys: input.loadedReferenceKeys ?? [],
+      visibleToolNames: ['get_recent_messages'],
+      latestObservation: '尚无工具结果或错误观察。',
+    },
+    decisionHistory: input.decisionHistory ?? [],
   };
 }

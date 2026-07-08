@@ -159,6 +159,14 @@ describe('AgentRuntimeHarness', () => {
       toolName: 'skill_call:qq-chat',
       success: true,
     });
+    expect(observations[0]?.promptState.phase).toBe('initial_observe');
+    expect(observations[1]?.promptState.phase).toBe('skill_loaded');
+    expect(observations[1]?.promptState.context.enabledSkillNames).toEqual(['qq-chat']);
+    expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
+      decisionType: 'skill_call',
+      target: 'qq-chat',
+      success: true,
+    });
     expect(observations[0]?.availableSkills[0]?.name).toBe('qq-chat');
     expect(observations[0]?.enabledSkills).toEqual([]);
     expect(observations[1]?.enabledSkills[0]?.body).toBe('保持自然。');
@@ -432,6 +440,12 @@ describe('AgentRuntimeHarness', () => {
         }),
       ]),
     );
+    expect(observations[1]?.promptState.phase).toBe('skill_loaded');
+    expect(observations[2]?.promptState.phase).toBe('reference_loaded');
+    expect(observations[2]?.promptState.context.loadedReferenceKeys).toEqual([
+      'chat-style:examples.md',
+    ]);
+    expect(observations[2]?.promptState.budget.skillReferenceCount).toBe(1);
   });
 
   test('重复读取同一reference不会重复加载', async () => {
@@ -533,6 +547,42 @@ describe('AgentRuntimeHarness', () => {
     expect(observations[5]?.toolResults.at(-1)).toMatchObject({
       success: false,
       errorMessage: 'Skill引用读取超限',
+    });
+    expect(observations[5]?.promptState.phase).toBe('ready_to_decide');
+    expect(observations[5]?.promptState.budget.skillReferenceCount).toBe(3);
+  });
+
+  test('Prompt状态会记录工具观察阶段和决策历史', async () => {
+    const observations: AgentObservation[] = [];
+    const harness = createHarness({
+      async decide(observation) {
+        observations.push(observation);
+        if (observation.turnIndex === 1) {
+          return {
+            type: 'tool_call',
+            toolName: 'get_recent_messages',
+            input: {},
+            reason: '需要最近消息',
+          };
+        }
+
+        return {
+          type: 'ignore',
+          reason: '工具观察后判断不需要参与',
+        };
+      },
+    });
+
+    await harness.run({ event: createChatEvent('状态测试') });
+
+    expect(observations[0]?.promptState.phase).toBe('initial_observe');
+    expect(observations[1]?.promptState.phase).toBe('tool_observing');
+    expect(observations[1]?.promptState.budget.toolCallCount).toBe(1);
+    expect(observations[1]?.promptState.context.latestObservation).toContain('最近 1 条消息');
+    expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
+      decisionType: 'tool_call',
+      target: 'get_recent_messages',
+      success: true,
     });
   });
 
