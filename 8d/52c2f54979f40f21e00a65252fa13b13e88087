@@ -1,0 +1,28 @@
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-action.test.ts
+  s_6d196129260a9b::t_a085b80bf09dac 434
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-action-executor.ts
+  s_6d196129260a9b::t_cde0675a998063 112,221,227,245-249
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8d52c2f54979f40f21e00a65252fa13b13e88087",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_6d196129260a9b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f41bc-3eca-7ae1-aee7-2feb7698824f",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
