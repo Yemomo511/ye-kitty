@@ -1,0 +1,31 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_1deb940dbe2b4f::t_b03495ae72aab8 84,86,88,90,92,101,155,188,444,479
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_1deb940dbe2b4f::t_24cc334bbb2e1f 162-169,443-448,551-586
+packages/kitty-service/src/services/agent-runtime/domain/agent-observation.ts
+  s_1deb940dbe2b4f::t_a01f97734b66de 3,25-26
+packages/kitty-service/src/services/agent-runtime/domain/harness-prompt-state.ts
+  s_1deb940dbe2b4f::t_76929394bcd3bd 1-80
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_1deb940dbe2b4f::t_5d8619639ae9ed 8-14
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  s_1deb940dbe2b4f::t_38ae91c98fd892 5-8,67,74-123
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "56c462b1cf72f83b528a650495485e6326d4b8be",
+  "prompts": {},
+  "sessions": {
+    "s_1deb940dbe2b4f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f418a-d6c4-7521-8ca3-70ac692e1365",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
