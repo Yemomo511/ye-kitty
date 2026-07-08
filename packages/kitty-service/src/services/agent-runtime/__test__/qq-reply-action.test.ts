@@ -204,7 +204,7 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: withTriggerContext([{ type: 'image', file: 'https://example.com/cat.png' }]),
+        segments: [{ type: 'image', file: 'https://example.com/cat.png' }],
       },
       {
         conversationExternalId: '123456',
@@ -222,10 +222,12 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: withTriggerContext([
-          { type: 'text', text: '自定义表情' },
-          { type: 'image', file: 'custom-face://cat' },
-        ]),
+        segments: withTriggerContext([{ type: 'text', text: '自定义表情' }]),
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [{ type: 'image', file: 'custom-face://cat' }],
       },
     ]);
   });
@@ -344,10 +346,12 @@ describe('QqReplyActionExecutor', () => {
       {
         conversationExternalId: '123456',
         conversationType: 'group',
-        segments: withTriggerContext([
-          { type: 'text', text: '好好好' },
-          { type: 'image', file: 'custom-face://ok' },
-        ]),
+        segments: withTriggerContext([{ type: 'text', text: '好好好' }]),
+      },
+      {
+        conversationExternalId: '123456',
+        conversationType: 'group',
+        segments: [{ type: 'image', file: 'custom-face://ok' }],
       },
     ]);
   });
@@ -427,7 +431,7 @@ function createChatEvent(): ChatEventContract {
     senderId: 'qq:participant:20000' as ParticipantId,
     senderDisplayName: '测试用户',
     message: {
-      id: 'message-1' as MessageId,
+      id: 'qq:message:message-1' as MessageId,
       type: 'text',
       text: '你好',
       mentions: [],

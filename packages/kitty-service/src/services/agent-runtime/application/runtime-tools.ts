@@ -14,7 +14,7 @@ export const GET_CUSTOM_FACES_TOOL_NAME = 'get_custom_faces';
 /** 私聊上下文窗口 */
 const PRIVATE_RECENT_MESSAGE_LIMIT = 100;
 /** 群聊上下文窗口 */
-const GROUP_RECENT_MESSAGE_LIMIT = 50;
+const GROUP_RECENT_MESSAGE_LIMIT = 100;
 
 /** 内置工具依赖 */
 export interface BuiltinRuntimeToolDependencies {
@@ -42,8 +42,7 @@ export class BuiltinRuntimeToolRegistry implements RuntimeToolRegistryPort {
         ? [
             {
               name: GET_CUSTOM_FACES_TOOL_NAME,
-              description:
-                '根据聊天需求读取视觉Agent推荐后的QQ自定义表情目录，用于选择合适表情回复。',
+              description: '读取启动期缓存的QQ自定义表情目录，用于根据描述选择合适表情回复。',
               riskLevel: 'low' as const,
               inputSchemaDescription: '{ "query"?: string 表情需求, "limit"?: number }',
             },
@@ -115,32 +114,45 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
       };
     }
 
-    await catalog.ensureReady();
     const query = isRecord(input) && typeof input.query === 'string' ? input.query : undefined;
     const limit = isRecord(input) && typeof input.limit === 'number' ? input.limit : undefined;
-    const faces = await catalog.recommend({ query, limit });
+    try {
+      const faces = await catalog.recommend({ query, limit });
+      const snapshot = catalog.getSnapshot();
 
-    console.info(
-      `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情目录 count=${faces.length} demandLength=${query?.trim().length ?? 0}`,
-    );
+      console.info(
+        `✅ [AgentRuntime-Tool-getCustomFaces] 已读取自定义表情缓存 count=${faces.length} demandLength=${query?.trim().length ?? 0} status=${snapshot.status}`,
+      );
 
-    return {
-      toolName: GET_CUSTOM_FACES_TOOL_NAME,
-      success: true,
-      observation: formatCustomFacesObservation(faces),
-      structuredData: faces.map((face) => ({
-        id: face.id,
-        file: face.file,
-        content: face.content,
-        emotion: face.emotion,
-        suitableScenes: face.suitableScenes,
-        avoidScenes: face.avoidScenes,
-        tags: face.tags,
-        confidence: face.confidence,
-        recommendationReason: face.recommendationReason,
-        recommendationScore: face.recommendationScore,
-      })),
-    };
+      return {
+        toolName: GET_CUSTOM_FACES_TOOL_NAME,
+        success: true,
+        observation: formatCustomFacesObservation(faces, snapshot),
+        structuredData: faces.map((face) => ({
+          id: face.id,
+          file: face.file,
+          content: face.content,
+          emotion: face.emotion,
+          suitableScenes: face.suitableScenes,
+          avoidScenes: face.avoidScenes,
+          tags: face.tags,
+          confidence: face.confidence,
+          recommendationReason: face.recommendationReason,
+          recommendationScore: face.recommendationScore,
+        })),
+      };
+    } catch (error) {
+      const reason = formatError(error);
+      console.warn(
+        `⚠️ [AgentRuntime-Tool-getCustomFaces] 自定义表情目录读取失败，已返回降级观察 demandLength=${query?.trim().length ?? 0} reason=${reason}`,
+      );
+      return {
+        toolName: GET_CUSTOM_FACES_TOOL_NAME,
+        success: false,
+        observation: `自定义表情目录暂时不可用，原因：${reason}。你可以直接用文字说明现在网络不好、暂时看不到图片或无法理解表情，不要中断聊天。`,
+        errorMessage: reason,
+      };
+    }
   }
 
   // 读取当前会话最近消息。
@@ -164,11 +176,24 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
 }
 
 // 格式化自定义表情目录观察。
-function formatCustomFacesObservation(faces: readonly RecommendedCustomFace[]): string {
-  if (faces.length === 0) return '当前没有可用自定义表情。';
+function formatCustomFacesObservation(
+  faces: readonly RecommendedCustomFace[],
+  snapshot: ReturnType<CustomFaceCatalogService['getSnapshot']>,
+): string {
+  if (faces.length === 0) {
+    if (snapshot.status === 'failed') {
+      return `当前自定义表情目录刷新失败，暂时看不到可用表情。失败原因：${snapshot.lastFailureReason ?? '未知'}。你可以用文字说明网络不好、暂时看不到图片或无法理解表情。`;
+    }
+
+    if (snapshot.status === 'refreshing') {
+      return '自定义表情目录正在启动期刷新中，当前还没有可用表情。你可以先用文字回复，或说明暂时看不到表情。';
+    }
+
+    return '当前自定义表情目录为空，没有可用自定义表情。你可以改用文字或 QQ 内置表情回复。';
+  }
 
   return [
-    `可用自定义表情 ${faces.length} 个：`,
+    `可用自定义表情 ${faces.length} 个，来自启动期缓存：`,
     ...faces.map(
       (face, index) =>
         `${index + 1}. id=${face.id} file=${face.file} 内容=${face.content} 情绪=${face.emotion} 适用=${face.suitableScenes.join('、') || '未知'} 避免=${face.avoidScenes.join('、') || '未知'} 标签=${face.tags.join('、') || '无'} 置信度=${face.confidence}${face.recommendationReason ? ` 推荐理由=${face.recommendationReason}` : ''}${typeof face.recommendationScore === 'number' ? ` 推荐分=${face.recommendationScore}` : ''}`,
@@ -217,4 +242,10 @@ function maskId(value: string): string {
   const text = String(value);
   if (text.length <= 4) return '****';
   return `****${text.slice(-4)}`;
+}
+
+// 压缩错误内容。
+function formatError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  return String(error);
 }

@@ -2,6 +2,11 @@ import { isFinalAgentDecision } from '../domain/agent-decision';
 import type { AgentDecision } from '../domain/agent-decision';
 import type { AgentConversationMessage } from '../domain/agent-conversation-message';
 import type { AgentObservation } from '../domain/agent-observation';
+import type {
+  HarnessPromptDecisionHistoryItem,
+  HarnessPromptPhase,
+  HarnessPromptState,
+} from '../domain/harness-prompt-state';
 import type { SkillContent } from '../domain/skill';
 import type { SkillReferenceContent } from '../domain/skill-reference';
 import type { ToolExecutionResult } from '../domain/tool';
@@ -65,11 +70,14 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     const toolResults: ToolExecutionResult[] = [];
     const enabledSkills: SkillContent[] = [];
     const loadedReferences: SkillReferenceContent[] = [];
+    const decisionHistory: HarnessPromptDecisionHistoryItem[] = [];
     const conversationMessages: AgentConversationMessage[] = [
       { type: 'user_event', event: input.event },
       { type: 'skill_catalog', skills: input.availableSkills ?? [] },
     ];
+    let phase: HarnessPromptPhase = 'initial_observe';
     let toolCallCount = 0;
+    let decisionErrorCount = 0;
     const maxSkillReferences = this.config.maxSkillReferences ?? DEFAULT_MAX_SKILL_REFERENCES;
 
     // 1. 先写入当前消息，让本轮工具也能读取到刚进入的上下文。
@@ -81,13 +89,34 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     );
 
     for (let turnIndex = 1; turnIndex <= this.config.maxTurns; turnIndex += 1) {
+      const tools = this.toolRegistry.listTools();
       const observation: AgentObservation = {
         event: input.event,
         availableSkills: input.availableSkills ?? [],
         enabledSkills: [...enabledSkills],
-        tools: this.toolRegistry.listTools(),
+        tools,
         toolResults,
         conversationMessages: [...conversationMessages],
+        promptState: buildPromptState({
+          traceId,
+          phase,
+          turnIndex,
+          maxTurns: this.config.maxTurns,
+          toolCallCount,
+          maxToolCalls: this.config.maxToolCalls,
+          skillReferenceCount: loadedReferences.length,
+          maxSkillReferences,
+          decisionErrorCount,
+          availableSkillNames: (input.availableSkills ?? []).map((skill) => skill.name),
+          enabledSkillNames: enabledSkills.map((skill) => skill.metadata.name),
+          loadedReferenceKeys: loadedReferences.map(toReferenceKey),
+          visibleToolNames: tools.map((tool) => tool.name),
+          latestObservation: getLatestObservation(conversationMessages),
+          decisionHistory,
+        }),
+        replyIntent: input.replyIntent,
+        requiredToolCalls: input.requiredToolCalls,
+        recentMessageLimitHint: input.recentMessageLimitHint,
         turnIndex,
         maxTurns: this.config.maxTurns,
         toolCallCount,
@@ -101,6 +130,31 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         );
 
         if (isFinalAgentDecision(decision)) {
+          const requiredReplyViolation = validateRequiredGroupReply(decision, toolResults);
+          if (input.replyIntent === 'required_group_reply' && requiredReplyViolation) {
+            decisionErrorCount += 1;
+            phase = 'ready_to_decide';
+            decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, false));
+            const result = {
+              toolName: 'required_group_reply',
+              success: false,
+              observation: requiredReplyViolation,
+              errorMessage: '强制群聊回复协议未满足',
+            };
+            toolResults.push(result);
+            conversationMessages.push({
+              type: 'decision_error',
+              observation: result.observation,
+              errorMessage: result.errorMessage,
+            });
+            console.warn(
+              `⚠️ [AgentRuntime-Harness-run] 强制群聊回复协议未满足，已转为下一轮观察 traceId=${traceId} turn=${turnIndex} decisionType=${decision.type}`,
+            );
+            continue;
+          }
+
+          phase = decision.type === 'human_review' ? 'human_review' : 'finalized';
+          decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, true));
           return toRunResult(decision, traceId);
         }
 
@@ -114,6 +168,8 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           );
           toolResults.push(result);
           conversationMessages.push({ type: 'tool_result', result });
+          phase = result.success ? 'skill_loaded' : 'ready_to_decide';
+          decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, result.success));
           continue;
         }
 
@@ -128,10 +184,14 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           );
           toolResults.push(result);
           conversationMessages.push({ type: 'tool_result', result });
+          phase = result.success ? 'reference_loaded' : 'ready_to_decide';
+          decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, result.success));
           continue;
         }
 
         if (toolCallCount >= this.config.maxToolCalls) {
+          phase = 'fallback';
+          decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, false));
           console.warn(
             `⚠️ [AgentRuntime-Harness-run] 工具调用已超出预算，执行降级 traceId=${traceId} maxToolCalls=${this.config.maxToolCalls}`,
           );
@@ -151,6 +211,8 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
             observation: `工具 ${decision.toolName} 未注册，不能执行。`,
             errorMessage: '工具未注册',
           });
+          phase = 'ready_to_decide';
+          decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, false));
           continue;
         }
 
@@ -165,8 +227,12 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         });
         toolResults.push(result);
         conversationMessages.push({ type: 'tool_result', result });
+        phase = result.success ? 'tool_observing' : 'ready_to_decide';
+        decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, result.success));
       } catch (error) {
         const reason = formatError(error);
+        decisionErrorCount += 1;
+        phase = 'ready_to_decide';
         console.warn(
           `⚠️ [AgentRuntime-Harness-run] Agent决策失败，已转为下一轮观察 traceId=${traceId} turn=${turnIndex} reason=${reason}`,
         );
@@ -422,4 +488,113 @@ function maskId(value: string): string {
 function formatError(error: unknown): string {
   if (error instanceof Error) return error.message;
   return String(error);
+}
+
+// 构造本轮Prompt状态快照。
+function buildPromptState(input: {
+  readonly traceId: string;
+  readonly phase: HarnessPromptPhase;
+  readonly turnIndex: number;
+  readonly maxTurns: number;
+  readonly toolCallCount: number;
+  readonly maxToolCalls: number;
+  readonly skillReferenceCount: number;
+  readonly maxSkillReferences: number;
+  readonly decisionErrorCount: number;
+  readonly availableSkillNames: readonly string[];
+  readonly enabledSkillNames: readonly string[];
+  readonly loadedReferenceKeys: readonly string[];
+  readonly visibleToolNames: readonly string[];
+  readonly latestObservation: string;
+  readonly decisionHistory: readonly HarnessPromptDecisionHistoryItem[];
+}): HarnessPromptState {
+  return {
+    traceId: input.traceId,
+    phase: input.phase,
+    budget: {
+      turnIndex: input.turnIndex,
+      maxTurns: input.maxTurns,
+      toolCallCount: input.toolCallCount,
+      maxToolCalls: input.maxToolCalls,
+      skillReferenceCount: input.skillReferenceCount,
+      maxSkillReferences: input.maxSkillReferences,
+      decisionErrorCount: input.decisionErrorCount,
+    },
+    context: {
+      availableSkillNames: input.availableSkillNames,
+      enabledSkillNames: input.enabledSkillNames,
+      loadedReferenceKeys: input.loadedReferenceKeys,
+      visibleToolNames: input.visibleToolNames,
+      latestObservation: input.latestObservation,
+    },
+    decisionHistory: input.decisionHistory,
+  };
+}
+
+// 记录模型决策历史，供下一轮Prompt明确状态来源。
+function toDecisionHistoryItem(
+  turnIndex: number,
+  decision: AgentDecision,
+  success: boolean,
+): HarnessPromptDecisionHistoryItem {
+  return {
+    turnIndex,
+    decisionType: decision.type,
+    target: getDecisionTarget(decision),
+    success,
+    reason: decision.reason,
+  };
+}
+
+// 提取决策目标名称。
+function getDecisionTarget(decision: AgentDecision): string | undefined {
+  if (decision.type === 'skill_call' || decision.type === 'skill_reference_call') {
+    return decision.skillName;
+  }
+
+  if (decision.type === 'tool_call') {
+    return decision.toolName;
+  }
+
+  return undefined;
+}
+
+// 提取最近一条可读观察。
+function getLatestObservation(messages: readonly AgentConversationMessage[]): string {
+  const latest = [...messages].reverse().find((message) => {
+    return message.type === 'tool_result' || message.type === 'decision_error';
+  });
+
+  if (!latest) return '尚无工具结果或错误观察。';
+  if (latest.type === 'tool_result') return latest.result.observation;
+  return latest.observation;
+}
+
+// 生成Skill引用状态键。
+function toReferenceKey(reference: SkillReferenceContent): string {
+  return `${reference.skill.name}:${reference.referencePath}`;
+}
+
+// 校验节奏门控触发的强制群聊回复是否已读取上下文并最终回复。
+function validateRequiredGroupReply(
+  decision: AgentDecision,
+  toolResults: readonly ToolExecutionResult[],
+): string | undefined {
+  const hasRecentMessages = toolResults.some(
+    (result) => result.toolName === 'get_recent_messages' && result.success,
+  );
+
+  if (!hasRecentMessages) {
+    return '本轮由群聊节奏门控触发，必须先调用 get_recent_messages 读取最近100条群消息，再基于上下文回复。请先返回 tool_call。';
+  }
+
+  if (decision.type !== 'reply') {
+    return '本轮由群聊节奏门控触发，已读取最近群消息后必须输出 reply，不能返回 ignore 或 human_review。请基于最近100条群消息给出一条自然短回复。';
+  }
+
+  if (!decision.text?.trim() && (!decision.actions || decision.actions.length === 0)) {
+    return '本轮由群聊节奏门控触发，reply 必须包含文本或受控动作，不能返回空回复。';
+  }
+
+  return undefined;
 }

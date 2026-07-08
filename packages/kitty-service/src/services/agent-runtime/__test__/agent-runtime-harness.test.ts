@@ -159,6 +159,14 @@ describe('AgentRuntimeHarness', () => {
       toolName: 'skill_call:qq-chat',
       success: true,
     });
+    expect(observations[0]?.promptState.phase).toBe('initial_observe');
+    expect(observations[1]?.promptState.phase).toBe('skill_loaded');
+    expect(observations[1]?.promptState.context.enabledSkillNames).toEqual(['qq-chat']);
+    expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
+      decisionType: 'skill_call',
+      target: 'qq-chat',
+      success: true,
+    });
     expect(observations[0]?.availableSkills[0]?.name).toBe('qq-chat');
     expect(observations[0]?.enabledSkills).toEqual([]);
     expect(observations[1]?.enabledSkills[0]?.body).toBe('保持自然。');
@@ -432,6 +440,12 @@ describe('AgentRuntimeHarness', () => {
         }),
       ]),
     );
+    expect(observations[1]?.promptState.phase).toBe('skill_loaded');
+    expect(observations[2]?.promptState.phase).toBe('reference_loaded');
+    expect(observations[2]?.promptState.context.loadedReferenceKeys).toEqual([
+      'chat-style:examples.md',
+    ]);
+    expect(observations[2]?.promptState.budget.skillReferenceCount).toBe(1);
   });
 
   test('重复读取同一reference不会重复加载', async () => {
@@ -534,6 +548,144 @@ describe('AgentRuntimeHarness', () => {
       success: false,
       errorMessage: 'Skill引用读取超限',
     });
+    expect(observations[5]?.promptState.phase).toBe('ready_to_decide');
+    expect(observations[5]?.promptState.budget.skillReferenceCount).toBe(3);
+  });
+
+  test('Prompt状态会记录工具观察阶段和决策历史', async () => {
+    const observations: AgentObservation[] = [];
+    const harness = createHarness({
+      async decide(observation) {
+        observations.push(observation);
+        if (observation.turnIndex === 1) {
+          return {
+            type: 'tool_call',
+            toolName: 'get_recent_messages',
+            input: {},
+            reason: '需要最近消息',
+          };
+        }
+
+        return {
+          type: 'ignore',
+          reason: '工具观察后判断不需要参与',
+        };
+      },
+    });
+
+    await harness.run({ event: createChatEvent('状态测试') });
+
+    expect(observations[0]?.promptState.phase).toBe('initial_observe');
+    expect(observations[1]?.promptState.phase).toBe('tool_observing');
+    expect(observations[1]?.promptState.budget.toolCallCount).toBe(1);
+    expect(observations[1]?.promptState.context.latestObservation).toContain('最近 1 条消息');
+    expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
+      decisionType: 'tool_call',
+      target: 'get_recent_messages',
+      success: true,
+    });
+  });
+
+  test('强制群聊回复未读取最近消息时要求先调用工具', async () => {
+    const observations: AgentObservation[] = [];
+    const harness = createHarness({
+      async decide(observation) {
+        observations.push(observation);
+        if (observation.turnIndex === 1) {
+          return {
+            type: 'reply',
+            text: '我先直接回。',
+            reason: '想直接回复',
+          };
+        }
+
+        if (observation.turnIndex === 2) {
+          return {
+            type: 'tool_call',
+            toolName: 'get_recent_messages',
+            input: {},
+            reason: '按协议读取最近消息',
+          };
+        }
+
+        return {
+          type: 'reply',
+          text: '看完最近消息再接一句。',
+          reason: '已读取最近消息',
+        };
+      },
+    });
+
+    const result = await harness.run({
+      event: createChatEvent('强制回复'),
+      replyIntent: 'required_group_reply',
+      requiredToolCalls: ['get_recent_messages'],
+      recentMessageLimitHint: 100,
+    });
+
+    expect(result).toMatchObject({
+      type: 'reply',
+      text: '看完最近消息再接一句。',
+    });
+    expect(observations[0]?.replyIntent).toBe('required_group_reply');
+    expect(observations[1]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'decision_error',
+          observation: expect.stringContaining('必须先调用 get_recent_messages'),
+        }),
+      ]),
+    );
+  });
+
+  test('强制群聊回复读取最近消息后不能返回ignore', async () => {
+    const observations: AgentObservation[] = [];
+    const harness = createHarness({
+      async decide(observation) {
+        observations.push(observation);
+        if (observation.turnIndex === 1) {
+          return {
+            type: 'tool_call',
+            toolName: 'get_recent_messages',
+            input: {},
+            reason: '读取最近消息',
+          };
+        }
+
+        if (observation.turnIndex === 2) {
+          return {
+            type: 'ignore',
+            reason: '不想打扰',
+          };
+        }
+
+        return {
+          type: 'reply',
+          text: '那我短短接一句。',
+          reason: '强制回复协议要求回复',
+        };
+      },
+    });
+
+    const result = await harness.run({
+      event: createChatEvent('不能静默'),
+      replyIntent: 'required_group_reply',
+      requiredToolCalls: ['get_recent_messages'],
+      recentMessageLimitHint: 100,
+    });
+
+    expect(result).toMatchObject({
+      type: 'reply',
+      text: '那我短短接一句。',
+    });
+    expect(observations[2]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'decision_error',
+          observation: expect.stringContaining('不能返回 ignore'),
+        }),
+      ]),
+    );
   });
 
   test('ignore和human_review通过旧端口适配为空动作', async () => {
@@ -600,7 +752,7 @@ describe('AgentRuntimeHarness', () => {
     expect(structuredData.at(-1)).toMatchObject({ text: '消息120' });
   });
 
-  test('最近消息工具在群聊读取50条消息', async () => {
+  test('最近消息工具在群聊读取100条消息', async () => {
     const history = new InMemoryConversationHistory();
     const executor = new BuiltinRuntimeToolExecutor(history);
     const events = createSequentialChatEvents('qq:conversation:group', 'group', 120);
@@ -613,9 +765,19 @@ describe('AgentRuntimeHarness', () => {
     });
     const structuredData = toStructuredMessages(result.structuredData);
 
-    expect(structuredData).toHaveLength(50);
-    expect(structuredData[0]).toMatchObject({ text: '消息71' });
+    expect(structuredData).toHaveLength(100);
+    expect(structuredData[0]).toMatchObject({ text: '消息21' });
     expect(structuredData.at(-1)).toMatchObject({ text: '消息120' });
+  });
+
+  test('会话历史重复写入同一消息时保持幂等', () => {
+    const history = new InMemoryConversationHistory();
+    const event = createChatEvent('重复消息');
+
+    expect(history.recordMessage(event)).toBe(true);
+    expect(history.recordMessage(event)).toBe(false);
+
+    expect(history.getRecentMessages(event.conversationId, 10)).toHaveLength(1);
   });
 });
 

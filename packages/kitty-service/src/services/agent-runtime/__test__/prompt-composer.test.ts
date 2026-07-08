@@ -174,6 +174,7 @@ describe('Agent Runtime Prompt组织', () => {
           ],
         },
       ],
+      promptState: createPromptState(),
       turnIndex: 1,
       maxTurns: 4,
       toolCallCount: 0,
@@ -181,36 +182,40 @@ describe('Agent Runtime Prompt组织', () => {
     });
 
     expect(prompt.instructions).toContain('# 第一章节: Harness System Prompt');
-    expect(prompt.instructions).toContain('最高优先级系统约束');
-    expect(prompt.instructions).toContain('## 1.1 JSON 输出契约');
-    expect(prompt.instructions).toContain('## 1.2 外界上下文读取规则');
-    expect(prompt.instructions).toContain('## 1.3 JSON结构');
-    expect(prompt.instructions).toContain('每一轮输出都必须是单个 JSON 对象');
-    expect(prompt.instructions).toContain('当你想调用 Skill 时，返回 `skill_call`');
-    expect(prompt.instructions).not.toContain('可请求Skill目录');
-    expect(prompt.instructions).not.toContain('用于 QQ 回复');
+    expect(prompt.instructions).toContain('# 第二章节: Outside Context Prompt');
+    expect(prompt.instructions).toContain('## 1.1 宪法约束');
+    expect(prompt.instructions).toContain('## 1.2 状态机约束');
+    expect(prompt.instructions).toContain('## 1.3 JSON 行动契约');
+    expect(prompt.instructions).toContain('每一轮输出必须是单个 JSON 对象');
+    expect(prompt.instructions).toContain('当你想启用 Skill 时');
+    expect(prompt.instructions).toContain('可请求Skill目录');
+    expect(prompt.instructions).toContain('用于 QQ 回复');
     expect(prompt.instructions).not.toContain('能力说明：');
     expect(prompt.instructions).not.toContain('群聊回复短一点。');
-    expect(prompt.instructions).not.toContain('get_recent_messages');
+    expect(prompt.instructions).toContain('读取最近消息');
     expect(prompt.instructions).toContain('存在安全、合规、隐私或边界风险');
     expect(prompt.instructions).toContain('"type": "skill_call"');
     expect(prompt.instructions).toContain('"type": "skill_reference_call"');
     expect(prompt.instructions).toContain('"type": "tool_call"');
     expect(prompt.instructions).toContain('send_text_with_face');
     expect(prompt.instructions).toContain('当使用 `poke_sender` 时');
-    expect(prompt.input).toContain('# 第二章节: Outside Context Prompt');
-    expect(prompt.input.indexOf('## 2.1 Skill Prompt')).toBeLessThan(
-      prompt.input.indexOf('## 2.2 Tool Prompt'),
+    expect(prompt.instructions.indexOf('## 2.1 Skill Prompt')).toBeLessThan(
+      prompt.instructions.indexOf('## 2.2 Tool Prompt'),
     );
-    expect(prompt.input).toContain('### 2.2.1 get_recent_messages');
+    expect(prompt.instructions).toContain('### 2.2.1 get_recent_messages');
+    expect(prompt.input).not.toContain('# 第二章节: Outside Context Prompt');
+    expect(prompt.input).toContain('<run_state>');
+    expect(prompt.input).toContain('phase: initial_observe');
+    expect(prompt.input).toContain('tool_budget: 0/3');
+    expect(prompt.input).toContain('<decision_history>');
     expect(prompt.input).toContain('当前轮次：1/4');
-    expect(prompt.input).toContain('可请求Skill目录');
-    expect(prompt.input).toContain('用于 QQ 回复');
+    expect(prompt.input).not.toContain('可请求Skill目录');
+    expect(prompt.input).not.toContain('用于 QQ 回复');
     expect(prompt.input).toContain('# 第三章节: Runtime Observation');
     expect(prompt.input).toContain('用户消息文本：你好');
   });
 
-  test('Harness Prompt在Skill启用后仅在观察中包含正文', () => {
+  test('Harness Prompt在Skill启用后仅在instruction第二章包含正文', () => {
     const event = createChatEvent();
     const rootPath = join(tmpdir(), `harness-skill-doc-${Date.now()}`);
     mkdirSync(join(rootPath, 'references'), { recursive: true });
@@ -261,29 +266,42 @@ describe('Agent Runtime Prompt组织', () => {
           },
         },
       ],
+      promptState: createPromptState({
+        phase: 'skill_loaded',
+        enabledSkillNames: ['qq-chat'],
+        decisionHistory: [
+          {
+            turnIndex: 1,
+            decisionType: 'skill_call',
+            target: 'qq-chat',
+            success: true,
+            reason: '需要群聊方法论',
+          },
+        ],
+      }),
       turnIndex: 2,
       maxTurns: 4,
       toolCallCount: 0,
       maxToolCalls: 3,
     });
 
-    expect(prompt.instructions).not.toContain('可请求Skill目录');
-    expect(prompt.instructions).not.toContain('<skill_document');
+    expect(prompt.instructions).toContain('可请求Skill目录');
+    expect(prompt.instructions).toContain('<skill_document name="qq-chat"');
     expect(prompt.instructions).not.toContain('能力说明：');
-    expect(prompt.instructions).not.toContain('群聊回复短一点。');
-    expect(prompt.input).toContain('可请求Skill目录');
-    expect(prompt.input).toContain('<skill_document name="qq-chat"');
-    expect(prompt.input).toContain('"schemaVersion": "ye-kitty.skill.prompt.v1"');
-    expect(prompt.input).toContain('skill:qq-chat#body');
-    expect(prompt.input).toContain(
+    expect(prompt.instructions).toContain('群聊回复短一点。');
+    expect(prompt.instructions).toContain('"schemaVersion": "ye-kitty.skill.prompt.v1"');
+    expect(prompt.instructions).toContain('skill:qq-chat#body');
+    expect(prompt.instructions).toContain(
       '当你认为任何时候有需要读取 reference 文件时，返回 `skill_reference_call`',
     );
-    expect(prompt.input).toContain('"referenceAccess"');
-    expect(prompt.input).toContain('"type": "skill_reference_call"');
-    expect(prompt.input).toContain('"path": "examples.md"');
-    expect(prompt.input).toContain('<skill_body format="markdown">');
-    expect(prompt.input).toContain('群聊回复短一点。');
-    expect(prompt.input).not.toContain('参考正文不应提前读取。');
+    expect(prompt.instructions).toContain('"referenceAccess"');
+    expect(prompt.instructions).toContain('"type": "skill_reference_call"');
+    expect(prompt.instructions).toContain('"path": "examples.md"');
+    expect(prompt.instructions).toContain('<skill_body format="markdown">');
+    expect(prompt.instructions).not.toContain('参考正文不应提前读取。');
+    expect(prompt.input).not.toContain('可请求Skill目录');
+    expect(prompt.input).not.toContain('<skill_document name="qq-chat"');
+    expect(prompt.input).not.toContain('群聊回复短一点。');
   });
 
   test('Harness Prompt在reference读取后注入结构化引用文档', () => {
@@ -310,19 +328,23 @@ describe('Agent Runtime Prompt组织', () => {
           },
         },
       ],
+      promptState: createPromptState({
+        phase: 'reference_loaded',
+        loadedReferenceKeys: ['chat-style:examples.md'],
+      }),
       turnIndex: 3,
       maxTurns: 4,
       toolCallCount: 0,
       maxToolCalls: 3,
     });
 
-    expect(prompt.instructions).not.toContain('参考示例正文。');
-    expect(prompt.input).toContain(
+    expect(prompt.instructions).toContain(
       '<skill_reference_document skill="chat-style" path="examples.md"',
     );
-    expect(prompt.input).toContain('"schemaVersion": "ye-kitty.skill.reference.v1"');
-    expect(prompt.input).toContain('<reference_body format="markdown">');
-    expect(prompt.input).toContain('参考示例正文。');
+    expect(prompt.instructions).toContain('"schemaVersion": "ye-kitty.skill.reference.v1"');
+    expect(prompt.instructions).toContain('<reference_body format="markdown">');
+    expect(prompt.instructions).toContain('参考示例正文。');
+    expect(prompt.input).not.toContain('参考示例正文。');
   });
 
   test('Outside Context中Skill Prompt位于Tool Prompt之前', () => {
@@ -343,15 +365,18 @@ describe('Agent Runtime Prompt组织', () => {
         { type: 'user_event', event: createChatEvent() },
         { type: 'skill_catalog', skills: [] },
       ],
+      promptState: createPromptState(),
       turnIndex: 1,
       maxTurns: 4,
       toolCallCount: 0,
       maxToolCalls: 3,
     });
 
-    expect(prompt.input.indexOf('## 2.1 Skill Prompt')).toBeLessThan(
-      prompt.input.indexOf('## 2.2 Tool Prompt'),
+    expect(prompt.instructions.indexOf('## 2.1 Skill Prompt')).toBeLessThan(
+      prompt.instructions.indexOf('## 2.2 Tool Prompt'),
     );
+    expect(prompt.input).not.toContain('## 2.1 Skill Prompt');
+    expect(prompt.input).not.toContain('## 2.2 Tool Prompt');
   });
 
   test('无Skill时仍能生成Prompt', () => {
@@ -383,5 +408,51 @@ function createChatEvent(): ChatEventContract {
       mentions: [],
     },
     receivedAt: new Date('2026-07-02T00:00:00.000Z'),
+  };
+}
+
+function createPromptState(
+  input: {
+    readonly phase?:
+      | 'initial_observe'
+      | 'skill_loaded'
+      | 'reference_loaded'
+      | 'tool_observing'
+      | 'ready_to_decide'
+      | 'finalized'
+      | 'fallback'
+      | 'human_review';
+    readonly enabledSkillNames?: readonly string[];
+    readonly loadedReferenceKeys?: readonly string[];
+    readonly decisionHistory?: readonly {
+      readonly turnIndex: number;
+      readonly decisionType:
+        'tool_call' | 'skill_call' | 'skill_reference_call' | 'reply' | 'ignore' | 'human_review';
+      readonly target?: string;
+      readonly success?: boolean;
+      readonly reason: string;
+    }[];
+  } = {},
+) {
+  return {
+    traceId: 'agent-run:test',
+    phase: input.phase ?? 'initial_observe',
+    budget: {
+      turnIndex: 1,
+      maxTurns: 4,
+      toolCallCount: 0,
+      maxToolCalls: 3,
+      skillReferenceCount: input.loadedReferenceKeys?.length ?? 0,
+      maxSkillReferences: 3,
+      decisionErrorCount: 0,
+    },
+    context: {
+      availableSkillNames: ['qq-chat'],
+      enabledSkillNames: input.enabledSkillNames ?? [],
+      loadedReferenceKeys: input.loadedReferenceKeys ?? [],
+      visibleToolNames: ['get_recent_messages'],
+      latestObservation: '尚无工具结果或错误观察。',
+    },
+    decisionHistory: input.decisionHistory ?? [],
   };
 }

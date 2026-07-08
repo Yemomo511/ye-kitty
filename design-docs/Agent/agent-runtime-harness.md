@@ -81,15 +81,15 @@ flowchart TD
 
 ### Prompt 三章治理
 
-MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协议、可变的外界上下文和运行观察拆开治理。第一章 System Prompt 只承载最高优先级约束和 JSON 输出协议；第二章 Outside Context Prompt 承载 Skill Prompt 与 Tool Prompt；第三章 Runtime Observation 承载本轮事件、工具结果和错误恢复信息。
+MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协议、稳定外界能力目录和每轮运行观察拆开治理。第一章 System Prompt 只承载最高优先级约束、状态机转移和 JSON 输出协议；第二章 Outside Context Prompt 维护在 `instructions` 中，承载 Skill Prompt 与 Tool Prompt；第三章 Runtime Observation 维护在 `input` 中，只承载本轮显式状态、用户事件、工具结果和错误恢复信息。
 
-1. 第一章 System Prompt：强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`skill_reference_call`、`tool_call`、`reply`、`ignore`、`human_review` 六类决策。
-2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后。Skill 目录只展示 `name` 与 `description`；已启用 Skill 正文和 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
-3. 第三章 Runtime Observation：承载用户事件、当前轮次、工具结果和决策错误。Skill 和 Tool 的具体目录不再散落在运行观察中。
+1. 第一章 System Prompt：拆分为宪法约束、状态机约束和 JSON 行动契约；强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`skill_reference_call`、`tool_call`、`reply`、`ignore`、`human_review` 六类决策。
+2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后，并随 `instructions` 传入模型。Skill 目录只展示 `name` 与 `description`；已启用 Skill 正文和 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
+3. 第三章 Runtime Observation：承载 `<run_state>`、`<decision_history>`、用户事件、当前轮次、工具结果和决策错误，并作为每次 Agent 循环的 `input`。Skill 和 Tool 的具体目录不再散落在运行观察中。
 
-这套分章参考 DeepAgent middleware 的渐进式披露思路：第一眼只给 Skill 索引，完整 Skill 由模型请求后进入后续上下文。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
+这套分章参考 DeepAgents 的状态分层、渐进式披露和上下文压缩思想：稳定宪法、Skill 目录和 Tool 目录由 `instructions` 维护，运行状态由 Harness 显式维护并在每轮 `input` 中渲染成快照，完整 Skill 由模型请求后进入后续 instruction 上下文。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
 
-第一章运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md`。第二章由 `outside-context-prompt.ts` 组装 `skill.prompt.ts` 和 `tool.prompt.ts`。第三章由 `conversation-renderer.ts` 渲染运行观察。后续新增系统约束时应优先修改 Markdown；新增 Skill/Tool 目录结构时应优先修改对应 TS Prompt 模块。
+第一章运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md`。第二章由 `outside-context-prompt.ts` 组装 `skill.prompt.ts` 和 `tool.prompt.ts`，并由 `composeHarnessPrompt()` 拼入 `instructions`。第三章由 `harness.prompt.ts` 渲染 `HarnessPromptState`，并由 `conversation-renderer.ts` 渲染事件与观察，最终作为每轮 `input`。后续新增系统约束时应优先修改 Markdown；新增 Skill/Tool 目录结构时应优先修改对应 TS Prompt 模块。
 
 ## 关键实现
 
@@ -98,6 +98,7 @@ MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协
 - 入口：`packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts`
 - 职责：控制一次 Agent 运行的主循环，组织 Observation、Runner 决策、权限判断、工具执行和最终结果。
 - 重要细节：MVP 默认限制 `maxTurns=100`、`maxToolCalls=3`；Runner 单次决策超时继续复用 `YE_KITTY_AGENT_REPLY_TIMEOUT_MS`；每轮循环通过结构化日志记录。
+- 状态细节：Harness 内部维护显式 `HarnessPromptState`，包含 `phase`、预算、已启用 Skill、已读取 reference、可见工具、最近观察和决策历史；Prompt 只渲染状态快照，不把 `conversationMessages` 当成隐式状态机。
 - Skill 细节：Harness 内部维护 `conversationMessages`、已启用 Skill 和已读取 reference；`skill_call` 与 `skill_reference_call` 不消耗工具预算，但仍受最大轮次和单次运行 reference 次数限制。
 - 边界：不直接发送 QQ 消息，不直接绕过 `risk/actions` 执行平台动作。
 
@@ -126,7 +127,7 @@ MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协
 
 - 入口：`packages/kitty-service/src/services/agent-runtime/ports/tool-registry.port.ts`、`packages/kitty-service/src/services/agent-runtime/ports/tool-executor.port.ts`、`packages/kitty-service/src/services/agent-runtime/application/runtime-tools.ts`
 - 职责：`ToolRegistry` 暴露工具元信息，`ToolExecutor` 执行经过授权的工具调用。
-- 重要细节：MVP 已实现 `get_recent_messages` 只读工具，私聊固定读取最近 100 条消息，群聊固定读取最近 50 条消息，输出转成中文 Observation。
+- 重要细节：MVP 已实现 `get_recent_messages` 只读工具，私聊和群聊都固定读取最近 100 条消息，输出转成中文 Observation。
 - 边界：MCP、内置工具、长期记忆工具都只是工具来源，不能成为信任边界。
 
 ### 模块六：PermissionPolicy
@@ -151,6 +152,7 @@ packages/kitty-service/src/services/agent-runtime/
     agent-decision.ts
     agent-conversation-message.ts
     agent-observation.ts
+    harness-prompt-state.ts
     skill-reference.ts
     skill-selection-context.ts
     tool.ts
@@ -183,6 +185,7 @@ packages/kitty-service/src/services/agent-runtime/
 | `AgentRuntimeRunResult`        | 输出 | MVP 返回 `reply`、`ignore` 或 `human_review`。                      |
 | `AgentDecision`                | 双向 | Runner 输出给 Harness 的结构化决策，包含 Skill、工具和最终决策。    |
 | `AgentConversationMessage`     | 输入 | Harness 渲染给 Runner 的平台无关 Observation 消息模型。             |
+| `HarnessPromptState`           | 输入 | Harness 渲染给 Runner 的显式状态快照，包含 phase、预算和决策历史。  |
 | `SkillMetadata`                | 输入 | 启动期扫描的 Skill 元信息，首轮目录只渲染 `name` 和 `description`。 |
 | `SkillContent`                 | 输入 | `skill_call` 命中后按需读取并注入 Observation 的 Skill 正文。       |
 | `SkillReferenceContent`        | 输入 | `skill_reference_call` 命中后按需读取并注入 Observation 的引用。    |
@@ -278,21 +281,21 @@ SKILL.md frontmatter
 
 QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/src/services/agent-runtime/domain/qq-reply-action.ts`。模型只能在 `reply.actions` 中声明项目允许的动作，不能指定任意群、任意好友、任意消息或任意 NapCat action；`QqReplyActionExecutor` 会把动作绑定到当前收到的 QQ 消息上下文，再交给 `QqBotClientPort`。
 
-群聊触发采用保守门禁：`QqReplyEventSubscriber` 只把明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息交给 Agent，未 @ 或只 @ 其他人的普通群聊直接跳过。私聊仍由 QQ 好友白名单控制，不要求 @。
+群聊触发采用节奏门禁：`QqReplyEventSubscriber` 会先把白名单群聊消息写入共享消息池，再判断是否触发 Agent。明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息立即触发；未 @ 群聊只有命中 `design-docs/QQ/chat-time.md` 中的随机回复片段，或回复后计时计数器达标时才触发。节奏门控触发的未 @ 群聊会带上 `required_group_reply` 意图，Harness 必须要求模型先调用 `get_recent_messages` 读取最近 100 条群消息，再输出 `reply`，不能返回 `ignore`。私聊仍由 QQ 好友白名单控制，不要求 @。
 
 执行层会对文本发送做兜底去重：当模型同时输出外层 `reply.text` 和同内容的 `send_text` 或 `send_text_with_face` 文本段时，只发送一次，避免群聊出现相同内容重复回复。
 
 目标 QQ 回复动作：
 
-| 动作               | 平台消息段或动作         | 说明                                                                                                            |
-| ------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `send_msg`         | NapCat `send_msg`        | 统一发送普通 QQ 消息，`message` 使用 OneBot 11 混合消息结构，由执行层补齐当前会话目标、触发消息引用和发送者 @。 |
-| `poke_sender`      | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                                            |
-| `react_to_message` | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                                                |
+| 动作               | 平台消息段或动作         | 说明                                                                                                                                              |
+| ------------------ | ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `send_msg`         | NapCat `send_msg`        | 统一发送普通 QQ 消息，`message` 使用 OneBot 11 混合消息结构，由执行层补齐当前会话目标；文字类消息补齐触发消息引用和发送者 @，自定义表情单独发送。 |
+| `poke_sender`      | `group_poke/friend_poke` | 只戳当前消息发送者；一旦使用，本轮不再发送文字、表情或其他发送动作。                                                                              |
+| `react_to_message` | `set_msg_emoji_like`     | 只对当前收到的消息添加表情回应。                                                                                                                  |
 
 `send_msg` 设计为替代 `send_text`、`send_text_with_face`、`send_face`、`send_custom_image` 和 `send_market_face` 的统一消息出口。模型只允许声明消息内容，不能声明 `message_type`、`group_id`、`user_id` 或 `reply` 消息段；这些字段和上下文消息段由 `QqReplyActionExecutor` 根据当前 `QqChatMessageEvent` 补齐。群聊补 `message_type: "group"` 和当前群号，私聊补 `message_type: "private"` 和当前好友号。
 
-所有 Agent 普通外发消息只要最终通过 `send_msg` 发送，执行层都会在消息段最前面注入 `reply` 和 `at`：`reply` 引用当前触发消息 `message.id`，`at` 提醒当前触发消息发送者。这个规则覆盖纯文本、内置表情、商城表情、自定义表情、图片和后续文件类消息段；`poke_sender` 和 `react_to_message` 不经过 `send_msg`，因此不注入引用和 @。如果模型已经在 `send_msg.message` 中 @ 当前发送者，执行层只保留一次发送者 @，避免重复提醒。
+所有 Agent 普通文字类外发消息只要最终通过 `send_msg` 发送，执行层都会在消息段最前面注入 `reply` 和 `at`：`reply` 引用当前触发消息 `message.id`，`at` 提醒当前触发消息发送者。这个规则覆盖纯文本、内置表情和商城表情；自定义表情使用 `image` 段单独发送，不注入引用和 @，避免表情消息重复提醒。若模型把文字和自定义表情放在同一个 `send_msg.message`，执行层会兜底拆成“文字带上下文”和“自定义表情裸发”两次发送。`poke_sender` 和 `react_to_message` 不经过 `send_msg`，因此不注入引用和 @。如果模型已经在文字类 `send_msg.message` 中 @ 当前发送者，执行层只保留一次发送者 @，避免重复提醒。
 
 NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`、`group_id`、`message`、`auto_escape`、`source`、`news`、`summary`、`prompt`、`timeout`。当前 Agent Harness 只接收 `message`，目标字段由运行时补齐，其余发送控制字段暂不对模型开放。
 
@@ -303,26 +306,26 @@ NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`
 1. `qq-chat` Skill 暴露 `send_msg` JSON 结构，禁止模型输出 `send_group_msg`、`send_private_msg` 或任意 HTTP 调用。
 2. `harness-runtime.prompt.md` 将 `reply.actions` 白名单调整为 `send_msg`、`poke_sender`、`react_to_message`。
 3. `parseQqReplyAction` 新增 `send_msg`，保留 OneBot 11 内容消息段结构，过滤空消息、模型手写 `reply` 和会话目标字段。
-4. `QqReplyActionExecutor` 仍处理 `poke_sender` 独占；普通回复统一调用 `QqBotClientPort.sendMessage`，并在每次 `send_msg` 前补齐当前触发消息 `reply` 和发送者 `at`。
+4. `QqReplyActionExecutor` 仍处理 `poke_sender` 独占；普通回复统一调用 `QqBotClientPort.sendMessage`，文字类 `send_msg` 补齐当前触发消息 `reply` 和发送者 `at`，自定义表情 `image` 段单独发送。
 5. `QqBotClientPort` 和 `OneBotWsExternalActionApi` 合并文字、图片、内置表情、商城表情发送入口，最终统一发 NapCat `send_msg`。
 6. RunTrace 记录模型原始 `send_msg`、运行时补齐后的参数摘要、NapCat 响应和错误。
 7. 单元测试覆盖消息段透传、目标字段过滤、自定义表情图片段、触发消息引用、发送者 @ 去重、戳一戳独占和旧动作兼容迁移。
 
 ## 自定义表情理解与选择
 
-自定义表情采用“平台读取、视觉理解、目录缓存、视觉推荐、聊天最终决策”的链路。`OneBotWsExternalActionApi.fetchCustomFaces` 只调用 NapCat `fetch_custom_face` 并归一化可发送资源；`CustomFaceCatalogService` 调用独立视觉 Agent 生成中文描述，并把结果缓存为聊天 Agent 可读取的目录。聊天 Agent 不直接理解图片；当它需要自定义表情时，通过 `get_custom_faces` 提交表情需求，视觉 Agent 基于已缓存描述推荐候选，聊天 Agent 再用 `send_msg` 的 `image` 段发送工具返回的 `file`。
+自定义表情采用“平台读取、视觉理解、目录缓存、聊天最终决策”的链路。`OneBotWsExternalActionApi.fetchCustomFaces` 只调用 NapCat `fetch_custom_face` 并归一化可发送资源；`CustomFaceCatalogService` 只在启动期调用独立视觉 Agent 生成中文描述，并把结果缓存为聊天 Agent 可读取的目录。聊天 Agent 不直接理解图片；当它需要自定义表情时，通过 `get_custom_faces` 读取启动期缓存，再根据工具返回的内容、情绪、适用场景和 `file` 自行选择是否用 `send_msg` 的 `image` 段发送。
 
-启动期由 `packages/kitty-service/scripts/start-platform-qq.ts` 组装 `CustomFaceCatalogService`。NapCat 连接建立后触发一次刷新；缓存为空且聊天 Agent 调用 `get_custom_faces` 时，会再尝试一次懒刷新。视觉 Agent 使用 `YE_KITTY_VISION_AGENT_MODEL`、`YE_KITTY_VISION_AGENT_API_KEY`、`YE_KITTY_VISION_AGENT_BASE_URL` 和 `YE_KITTY_VISION_AGENT_TIMEOUT_MS` 独立配置；未配置视觉模型或单张表情理解失败时，目录保留可发送表情，并用平台 `summary/name` 生成低置信度降级描述。
+启动期由 `packages/kitty-service/scripts/start-platform-qq.ts` 组装 `CustomFaceCatalogService`。NapCat 连接建立后触发一次刷新；后续聊天 Agent 调用 `get_custom_faces` 时只读取启动期缓存，不再重新拉取平台自定义表情、重新理解图片或调用视觉 Agent 推荐表情，默认同一进程会话内自定义表情列表不变化。视觉 Agent 使用 `YE_KITTY_VISION_AGENT_MODEL`、`YE_KITTY_VISION_AGENT_API_KEY`、`YE_KITTY_VISION_AGENT_BASE_URL` 和 `YE_KITTY_VISION_AGENT_TIMEOUT_MS` 独立配置；未配置视觉模型或单张表情理解失败时，目录保留可发送表情，并用平台 `summary/name` 生成低置信度降级描述。NapCat 拉取失败、目录为空或工具读取异常时，`get_custom_faces` 返回中文降级观察，让聊天 Agent 可以用网络不好、暂时看不到图片或无法理解表情等方式自然回复，不中断 Harness。
 
 ## 工具体系
 
 第一阶段内置工具建议：
 
-| 工具                  | 风险等级 | 说明                                                            |
-| --------------------- | -------- | --------------------------------------------------------------- |
-| `get_recent_messages` | low      | 已实现。读取当前会话最近消息，帮助 Agent 判断上下文和是否回复。 |
-| `get_custom_faces`    | low      | 已实现。按聊天需求返回视觉 Agent 推荐后的 QQ 自定义表情候选。   |
-| `search_memory`       | medium   | 后续阶段。查询长期记忆或项目知识库。                            |
+| 工具                  | 风险等级 | 说明                                                                 |
+| --------------------- | -------- | -------------------------------------------------------------------- |
+| `get_recent_messages` | low      | 已实现。读取当前会话最近消息，帮助 Agent 判断上下文和是否回复。      |
+| `get_custom_faces`    | low      | 已实现。读取启动期缓存的 QQ 自定义表情目录，异常时返回中文降级观察。 |
+| `search_memory`       | medium   | 后续阶段。查询长期记忆或项目知识库。                                 |
 
 工具调用过程：
 
@@ -438,8 +441,9 @@ QqReplyEventSubscriber
 ## 测试方案
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
-- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 静默、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射，以及所有 `send_msg` 自动注入触发消息引用和发送者 @。
-- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议、自动引用提醒说明和戳一戳独占说明。
+- 状态机测试：覆盖 `skill_call -> skill_loaded`、`skill_reference_call -> reference_loaded`、`tool_call -> tool_observing`、reference 超限后进入 `ready_to_decide`，并断言 `<run_state>`、预算和决策历史进入 Prompt。
+- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 先入消息池再走节奏门控、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射、文字类 `send_msg` 自动注入触发消息引用和发送者 @，以及自定义表情 `image` 段单独发送。
+- Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议、自动引用提醒说明、自定义表情单独发送说明和戳一戳独占说明。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、视觉推荐和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
@@ -466,8 +470,11 @@ QqReplyEventSubscriber
 | ---------- | ------ | ------------------------------------------------------------------------------------------------------------------- |
 | 2026-07-06 | 设计中 | 已将第二版 Harness Agent 的循环、Skill 协议、工具治理、权限、日志、迁移和验收方案落入设计文档，并同步到 `Task.md`。 |
 | 2026-07-06 | 待验收 | MVP 已实现 Harness 主循环、OpenAI Harness Runner、进程内 `get_recent_messages`、Prompt 分层治理和 Skill 扩展字段。  |
-| 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 进入 Observation/Input。             |
+| 2026-07-06 | 待验收 | 完成平台无关 Skill 渐进式注入：目录仅含 `name`/`description`，正文和 reference 由 Harness 按需注入 Prompt。         |
 | 2026-07-07 | 待验收 | 完成 Prompt 三章治理：Skill Prompt 与 Tool Prompt 抽离到第二章 Outside Context，并引入结构化 Skill 文档。           |
 | 2026-07-07 | 待验收 | 扩展 QQ 受控回复动作，新增 NapCat `mface` 商城表情发送能力，并补充解析、执行和 OneBot 映射测试。                    |
 | 2026-07-07 | 待验收 | 新增自定义表情目录工具、独立视觉 Agent 配置和 `send_msg` 图片段发送能力，支持聊天 Agent 自主选择自定义表情。        |
 | 2026-07-07 | 待验收 | 所有 Agent 普通 `send_msg` 回复自动引用触发消息并 @ 当前发送者，模型不能手写任意 `reply` 消息段。                   |
+| 2026-07-08 | 待验收 | 调整自定义表情发送方式：文字消息保留引用和 @，自定义表情 `image` 段单独发送且不携带 @/reply 上下文。                |
+| 2026-07-08 | 待验收 | 优化 Harness Prompt 宪法与状态机：第一章拆成宪法、状态机和行动契约，第三章渲染显式 `HarnessPromptState`。           |
+| 2026-07-08 | 待验收 | 调整 Prompt 承载边界：第二章 Outside Context 进入 `instructions`，第三章 `input` 只保留本轮循环观察。               |

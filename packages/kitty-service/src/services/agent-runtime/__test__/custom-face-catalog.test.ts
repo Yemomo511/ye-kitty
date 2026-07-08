@@ -36,11 +36,18 @@ describe('CustomFaceCatalogService', () => {
         file: 'custom-face://cat',
         content: '一只猫猫震惊地看着屏幕',
         suitableScenes: ['表达震惊', '吐槽离谱发言'],
-        recommendationReason: '需求与震惊情绪最匹配',
-        recommendationScore: 0.91,
+      }),
+      expect.objectContaining({
+        id: 'face-2',
+        file: 'custom-face://sad',
+        content: '一只猫猫看起来很伤心',
       }),
     ]);
     expect(catalog.list({ limit: 10 })).toHaveLength(2);
+    expect(catalog.getSnapshot()).toMatchObject({
+      status: 'ready',
+      faceCount: 2,
+    });
   });
 
   test('视觉理解失败时保留可发送表情并写入降级描述', async () => {
@@ -68,9 +75,42 @@ describe('CustomFaceCatalogService', () => {
     expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('自定义表情理解失败'));
   });
 
-  test('缓存为空时工具触发懒刷新并返回紧凑目录', async () => {
+  test('启动期全量刷新失败时工具返回降级观察且不抛异常', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const catalog = new CustomFaceCatalogService(
-      createBotClient([{ id: 'face-1', file: 'custom-face://cat', summary: '猫猫震惊' }]),
+      createBotClient([], {
+        async fetchCustomFaces() {
+          throw new Error('NapCat暂时不可用');
+        },
+      }),
+      createVisionAgent(),
+    );
+
+    await expect(catalog.refresh()).rejects.toThrow('NapCat暂时不可用');
+
+    const executor = new BuiltinRuntimeToolExecutor(new InMemoryConversationHistory(), {
+      customFaceCatalog: catalog,
+    });
+    const result = await executor.execute({
+      event: createChatEvent(),
+      toolName: GET_CUSTOM_FACES_TOOL_NAME,
+      input: { query: '猫猫', limit: 5 },
+    });
+
+    expect(result).toMatchObject({
+      success: true,
+      observation: expect.stringContaining('当前自定义表情目录刷新失败'),
+      structuredData: [],
+    });
+    expect(result.observation).toContain('NapCat暂时不可用');
+  });
+
+  test('缓存为空时工具只返回空目录且不触发懒刷新', async () => {
+    const fetchCustomFaces = vi.fn(async () => [
+      { id: 'face-1', file: 'custom-face://cat', summary: '猫猫震惊' },
+    ]);
+    const catalog = new CustomFaceCatalogService(
+      createBotClient([], { fetchCustomFaces }),
       createVisionAgent(),
     );
     const registry = new BuiltinRuntimeToolRegistry({ customFaceCatalog: catalog });
@@ -90,20 +130,23 @@ describe('CustomFaceCatalogService', () => {
 
     expect(result).toMatchObject({
       success: true,
-      observation: expect.stringContaining('可用自定义表情 1 个'),
+      observation: '当前自定义表情目录为空，没有可用自定义表情。你可以改用文字或 QQ 内置表情回复。',
     });
-    expect(result.structuredData).toEqual([
-      expect.objectContaining({
-        id: 'face-1',
-        file: 'custom-face://cat',
-      }),
-    ]);
+    expect(result.structuredData).toEqual([]);
+    expect(fetchCustomFaces).not.toHaveBeenCalled();
   });
 
-  test('工具读取表情时由视觉Agent根据需求推荐候选', async () => {
+  test('工具读取表情时只读取启动期缓存且不调用视觉推荐', async () => {
+    const selectFaces = vi.fn(async () => [
+      {
+        id: 'face-1',
+        reason: '不应在聊天期调用',
+        score: 0.99,
+      },
+    ]);
     const catalog = new CustomFaceCatalogService(
       createBotClient([{ id: 'face-1', file: 'custom-face://cat', summary: '猫猫震惊' }]),
-      createVisionAgent(),
+      createVisionAgent({ selectFaces }),
     );
     await catalog.refresh();
     const executor = new BuiltinRuntimeToolExecutor(new InMemoryConversationHistory(), {
@@ -118,20 +161,48 @@ describe('CustomFaceCatalogService', () => {
 
     expect(result).toMatchObject({
       success: true,
-      observation: expect.stringContaining('推荐理由=没有完全哭哭，但这个表情最适合接住情绪'),
+      observation: expect.stringContaining('来自启动期缓存'),
     });
     expect(result.structuredData).toEqual([
       expect.objectContaining({
         id: 'face-1',
         file: 'custom-face://cat',
-        recommendationReason: '没有完全哭哭，但这个表情最适合接住情绪',
-        recommendationScore: 0.74,
       }),
     ]);
+    expect(selectFaces).not.toHaveBeenCalled();
+  });
+
+  test('自定义表情工具执行异常时返回失败观察而不是抛出', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const throwingCatalog = {
+      async recommend() {
+        throw new Error('缓存读取异常');
+      },
+      getSnapshot() {
+        return { status: 'ready' as const, faceCount: 0 };
+      },
+    } as unknown as CustomFaceCatalogService;
+    const executor = new BuiltinRuntimeToolExecutor(new InMemoryConversationHistory(), {
+      customFaceCatalog: throwingCatalog,
+    });
+
+    await expect(
+      executor.execute({
+        event: createChatEvent(),
+        toolName: GET_CUSTOM_FACES_TOOL_NAME,
+        input: { query: '猫猫', limit: 5 },
+      }),
+    ).resolves.toMatchObject({
+      success: false,
+      observation: expect.stringContaining('自定义表情目录暂时不可用'),
+      errorMessage: '缓存读取异常',
+    });
   });
 });
 
-function createVisionAgent(): CustomFaceVisionAgentPort {
+function createVisionAgent(
+  overrides: Partial<CustomFaceVisionAgentPort> = {},
+): CustomFaceVisionAgentPort {
   return {
     async describeFace(face) {
       return {
@@ -157,10 +228,14 @@ function createVisionAgent(): CustomFaceVisionAgentPort {
         },
       ];
     },
+    ...overrides,
   };
 }
 
-function createBotClient(faces: readonly QqCustomFaceResource[]): QqBotClientPort {
+function createBotClient(
+  faces: readonly QqCustomFaceResource[],
+  overrides: Partial<Pick<QqBotClientPort, 'fetchCustomFaces'>> = {},
+): QqBotClientPort {
   return {
     async sendTextMessage() {},
     async sendMessageSegments() {},
@@ -169,6 +244,7 @@ function createBotClient(faces: readonly QqCustomFaceResource[]): QqBotClientPor
     async fetchCustomFaces() {
       return faces;
     },
+    ...overrides,
   };
 }
 

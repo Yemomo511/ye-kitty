@@ -176,18 +176,48 @@ function createObservation(input: {
   readonly tools: AgentObservation['tools'];
   readonly extraMessages?: readonly AgentObservation['conversationMessages'][number][];
 }): AgentObservation {
+  const turnIndex = input.extraMessages && input.extraMessages.length > 0 ? 2 : 1;
+  const conversationMessages: AgentObservation['conversationMessages'] = [
+    { type: 'user_event', event: input.event },
+    { type: 'skill_catalog', skills: input.availableSkills },
+    ...(input.extraMessages ?? []),
+  ];
   return {
     event: input.event,
     availableSkills: input.availableSkills,
     enabledSkills: input.enabledSkills ?? [],
     tools: input.tools,
     toolResults: [],
-    conversationMessages: [
-      { type: 'user_event', event: input.event },
-      { type: 'skill_catalog', skills: input.availableSkills },
-      ...(input.extraMessages ?? []),
-    ],
-    turnIndex: input.extraMessages && input.extraMessages.length > 0 ? 2 : 1,
+    conversationMessages,
+    promptState: {
+      traceId: `eval:${input.event.id}`,
+      phase:
+        input.extraMessages && input.extraMessages.length > 0
+          ? 'tool_observing'
+          : 'initial_observe',
+      budget: {
+        turnIndex,
+        maxTurns: 100,
+        toolCallCount: 0,
+        maxToolCalls: 3,
+        skillReferenceCount: conversationMessages.filter(
+          (message) => message.type === 'skill_reference',
+        ).length,
+        maxSkillReferences: 3,
+        decisionErrorCount: 0,
+      },
+      context: {
+        availableSkillNames: input.availableSkills.map((skill) => skill.name),
+        enabledSkillNames: (input.enabledSkills ?? []).map((skill) => skill.metadata.name),
+        loadedReferenceKeys: conversationMessages
+          .filter((message) => message.type === 'skill_reference')
+          .map((message) => `${message.reference.skill.name}:${message.reference.referencePath}`),
+        visibleToolNames: input.tools.map((tool) => tool.name),
+        latestObservation: '评估用例构造的初始观察。',
+      },
+      decisionHistory: [],
+    },
+    turnIndex,
     maxTurns: 100,
     toolCallCount: 0,
     maxToolCalls: 3,

@@ -10,6 +10,8 @@ import {
   DefaultSkillSelector,
   FilesystemSkillReferenceLoader,
   FilesystemSkillMarket,
+  GroupChatCadenceController,
+  InMemoryConversationHistory,
   loadQqReplyAgentConfig,
   loadCustomFaceVisionAgentConfig,
   MarkdownSkillContentLoader,
@@ -61,12 +63,16 @@ console.info(
 
 // 5. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
+const conversationHistory = new InMemoryConversationHistory();
+const groupChatCadence = new GroupChatCadenceController({ selfQqId: qqConfig.selfQqId });
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
-  createQqReplyAgent(agentConfig, skillRuntime, customFaceCatalog),
+  createQqReplyAgent(agentConfig, skillRuntime, { conversationHistory, customFaceCatalog }),
   skillRuntime,
   { selfQqId: qqConfig.selfQqId },
+  conversationHistory,
+  groupChatCadence,
 );
 
 // 6. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。

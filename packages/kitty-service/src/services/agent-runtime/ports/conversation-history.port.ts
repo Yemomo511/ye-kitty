@@ -10,8 +10,9 @@ export interface ConversationHistoryPort {
   /**
    * 写入消息
    * @param event 标准消息
+   * @returns 是否新增写入
    */
-  recordMessage(event: ChatEventContract): void;
+  recordMessage(event: ChatEventContract): boolean;
 
   /**
    * 读取最近消息

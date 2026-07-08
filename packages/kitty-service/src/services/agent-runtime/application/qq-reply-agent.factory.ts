@@ -1,4 +1,5 @@
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
+import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
 import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
@@ -30,6 +31,14 @@ export interface QqReplyAgentRuntimeConfig {
   readonly replyTimeoutMs: number;
 }
 
+/** QQ回复Agent创建依赖 */
+export interface QqReplyAgentRuntimeDependencies {
+  /** 共享会话历史 */
+  readonly conversationHistory?: ConversationHistoryPort;
+  /** 自定义表情目录 */
+  readonly customFaceCatalog?: CustomFaceCatalogService;
+}
+
 /**
  * 创建QQ回复Agent
  * @param config 运行配置
@@ -39,13 +48,13 @@ export interface QqReplyAgentRuntimeConfig {
 export function createQqReplyAgent(
   config: QqReplyAgentRuntimeConfig,
   skillContentLoader?: SkillContentLoaderPort & Partial<SkillReferenceLoaderPort>,
-  customFaceCatalog?: CustomFaceCatalogService,
+  dependencies: QqReplyAgentRuntimeDependencies = {},
 ): QqReplyAgentPort {
   const fallbackAgent = new FallbackQqReplyAgent();
   if (!config.openAiApiKey) return fallbackAgent;
 
-  const conversationHistory = new InMemoryConversationHistory();
-  const toolDependencies = { customFaceCatalog };
+  const conversationHistory = dependencies.conversationHistory ?? new InMemoryConversationHistory();
+  const toolDependencies = { customFaceCatalog: dependencies.customFaceCatalog };
   const toolRegistry = new BuiltinRuntimeToolRegistry(toolDependencies);
   const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies);
   const runner = new OpenAiHarnessAgentRunner({

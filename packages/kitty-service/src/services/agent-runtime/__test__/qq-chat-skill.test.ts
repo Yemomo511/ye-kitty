@@ -16,7 +16,7 @@ describe('qq-chat Skill动作协议', () => {
     expect(content).toContain('message');
     expect(content).toContain('react_to_message');
     expect(content).toContain('当准备戳一戳时');
-    expect(content).toContain('自动引用当前触发消息并 @ 当前发送者');
+    expect(content).toContain('自定义表情单独发送，不携带 @/reply 上下文');
     expect(content).toContain('不要手写 `reply` 段');
     expect(content).not.toContain('group_poke');
     expect(content).toContain('不要输出 `send_group_msg`');
@@ -44,11 +44,11 @@ describe('qq-chat Skill动作协议', () => {
     expect(jsonReference.content).toContain('OneBot 11 消息混合类型');
     expect(jsonReference.content).toContain('戳一戳时不要填写外层 `text`');
     expect(jsonReference.content).toContain('Agent 不能指定任意群号');
-    expect(jsonReference.content).toContain('自动补 `reply` 引用当前触发消息');
+    expect(jsonReference.content).toContain('自定义表情使用 `image` 段单独发送');
     expect(jsonReference.content).toContain('当前实现不接受模型手写 `reply`');
     expect(styleReference.content).toContain('避免打断多人对话');
     expect(styleReference.content).toContain('放在同一个 `message` 数组里');
-    expect(styleReference.content).toContain('自动引用触发消息并 @ 当前发送者');
+    expect(styleReference.content).toContain('自定义表情单独发送，不携带 @/reply 上下文');
     expect(styleReference.content).not.toContain('reply_to_message');
   });
 });
