@@ -2,7 +2,12 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import { agentEvalCases } from './cases';
 import { assertAgentDecision, type AgentEvalCaseResult } from './assertions';
-import { loadQqReplyAgentConfig, OpenAiHarnessAgentRunner } from '../src/services/agent-runtime';
+import {
+  InMemoryModelRequestPool,
+  loadQqReplyAgentConfig,
+  OpenAiCompatibleModelClient,
+  OpenAiHarnessAgentRunner,
+} from '../src/services/agent-runtime';
 import {
   reportCaseResult,
   reportEvalStart,
@@ -16,17 +21,17 @@ export async function runAgentEval(): Promise<AgentEvalSummary> {
   loadNearestEnvFile();
   const config = loadQqReplyAgentConfig();
 
-  if (!config.openAiApiKey) {
-    return reportSkipped('缺少 OPENAI_API_KEY');
+  if (config.modelPoolNodes.length === 0) {
+    return reportSkipped('缺少模型池配置');
   }
 
-  const runner = new OpenAiHarnessAgentRunner({
-    apiKey: config.openAiApiKey,
-    baseURL: config.openAiBaseUrl,
-    agentName: config.agentName,
-    model: config.agentModel,
-    timeoutMs: config.replyTimeoutMs,
-  });
+  const runner = new OpenAiHarnessAgentRunner(
+    {
+      agentName: config.agentName,
+      timeoutMs: config.replyTimeoutMs,
+    },
+    new InMemoryModelRequestPool(config.modelPoolNodes, new OpenAiCompatibleModelClient()),
+  );
 
   reportEvalStart(agentEvalCases.length);
   const results: AgentEvalCaseResult[] = [];

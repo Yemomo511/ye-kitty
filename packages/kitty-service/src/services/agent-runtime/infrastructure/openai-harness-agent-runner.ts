@@ -1,25 +1,19 @@
-import { Agent, OpenAIProvider, Runner } from '@openai/agents';
 import type { AgentDecision } from '../domain/agent-decision';
 import type { AgentObservation } from '../domain/agent-observation';
 import type { QqReplyAction } from '../ports/qq-reply-agent.port';
 import { parseQqReplyAction } from '../domain/qq-reply-action';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
+import type { ModelRequestPoolPort, ModelRequestPriority } from '../ports/model-request-pool.port';
 import { composeHarnessPrompt } from './prompt/harness.prompt';
 
 /**
  * OpenAI Harness Runner配置
  *
- * 控制底层模型、兼容服务地址和单次决策超时。
+ * 控制Agent展示名称和单次决策超时。
  */
 export interface OpenAiHarnessAgentRunnerConfig {
-  /** OpenAI API Key */
-  readonly apiKey: string;
-  /** OpenAI兼容服务地址 */
-  readonly baseURL?: string;
   /** Agent展示名称 */
   readonly agentName: string;
-  /** OpenAI模型名称 */
-  readonly model: string;
   /** 单次决策超时毫秒 */
   readonly timeoutMs: number;
 }
@@ -30,15 +24,10 @@ export interface OpenAiHarnessAgentRunnerConfig {
  * 只负责让模型输出下一步结构化决策，工具执行权留在 Harness。
  */
 export class OpenAiHarnessAgentRunner implements AgentRunnerPort {
-  private readonly runner: Runner;
-
-  constructor(private readonly config: OpenAiHarnessAgentRunnerConfig) {
-    const modelProvider = new OpenAIProvider({
-      apiKey: config.apiKey,
-      baseURL: config.baseURL,
-    });
-    this.runner = new Runner({ modelProvider });
-  }
+  constructor(
+    private readonly config: OpenAiHarnessAgentRunnerConfig,
+    private readonly modelPool: ModelRequestPoolPort,
+  ) {}
 
   /**
    * 输出下一步决策
@@ -47,13 +36,15 @@ export class OpenAiHarnessAgentRunner implements AgentRunnerPort {
    */
   async decide(observation: AgentObservation): Promise<AgentDecision> {
     const prompt = composeHarnessPrompt(this.config.agentName, observation);
-    const agent = new Agent({
-      name: this.config.agentName,
-      model: this.config.model,
+    const result = await this.modelPool.runDecision({
+      agentName: this.config.agentName,
       instructions: prompt.instructions,
+      input: prompt.input,
+      timeoutMs: this.config.timeoutMs,
+      priority: toModelRequestPriority(observation),
+      source: 'agent-runtime-harness',
     });
-    const result = await withTimeout(this.runner.run(agent, prompt.input), this.config.timeoutMs);
-    return parseAgentDecision(String(result.finalOutput ?? '').trim());
+    return parseAgentDecision(result.text);
   }
 }
 
@@ -156,18 +147,10 @@ function isRecord(input: unknown): input is Record<string, unknown> {
   return typeof input === 'object' && input !== null;
 }
 
-// 为单次模型决策增加超时。
-async function withTimeout<T>(task: Promise<T>, timeoutMs: number): Promise<T> {
-  let timeout: NodeJS.Timeout | undefined;
-  const timeoutTask = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => {
-      reject(new Error(`OpenAI Agent 决策超过 ${timeoutMs}ms`));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([task, timeoutTask]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
+// 将聊天触发语义压缩为模型请求优先级。
+function toModelRequestPriority(observation: AgentObservation): ModelRequestPriority {
+  if (observation.event.conversationType === 'private') return 'high';
+  if (observation.event.message.mentions.length > 0) return 'high';
+  if (observation.replyIntent === 'required_group_reply') return 'low';
+  return 'normal';
 }

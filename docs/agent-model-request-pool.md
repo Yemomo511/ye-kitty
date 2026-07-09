@@ -21,6 +21,8 @@
 
 第一版建议从单模型配置平滑迁移到模型节点列表。每个模型节点包含独立的访问地址、模型名、并发和限流参数。
 
+环境变量名为 `YE_KITTY_MODEL_POOL`，支持 JSON 数组，也支持 `{ "models": [...] }` 对象。
+
 ```json
 {
   "models": [
@@ -32,11 +34,9 @@
       "maxConcurrency": 3,
       "minIntervalMs": 2000,
       "maxRetries": 3,
-      "backoff": {
-        "initialMs": 2000,
-        "maxMs": 60000,
-        "multiplier": 2
-      }
+      "backoffInitialMs": 2000,
+      "backoffMaxMs": 60000,
+      "backoffMultiplier": 2
     }
   ]
 }
@@ -44,16 +44,28 @@
 
 字段说明：
 
-| 字段             | 说明                                                    |
-| ---------------- | ------------------------------------------------------- |
-| `id`             | 模型节点唯一标识，用于日志、路由和问题定位。            |
-| `baseURL`        | OpenAI 兼容服务地址。                                   |
-| `apiKey`         | 当前模型节点使用的密钥。                                |
-| `model`          | 当前模型节点的模型名称。                                |
-| `maxConcurrency` | 当前模型节点允许的最大并发请求数，默认建议为 3 或 4。   |
-| `minIntervalMs`  | 当前模型节点两次发起真实请求的最小间隔，默认建议 2 秒。 |
-| `maxRetries`     | 单次请求遇到可重试错误时的最大重试次数。                |
-| `backoff`        | 429 或临时不可用时的指数退避参数。                      |
+| 字段                | 说明                                                    |
+| ------------------- | ------------------------------------------------------- |
+| `id`                | 模型节点唯一标识，用于日志、路由和问题定位。            |
+| `baseURL`           | OpenAI 兼容服务地址。                                   |
+| `apiKey`            | 当前模型节点使用的密钥。                                |
+| `model`             | 当前模型节点的模型名称。                                |
+| `maxConcurrency`    | 当前模型节点允许的最大并发请求数，默认建议为 3 或 4。   |
+| `minIntervalMs`     | 当前模型节点两次发起真实请求的最小间隔，默认建议 2 秒。 |
+| `maxRetries`        | 单次请求遇到可重试错误时的最大重试次数。                |
+| `backoffInitialMs`  | 首次 429 后的默认退避毫秒数。                           |
+| `backoffMaxMs`      | 429 指数退避的最大毫秒数。                              |
+| `backoffMultiplier` | 每次连续 429 后的退避倍数。                             |
+
+如果未配置 `YE_KITTY_MODEL_POOL`，运行时会继续读取旧配置：
+
+```text
+OPENAI_API_KEY=...
+OPENAI_BASE_URL=...
+YE_KITTY_AGENT_MODEL=...
+```
+
+旧配置会被转换为一个 `default-openai-agent` 模型节点，保证现有部署可以平滑运行。
 
 ## 请求调度规则
 
@@ -75,6 +87,8 @@ activeCount < maxConcurrency
 
 如果某个模型节点触发 429，请求池优先读取服务端返回的 `Retry-After`。如果没有该字段，则按 `initialMs * multiplier` 递增等待时间，并限制在 `maxMs` 以内。退避状态挂在模型节点上，而不是只挂在单个请求上；这样后续请求不会继续打向已经限流的节点。
 
+当前第一版采用每个模型一个独立队列。路由会优先过滤正在退避的模型节点，再从健康节点中选择 `queue.length + activeCount` 最小的节点；如果全部节点都在退避，则选择最早恢复的节点等待。
+
 ## Harness 接入方式
 
 第一版接入后，调用方向应保持为：
@@ -88,6 +102,13 @@ AgentRuntimeHarness
 ```
 
 `AgentRuntimeHarness` 仍然只负责循环、工具、Skill、权限和最终决策协议。`AgentRunnerPort` 仍然表示“请求一次结构化模型决策”。模型请求池只处理模型调用调度，不读取 Skill、不执行工具、不决定是否回复 QQ。
+
+当前代码入口：
+
+- 端口：`packages/kitty-service/src/services/agent-runtime/ports/model-request-pool.port.ts`
+- 调度器：`packages/kitty-service/src/services/agent-runtime/application/in-memory-model-request-pool.ts`
+- 配置解析：`packages/kitty-service/src/services/agent-runtime/application/model-request-pool-config.ts`
+- OpenAI 兼容客户端：`packages/kitty-service/src/services/agent-runtime/infrastructure/openai-compatible-model.client.ts`
 
 ## 降级建议
 
