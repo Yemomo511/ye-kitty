@@ -9,7 +9,7 @@
 
 - 状态：待验收
 - 负责人：Codex
-- 最近更新：2026-07-08
+- 最近更新：2026-07-09
 - 唯一入口：`design-docs/Agent/agent-runtime-harness.md`
 
 ## 设计拆分
@@ -18,13 +18,15 @@
 | ---------------------------- | -------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md` | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、`get_custom_faces`、Prompt 三章治理、Prompt 宪法分层、第二章 instruction 化、显式 `HarnessPromptState` 状态机、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call`、`references/` 按需读取、文字类 `send_msg` 自动引用触发消息并 @ 发送者，以及自定义表情单独发送。 |
 | QQ 群聊节奏回复计时计数器    | `design-docs/QQ/chat-time.md`                | 待验收 | 新增群聊节奏门控设计：白名单群消息先进入消息池，未 @ 群聊按随机片段或回复后计时计数器触发；节奏触发时强制 Agent 读取最近 100 条群消息并回复。                                                                                                                                                                                                                          |
+| 模型请求池第一版             | `design-docs/Agent/model-request-pool-v1.md` | 设计中 | 规划从单个 OpenAI 兼容模型配置演进为模型请求池，由统一调度层负责模型路由、单节点并发、请求间隔、429 退避、队列 TTL 和失败降级。                                                                                                                                                                                                                                        |
 
 ## 开发顺序
 
 1. 确认 Harness Agent 第二版设计边界，明确 `agent-runtime` 是循环、权限、工具和审计的唯一 owner。
 2. 实现最小闭环：QQ 消息进入 Harness，模型请求读取上下文工具，工具结果回灌后输出 `reply`、`ignore` 或 `human_review`。
 3. 接入市场 Skill 协议解析和 Ye-Kitty 运行时转换，保证 Skill 只以 `name` 与 `description` 进入首轮目录，正文和引用由模型按需请求。
-4. 扩展工具治理、RunTrace、risk/actions 对接、MCP 工具来源和长期记忆工具。
+4. 设计并接入模型请求池，让 Harness 通过统一模型调度层获得结构化决策，避免单个模型入口被并发请求打爆。
+5. 扩展工具治理、RunTrace、risk/actions 对接、MCP 工具来源和长期记忆工具。
 
 ## 阻塞与风险
 
@@ -33,6 +35,9 @@
 | risk/actions 正式链路尚未落地   | Harness 的高风险动作只能停留在候选动作设计，不能直接执行完整对外动作                                  | MVP 只允许 `reply`、`ignore`、`human_review`、`get_recent_messages` 和 `get_custom_faces` 只读工具，后续在 risk/actions 落地后开放候选动作。 |
 | 市场 Skill 扩展字段存在实现差异 | Skill 可能来自 Claude Code、Codex 或其他 Agent Skills 实现，字段支持程度不同                          | 采用 Agent Skills 基线字段，未知字段只记录不阻断加载，Ye-Kitty 私有字段统一放入 `metadata.ye-kitty.*`。                                      |
 | 工具执行权限边界容易漂移        | 如果模型或 Skill 绕过 Harness 执行工具，会破坏审计和安全边界                                          | 工具执行只能经过 `ToolExecutor`，权限判断只能经过 `PermissionPolicy`，外发动作必须进入 risk/actions。                                        |
+| 模型 429 与队列积压             | 多个 QQ 消息同时触发 Harness 时，单个模型入口可能限流，队列也可能积压旧消息                           | 模型请求池按模型节点限制并发和请求间隔，遇到 429 指数退避；聊天请求必须配置 TTL，过期后降级或丢弃。                                          |
+| 模型配置迁移                    | 从单组 `OPENAI_BASE_URL` 迁移到 N 个模型节点时，配置缺失或格式错误会影响 Harness 启动                 | 第一版保留单模型配置兼容路径，模型池配置存在且合法时才优先启用模型池。                                                                       |
+| 当前分支存在未提交改动          | `openai-harness-agent-runner.ts` 和 `skills/qq-chat/SKILL.md` 已有未提交修改，容易和后续实现混淆      | 本次文档落地不回滚、不格式化、不顺手修；后续代码实现前重新核对这些改动是否属于同一需求。                                                     |
 | 本地 WebSocket 监听受限         | `pnpm check` 中 OneBot WebSocket 测试在当前环境触发 `listen EPERM: operation not permitted 127.0.0.1` | Harness 相关定向测试已通过，完整校验结果中单独记录该环境限制。                                                                               |
 
 ## 验收总览
@@ -68,3 +73,4 @@
 | 2026-07-08 | 优化 Prompt 宪法与状态机                    | 参考 DeepAgents 状态分层思想，将 Harness System Prompt 拆为宪法、状态机和行动契约，并新增显式状态快照。      |
 | 2026-07-08 | 调整 Prompt 第二章位置                      | 第二章 Outside Context 改由 instructions 维护，第三章 input 只保留每轮 Agent 循环观察。                      |
 | 2026-07-08 | 新增 QQ 群聊节奏回复计时计数器              | 群聊消息先进入共享消息池，未 @ 群聊按随机片段或回复后爆发计数触发强制回复，最近消息工具群聊窗口改为 100 条。 |
+| 2026-07-09 | 新增模型请求池第一版设计                    | 规划统一模型调度层，解决单模型入口在多消息并发、429 限流和队列积压下不稳定的问题。                           |
