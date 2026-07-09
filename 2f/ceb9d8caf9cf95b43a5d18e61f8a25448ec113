@@ -1,0 +1,30 @@
+design-docs/Agent/model-request-pool-v1.md
+  s_868bd536593454::t_7cb30a350d422f 1-153
+design-docs/Task.md
+  s_868bd536593454::t_74a7d709d4a407 12,21,28-29,38-40,76
+docs/agent-model-request-pool.md
+  s_868bd536593454::t_f82923f6643d01 1-109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2fceb9d8caf9cf95b43a5d18e61f8a25448ec113",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_868bd536593454": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f46ae-4160-7990-a60e-8ccc4f584ad9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
