@@ -62,7 +62,12 @@ function buildObservationPrompt(observation: AgentObservation): string {
       '# 第三章节: Runtime Observation',
       `当前轮次：${observation.turnIndex}/${observation.maxTurns}`,
       `已调用工具次数：${observation.toolCallCount}/${observation.maxToolCalls}`,
+      observation.batchHint
+        ? `### 消息批次说明\n${observation.batchHint}`
+        : '',
       renderConversationMessages(observation.conversationMessages),
-    ].join('\n\n'),
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
   ].join('\n');
 }

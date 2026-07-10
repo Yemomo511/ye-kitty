@@ -92,6 +92,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
         maxTurns: this.config.maxTurns,
         toolCallCount,
         maxToolCalls: this.config.maxToolCalls,
+        batchHint: input.batchHint,
       };
 
       try {

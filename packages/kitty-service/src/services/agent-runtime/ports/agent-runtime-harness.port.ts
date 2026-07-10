@@ -12,6 +12,8 @@ export interface AgentRuntimeRunInput {
   readonly event: ChatEventContract;
   /** 本轮可请求的Skill目录 */
   readonly availableSkills?: readonly SkillMetadata[];
+  /** 消息批次说明（仅当消息来自 batch 时非空） */
+  readonly batchHint?: string;
 }
 
 /**
@@ -42,6 +44,14 @@ export type AgentRuntimeRunResult =
       /** 结果类型 */
       readonly type: 'human_review';
       /** 审核原因 */
+      readonly reason: string;
+      /** 运行追踪ID */
+      readonly traceId: string;
+    }
+  | {
+      /** 结果类型 */
+      readonly type: 'capacity_error';
+      /** 过载原因 */
       readonly reason: string;
       /** 运行追踪ID */
       readonly traceId: string;

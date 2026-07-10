@@ -5,6 +5,7 @@ import {
   loadQqAccountExperimentConfig,
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
 import {
+  createActorQqReplyAgent,
   createQqReplyAgent,
   CustomFaceCatalogService,
   DefaultSkillSelector,
@@ -61,10 +62,18 @@ console.info(
 
 // 5. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
+// FEATURE_FLAG: 设置 YE_KITTY_USE_ACTOR=false 回退旧路径
+const useActor = process.env.YE_KITTY_USE_ACTOR !== 'false';
+const replyAgent = useActor
+  ? createActorQqReplyAgent(agentConfig, skillRuntime, customFaceCatalog)
+  : createQqReplyAgent(agentConfig, skillRuntime, customFaceCatalog);
+console.info(
+  `✅ [QQPlatform-Start] QQ回复Agent已创建 actorMode=${useActor}`,
+);
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
-  createQqReplyAgent(agentConfig, skillRuntime, customFaceCatalog),
+  replyAgent,
   skillRuntime,
   { selfQqId: qqConfig.selfQqId },
 );

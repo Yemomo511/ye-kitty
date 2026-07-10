@@ -17,6 +17,9 @@ export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill
 export type { SkillSelectionContext } from './domain/skill-selection-context';
 export type { AgentConversationMessage } from './domain/agent-conversation-message';
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
+export type { ActorSnapshot } from './domain/actor-snapshot';
+export type { SenderBatch } from './domain/sender-batch';
+export type { ActorState } from './domain/actor-state';
 export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
   AgentRuntimeHarnessPort,
@@ -31,6 +34,9 @@ export type { SkillSelectorPort } from './ports/skill-selector.port';
 export type { RuntimeToolExecutorPort } from './ports/tool-executor.port';
 export type { RuntimeToolRegistryPort } from './ports/tool-registry.port';
 export type { CustomFaceVisionAgentPort } from './ports/custom-face-vision-agent.port';
+export type { SnapshotStorePort } from './ports/snapshot-store.port';
+export type { EvictionPolicyPort } from './ports/eviction-policy.port';
+export type { RecoveryPolicyPort } from './ports/recovery-policy.port';
 export type {
   CustomFaceDescription,
   CustomFaceQuery,
@@ -62,9 +68,20 @@ export {
 export { QqReplyActionExecutor } from './application/qq-reply-action-executor';
 export {
   createQqReplyAgent,
+  createActorQqReplyAgent,
   loadQqReplyAgentConfig,
   type QqReplyAgentRuntimeConfig,
 } from './application/qq-reply-agent.factory';
+export { ConversationMailbox } from './application/actor-mailbox';
+export { ConversationActor } from './application/conversation-actor';
+export {
+  ConversationActorSupervisor,
+  type QqReplyActorSupervisorConfig,
+} from './application/conversation-actor-supervisor';
+export { ActorQqReplyAgent } from './application/actor-qq-reply.agent';
+export { InMemorySnapshotStore } from './application/in-memory-snapshot-store';
+export { LeastRecentlyIdleEvictionPolicy } from './application/least-recently-idle-eviction-policy';
+export { ExponentialBackoffRecoveryPolicy } from './application/exponential-backoff-recovery-policy';
 export {
   OpenAiHarnessAgentRunner,
   parseAgentDecision,
