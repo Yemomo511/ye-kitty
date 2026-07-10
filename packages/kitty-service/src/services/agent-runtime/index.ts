@@ -20,6 +20,7 @@ export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain
 export type { ActorSnapshot } from './domain/actor-snapshot';
 export type { SenderBatch } from './domain/sender-batch';
 export type { ActorState } from './domain/actor-state';
+export type { ConversationHistory } from './domain/conversation-history';
 export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
   AgentRuntimeHarnessPort,

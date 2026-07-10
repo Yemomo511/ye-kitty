@@ -63,7 +63,10 @@ export class ConversationActor {
     this.snapshotStore = config.snapshotStore;
     this.recoveryPolicy = config.recoveryPolicy;
     this.mailbox = new ConversationMailbox(config.mailboxConfig);
-    this.actorHistory = new ActorConversationHistory(this.history);
+    this.actorHistory = new ActorConversationHistory(
+      this.history,
+      config.conversationId as ConversationId,
+    );
   }
 
   // ─── 公共属性 ───
@@ -254,19 +257,33 @@ export class ConversationActor {
  * 注入 Harness 和工具执行器，替代全局 InMemoryConversationHistory。
  */
 class ActorConversationHistory implements ConversationHistoryPort {
+  private validated = false;
+
   /**
    * @param history Actor 私有的消息数组（引用，不是副本）
+   * @param ownerId 该历史所属的会话ID
    */
-  constructor(private readonly history: ChatEventContract[]) {}
+  constructor(
+    private readonly history: ChatEventContract[],
+    private readonly ownerId: ConversationId,
+  ) {}
 
-  recordMessage(event: ChatEventContract): void {
-    this.history.push(event);
+  recordMessage(_event: ChatEventContract): void {
+    // no-op: Actor 的 processNext 是 history 的唯一写入者
   }
 
   getRecentMessages(
-    _conversationId: ConversationId,
+    conversationId: ConversationId,
     limit: number,
   ): readonly ChatEventContract[] {
+    if (!this.validated) {
+      this.validated = true;
+      if (String(conversationId) !== String(this.ownerId)) {
+        console.warn(
+          `⚠️ [ActorConversationHistory] 会话ID不匹配 expected=${this.ownerId} actual=${conversationId}`,
+        );
+      }
+    }
     return this.history.slice(-limit);
   }
 }
