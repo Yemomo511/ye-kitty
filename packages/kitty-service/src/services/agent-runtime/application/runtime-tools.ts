@@ -88,7 +88,7 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
    */
   async execute(call: RuntimeToolCall): Promise<ToolExecutionResult> {
     if (call.toolName === GET_RECENT_MESSAGES_TOOL_NAME) {
-      return this.getRecentMessages(call.event);
+      return this.getRecentMessages(call.event, call.conversationHistory);
     }
 
     if (call.toolName === GET_CUSTOM_FACES_TOOL_NAME) {
@@ -144,9 +144,14 @@ export class BuiltinRuntimeToolExecutor implements RuntimeToolExecutorPort {
   }
 
   // 读取当前会话最近消息。
-  private getRecentMessages(event: ChatEventContract): ToolExecutionResult {
+  // Actor 路径通过 call.conversationHistory 按次注入；旧路径回退到构造时注入。
+  private getRecentMessages(
+    event: ChatEventContract,
+    callHistory?: ConversationHistoryPort,
+  ): ToolExecutionResult {
+    const source = callHistory ?? this.conversationHistory;
     const limit = getRecentMessageLimit(event.conversationType);
-    const messages = this.conversationHistory.getRecentMessages(event.conversationId, limit);
+    const messages = source.getRecentMessages(event.conversationId, limit);
 
     console.info(
       `✅ [AgentRuntime-Tool-getRecentMessages] 已读取最近消息 conversationId=${maskId(

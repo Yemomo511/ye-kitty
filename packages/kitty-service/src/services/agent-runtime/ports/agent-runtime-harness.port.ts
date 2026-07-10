@@ -1,6 +1,7 @@
 import type { QqReplyAction } from './qq-reply-agent.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { SkillMetadata } from '../domain/skill';
+import type { ConversationHistoryPort } from './conversation-history.port';
 
 /**
  * Harness运行输入
@@ -14,6 +15,8 @@ export interface AgentRuntimeRunInput {
   readonly availableSkills?: readonly SkillMetadata[];
   /** 消息批次说明（仅当消息来自 batch 时非空） */
   readonly batchHint?: string;
+  /** 会话历史——Actor 路径按次注入，覆盖构造时注入 */
+  readonly conversationHistory?: ConversationHistoryPort;
 }
 
 /**

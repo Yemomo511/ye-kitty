@@ -33,6 +33,8 @@ export interface RuntimeToolCall {
   readonly toolName: string;
   /** 工具入参 */
   readonly input: unknown;
+  /** 会话历史——Actor 路径按次注入，覆盖构造时注入 */
+  readonly conversationHistory?: ConversationHistoryPort;
 }
 
 /**
@@ -53,3 +55,4 @@ export interface ToolExecutionResult {
   readonly errorMessage?: string;
 }
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { ConversationHistoryPort } from '../ports/conversation-history.port';

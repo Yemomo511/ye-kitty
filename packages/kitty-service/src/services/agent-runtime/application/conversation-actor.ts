@@ -1,10 +1,12 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { ConversationId } from '@kitty/shared/types/ids';
 import type { SkillMetadata } from '../domain/skill';
 import type { ActorState } from '../domain/actor-state';
 import type { ActorSnapshot } from '../domain/actor-snapshot';
 import type { ConversationActorMeta } from '../ports/eviction-policy.port';
 import type { RecoveryPolicyPort } from '../ports/recovery-policy.port';
 import type { SnapshotStorePort } from '../ports/snapshot-store.port';
+import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 import type {
   AgentRuntimeHarnessPort,
   AgentRuntimeRunResult,
@@ -52,6 +54,7 @@ export class ConversationActor {
   private readonly harness: AgentRuntimeHarnessPort;
   private readonly snapshotStore: SnapshotStorePort;
   private readonly recoveryPolicy: RecoveryPolicyPort;
+  private readonly actorHistory: ActorConversationHistory;
   private destroyed = false;
 
   constructor(config: ConversationActorConfig) {
@@ -60,6 +63,7 @@ export class ConversationActor {
     this.snapshotStore = config.snapshotStore;
     this.recoveryPolicy = config.recoveryPolicy;
     this.mailbox = new ConversationMailbox(config.mailboxConfig);
+    this.actorHistory = new ActorConversationHistory(this.history);
   }
 
   // ─── 公共属性 ───
@@ -174,6 +178,7 @@ export class ConversationActor {
           event: batch.messages[0],
           availableSkills: this.availableSkills,
           batchHint: this.mailbox.buildBatchHint(batch),
+          conversationHistory: this.actorHistory,
         });
 
         lastResult = result;
@@ -239,6 +244,30 @@ export class ConversationActor {
     // 简化处理——已封口的 batch 直接存入快照
     // 完整 timer 序列化留到 Phase 3
     return [];
+  }
+}
+
+/**
+ * Actor 私有会话历史适配器
+ *
+ * 把 Actor 的 history[] 包装为 ConversationHistoryPort，
+ * 注入 Harness 和工具执行器，替代全局 InMemoryConversationHistory。
+ */
+class ActorConversationHistory implements ConversationHistoryPort {
+  /**
+   * @param history Actor 私有的消息数组（引用，不是副本）
+   */
+  constructor(private readonly history: ChatEventContract[]) {}
+
+  recordMessage(event: ChatEventContract): void {
+    this.history.push(event);
+  }
+
+  getRecentMessages(
+    _conversationId: ConversationId,
+    limit: number,
+  ): readonly ChatEventContract[] {
+    return this.history.slice(-limit);
   }
 }
 
