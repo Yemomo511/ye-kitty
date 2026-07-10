@@ -111,7 +111,11 @@ export class ConversationActor {
     skills?: readonly SkillMetadata[],
   ): Promise<AgentRuntimeRunResult> {
     if (this.destroyed) {
-      return Promise.resolve(this.capacityError('Actor 已销毁'));
+      return Promise.reject(new Error('Actor 已销毁'));
+    }
+
+    if (this._state === 'faulty') {
+      return Promise.reject(new Error('Actor 处于故障状态'));
     }
 
     this.mailbox.push(event);
@@ -147,8 +151,9 @@ export class ConversationActor {
    */
   async destroy(): Promise<void> {
     this.destroyed = true;
-    this.mailbox.destroy();
-    await this.snapshotStore.save(this.snapshot());
+    const finalSnapshot = this.snapshot(); // 先拍快照
+    this.mailbox.destroy();                // 再清理
+    await this.snapshotStore.save(finalSnapshot);
   }
 
   // ─── 私有方法 ───
