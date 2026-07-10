@@ -69,7 +69,7 @@ export class ConversationActorSupervisor {
     event: ChatEventContract,
     availableSkills?: readonly SkillMetadata[],
   ): Promise<AgentRuntimeRunResult> {
-    const actorOrError = this.getOrCreateActor(String(event.conversationId));
+    const actorOrError = await this.getOrCreateActor(String(event.conversationId));
 
     if (actorOrError === 'capacity_error') {
       return {
@@ -122,9 +122,9 @@ export class ConversationActorSupervisor {
   // ─── 私有方法 ───
 
   // 获取或创建 Actor
-  private getOrCreateActor(
+  private async getOrCreateActor(
     conversationId: string,
-  ): ConversationActor | 'capacity_error' {
+  ): Promise<ConversationActor | 'capacity_error'> {
     const existing = this.actors.get(conversationId);
     if (existing) return existing;
 
@@ -138,16 +138,16 @@ export class ConversationActorSupervisor {
     if (candidate) {
       const target = this.actors.get(candidate);
       if (target) {
-        // 淘汰前持久化快照
+        // 淘汰前持久化快照（必须先保存再销毁）
         const snapshot = target.snapshot();
-        this.snapshotStore.save(snapshot).catch((error) => {
+        try {
+          await this.snapshotStore.save(snapshot);
+        } catch (error) {
           console.warn(
             `⚠️ [ConversationActorSupervisor-evict] 淘汰前快照保存失败 conversationId=${candidate} reason=${error instanceof Error ? error.message : String(error)}`,
           );
-        });
-        target.destroy().catch(() => {
-          // destroy 失败不阻塞淘汰
-        });
+        }
+        await target.destroy();
         this.actors.delete(candidate);
 
         writeDebugLog(
@@ -186,7 +186,11 @@ export class ConversationActorSupervisor {
     event: ChatEventContract,
     availableSkills?: readonly SkillMetadata[],
   ): Promise<AgentRuntimeRunResult> {
-    // 移除崩溃的 Actor
+    // 移除崩溃的 Actor，先清理再重建
+    const oldActor = this.actors.get(conversationId);
+    if (oldActor) {
+      await oldActor.destroy();
+    }
     this.actors.delete(conversationId);
 
     // 尝试从快照恢复

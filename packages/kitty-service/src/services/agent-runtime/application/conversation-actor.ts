@@ -144,12 +144,11 @@ export class ConversationActor {
 
   // 调度处理——链式串行，确保同一 Actor 内部严格有序
   private scheduleProcess(): Promise<AgentRuntimeRunResult> {
-    // eslint-disable-next-line @typescript-eslint/no-misused-promises
-    return new Promise<AgentRuntimeRunResult>((resolve) => {
+    return new Promise<AgentRuntimeRunResult>((resolve, reject) => {
       this.currentTask = this.currentTask
         .then(() => this.processNext())
         .then((result) => resolve(result))
-        .catch(() => resolve(this.capacityError('Actor 处理链断裂')));
+        .catch((err: unknown) => reject(err));
     });
   }
 
@@ -164,11 +163,11 @@ export class ConversationActor {
       traceId: createTraceId(this.conversationId),
     };
 
-    try {
-      while (true) {
-        const batch = this.mailbox.takeNext();
-        if (!batch) break;
+    while (true) {
+      const batch = this.mailbox.takeNext();
+      if (!batch) break;
 
+      try {
         // 直接构造 AgentRuntimeRunInput（Harness 内部自行构建 Observation）
         const result = await this.harness.run({
           event: batch.messages[0],
@@ -179,48 +178,45 @@ export class ConversationActor {
         lastResult = result;
 
         if (result.type === 'reply' || result.type === 'ignore') {
-          // 将所有批次消息写入历史
           this.history.push(...batch.messages);
           this._sequenceNumber++;
           await this.snapshotStore.save(this.snapshot());
         } else if (result.type === 'human_review') {
-          // 审核请求已发出（future hook），消息仍算已处理
           this.history.push(...batch.messages);
           this._sequenceNumber++;
           await this.snapshotStore.save(this.snapshot());
-          // 继续处理邮箱中的下一条，不阻塞
           continue;
         } else if (result.type === 'capacity_error') {
-          // 过载时不写历史
           break;
         }
+      } catch (error) {
+        // 单条消息处理失败——按恢复策略决定重试还是放弃
+        this._errorCount++;
+        const err = error instanceof Error ? error : new Error(String(error));
 
-        continue;
-      }
-    } catch (error) {
-      this._errorCount++;
-      const err = error instanceof Error ? error : new Error(String(error));
+        if (this.recoveryPolicy.shouldRetry(this._errorCount, err)) {
+          const delay = this.recoveryPolicy.backoffMs(this._errorCount);
+          writeDebugLog(
+            `⚠️ [ConversationActor-processNext] Actor 异常，${delay}ms 后重试 conversationId=${this.conversationId} errorCount=${this._errorCount} reason=${err.message}`,
+          );
+          await sleep(delay);
+          // continue 回到 while 循环顶部，mailbox 中还有未处理的 batch
+          continue;
+        }
 
-      if (this.recoveryPolicy.shouldRetry(this._errorCount, err)) {
-        const delay = this.recoveryPolicy.backoffMs(this._errorCount);
-        writeDebugLog(
-          `⚠️ [ConversationActor-processNext] Actor 异常，${delay}ms 后重试 conversationId=${this.conversationId} errorCount=${this._errorCount} reason=${err.message}`,
-        );
-        await sleep(delay);
-        // 重试——恢复后从邮箱继续处理
-        // note: 当前消息已在 try 之前被 mailbox.takeNext() 取出，不重入队列
-        // 丢失这一条消息是可接受的（reply 还没发出，用户可重试）
-      } else {
+        // 重试耗尽——标记 faulty，抛出给 Supervisor 做崩溃恢复
         console.error(
           `❌ [ConversationActor-processNext] Actor 达到最大重试次数，标记为 faulty conversationId=${this.conversationId} errorCount=${this._errorCount}`,
         );
         this._state = 'faulty';
-        throw err; // 抛出给 Supervisor 做崩溃恢复
+        throw err;
       }
     }
 
-    // 邮箱已空，回到空闲
-    if (this.mailbox.batchCount === 0) {
+    // 邮箱已空，回到空闲或 draining
+    if (this.mailbox.batchCount > 0) {
+      this._state = 'draining';
+    } else {
       this._state = 'idle';
     }
 
@@ -237,15 +233,19 @@ export class ConversationActor {
   }
 
   // 导出邮箱的快照视图
+  // Phase 1：只导出已封口的 batch（timer 状态不可序列化）
   private mailboxSnapshot(): ActorSnapshot['mailbox'] {
-    // 简化为空数组——mailbox 批次的完整序列化留到 Phase 3
+    // 简化处理——已封口的 batch 直接存入快照
+    // 完整 timer 序列化留到 Phase 3
     return [];
   }
 }
 
+let traceCounter = 0;
+
 // 生成轻量追踪 ID
 function createTraceId(conversationId: string): string {
-  return `actor-run:${conversationId}:${Date.now().toString(36)}`;
+  return `actor-run:${conversationId}:${Date.now().toString(36)}:${traceCounter++}`;
 }
 
 // 等待
