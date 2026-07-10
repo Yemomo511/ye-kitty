@@ -186,10 +186,16 @@ export class ConversationActorSupervisor {
     event: ChatEventContract,
     availableSkills?: readonly SkillMetadata[],
   ): Promise<AgentRuntimeRunResult> {
-    // 移除崩溃的 Actor，先清理再重建
+    // 移除崩溃的 Actor，尝试清理再重建
     const oldActor = this.actors.get(conversationId);
     if (oldActor) {
-      await oldActor.destroy();
+      try {
+        await oldActor.destroy();
+      } catch (destroyError) {
+        console.warn(
+          `⚠️ [ConversationActorSupervisor-recover] 旧 Actor 销毁失败，继续重建 conversationId=${conversationId}`,
+        );
+      }
     }
     this.actors.delete(conversationId);
 

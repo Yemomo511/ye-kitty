@@ -155,6 +155,7 @@ export class ConversationActor {
   // 处理邮件箱中的下一条消息
   private async processNext(): Promise<AgentRuntimeRunResult> {
     if (this.destroyed) return this.capacityError('Actor 已销毁');
+    if (this._state === 'faulty') return this.capacityError('Actor 处于故障状态，等待 Supervisor 恢复');
 
     this._state = 'processing';
     let lastResult: AgentRuntimeRunResult = {
