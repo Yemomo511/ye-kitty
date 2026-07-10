@@ -101,9 +101,13 @@ process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
 
-// 优雅关闭 WebSocket 连接
+// 优雅关闭 WebSocket 连接和 Actor Supervisor
 async function stopRuntime(signal: string): Promise<void> {
   console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ实验通道 signal=${signal}`);
+  // Actor 路径下持久化所有 Actor 快照
+  if ('shutdown' in replyAgent && typeof (replyAgent as { shutdown?: unknown }).shutdown === 'function') {
+    await (replyAgent as { shutdown(): Promise<void> }).shutdown();
+  }
   await qqRuntime.stop();
   console.info(`✅ [QQPlatform-Stop] QQ实验通道已关闭 signal=${signal}`);
   process.exit(0);
