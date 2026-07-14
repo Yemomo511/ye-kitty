@@ -1,0 +1,39 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_5b6261a2bcd561::t_b818fe1d1df5cf 484
+packages/kitty-service/package.json
+  s_5b6261a2bcd561::t_cd3c781b03f0da 15-16,36
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_5b6261a2bcd561::t_4f897f7c5cbfd7 14,69-72,81
+packages/kitty-service/src/services/agent-runtime/__test__/qq-harness-admission-queue.test.ts
+  s_5b6261a2bcd561::t_bbcd0a20e462d2 1-347
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_5b6261a2bcd561::t_528cca42b818d9 20,437-483
+packages/kitty-service/src/services/agent-runtime/application/in-memory-qq-harness-admission-queue.ts
+  s_5b6261a2bcd561::t_9157b445f7dd8c 1-209
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_5b6261a2bcd561::t_e988ec109c3eed 11-12,26-27,31,41,44,89-110,112,138
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_5b6261a2bcd561::t_aaf48708c0cddc 47-53,80-83
+packages/kitty-service/src/services/agent-runtime/ports/qq-harness-admission-queue.port.ts
+  s_5b6261a2bcd561::t_08b94341021b0f 1-53
+pnpm-lock.yaml
+  s_5b6261a2bcd561::t_8347fcea9d4370 54-56,72-96,339-353,357-359,396-399,618-626,687-702,707-709,717-719,728-730,759-765,829-831,835-840,1014-1017,1046-1050,1062-1065,1078-1080,1120-1123,1134-1152,1156-1158,1197-1199,1203-1209,1234-1241,1308-1310,1323-1326,1501-1504,1529-1536,1540-1547,1551-1558,1750-1757,1787-1806,1972-1989,1992-1996,2085-2087,2275-2293,2368-2377,2380-2385,2393-2394,2412-2415,2447-2452,2509-2510,2514-2517,2782-2786,2823-2831,2839-2840,2852-2853,2886-2887,2897-2923,2927-2928,2967-2968,2973-2982,3004-3009,3058-3059,3067-3071,3298-3299,3317-3328,3333-3340,3345-3354,3530-3541
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "9ba7f06080315d3daab1cb933cbad2d7a07a1c14",
+  "prompts": {},
+  "sessions": {
+    "s_5b6261a2bcd561": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5f69-0203-77f1-a824-115404dd0f2d",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
