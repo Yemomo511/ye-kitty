@@ -481,3 +481,4 @@ QqReplyEventSubscriber
 | 2026-07-08 | 待验收 | 调整自定义表情发送方式：文字消息保留引用和 @，自定义表情 `image` 段单独发送且不携带 @/reply 上下文。                |
 | 2026-07-08 | 待验收 | 优化 Harness Prompt 宪法与状态机：第一章拆成宪法、状态机和行动契约，第三章渲染显式 `HarnessPromptState`。           |
 | 2026-07-08 | 待验收 | 调整 Prompt 承载边界：第二章 Outside Context 进入 `instructions`，第三章 `input` 只保留本轮循环观察。               |
+| 2026-07-14 | 待验收 | 新增 QQ Harness 准入队列：全局并发 2、等待容量 10、三级优先级、同会话串行和满载替换均已实现并通过定向测试。         |

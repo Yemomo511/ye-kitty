@@ -7,7 +7,7 @@
 
 ## 当前状态
 
-- 状态：开发中
+- 状态：待验收
 - 负责人：Codex
 - 最近更新：2026-07-14
 - 唯一入口：`design-docs/Agent/agent-runtime-harness.md`
@@ -19,7 +19,7 @@
 | Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md`      | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、`get_custom_faces`、Prompt 三章治理、Prompt 宪法分层、第二章 instruction 化、显式 `HarnessPromptState` 状态机、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call`、`references/` 按需读取、文字类 `send_msg` 自动引用触发消息并 @ 发送者，以及自定义表情单独发送。 |
 | QQ 群聊低负载节奏控制        | `design-docs/QQ/chat-time.md`                     | 待验收 | 将回复后门槛延长为 10-60 分钟与 10-50 条消息；随机片段改为每群每小时一个且只消费一次；冷却期屏蔽随机入口；所有群的未 @ 主动触发共享 2 分钟全局预算，节奏触发后仍强制读取最近 100 条群消息并回复；定向 12 项测试、Lint、类型与架构检查已通过。                                                                                                                          |
 | 模型请求池第一版             | `design-docs/Agent/model-request-pool-v1.md`      | 待验收 | 已从单个 OpenAI 兼容模型配置演进为模型请求池，由统一调度层负责模型路由、单节点并发、请求间隔、429 退避、队列 TTL 和失败降级；定向模型池单元测试已通过。                                                                                                                                                                                                                |
-| QQ Harness 准入优先队列      | `design-docs/Agent/qq-harness-admission-queue.md` | 开发中 | 已确认全局并发 2、等待容量 10、私聊优先于群聊 @ 和未 @ 节奏触发、同会话串行以及高优先级满载替换规则，进入测试驱动实现。                                                                                                                                                                                                                                                |
+| QQ Harness 准入优先队列      | `design-docs/Agent/qq-harness-admission-queue.md` | 待验收 | 已实现全局并发 2、等待容量 10、私聊优先于群聊 @ 和未 @ 节奏触发、同会话串行、高优先级满载替换及中文调度日志；19 项定向测试与每文件 80% 覆盖率门槛通过。                                                                                                                                                                                                                |
 
 ## 开发顺序
 
@@ -78,3 +78,4 @@
 | 2026-07-09 | 实现模型请求池第一版                        | 新增 `YE_KITTY_MODEL_POOL`、进程内模型调度层、单模型独立队列、并发节流和 429 模型级退避。                    |
 | 2026-07-14 | 收紧 QQ 群聊主动回复速率                    | 当前并发负载无法承受旧版高频节奏，延长回复后门槛并增加片段单次消费、冷却优先和跨群主动预算。                 |
 | 2026-07-14 | 设计 QQ Harness 准入优先队列                | 在节奏门控与 Harness 之间增加消息级并发治理，优先保护私聊和明确 @，并保证同会话回复顺序。                    |
+| 2026-07-14 | 实现 QQ Harness 准入优先队列                | 完成准入端口、进程内调度器、订阅器与启动装配，覆盖率和相关回归测试通过。                                     |

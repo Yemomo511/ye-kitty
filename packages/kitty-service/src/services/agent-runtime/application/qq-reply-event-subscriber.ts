@@ -8,6 +8,8 @@ import type {
   GroupChatCadencePort,
 } from '../ports/group-chat-cadence.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
+import type { QqHarnessAdmissionQueuePort } from '../ports/qq-harness-admission-queue.port';
+import { InMemoryQqHarnessAdmissionQueue } from './in-memory-qq-harness-admission-queue';
 import { QqReplyActionExecutor } from './qq-reply-action-executor';
 import type { SkillRuntimeService } from './skill-runtime.service';
 
@@ -21,10 +23,12 @@ export interface QqReplyEventSubscriberConfig {
  * QQ回复事件订阅器
  *
  * Agent Runtime 的 RxJS 入口。它订阅下层 QQ 服务发布的标准消息事件，
- * 调用 QQ 回复 Agent 生成文本，并通过 QQ 发送端口完成 MVP 回写。
+ * 经过节奏门控和 Harness 准入队列后调用回复 Agent，并通过 QQ 发送端口回写。
+ * 准入任务覆盖 Skill 选择、Harness、发送和节奏更新，保证同会话回复顺序。
  */
 export class QqReplyEventSubscriber {
   private readonly actionExecutor: QqReplyActionExecutor;
+  private readonly harnessAdmissionQueue: QqHarnessAdmissionQueuePort;
 
   constructor(
     private readonly qqMessageService: PlatformMessageService<ChatEventContract>,
@@ -34,8 +38,10 @@ export class QqReplyEventSubscriber {
     private readonly config?: QqReplyEventSubscriberConfig,
     private readonly conversationHistory?: ConversationHistoryPort,
     private readonly groupChatCadence?: GroupChatCadencePort,
+    harnessAdmissionQueue?: QqHarnessAdmissionQueuePort,
   ) {
     this.actionExecutor = new QqReplyActionExecutor(botClient);
+    this.harnessAdmissionQueue = harnessAdmissionQueue ?? new InMemoryQqHarnessAdmissionQueue();
   }
 
   /**
@@ -80,8 +86,30 @@ export class QqReplyEventSubscriber {
       return;
     }
 
+    const admissionResult = await this.harnessAdmissionQueue.enqueue({
+      event: message,
+      mentionsAgent,
+      execute: async () => {
+        await this.processTriggeredMessage(message, mentionsAgent, cadenceDecision);
+      },
+    });
+    if (admissionResult.status === 'dropped') {
+      writeDebugLog(
+        `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 准入队列已丢弃消息 conversationType=${message.conversationType} messageId=${maskId(
+          message.message.id,
+        )} reason=${admissionResult.reason}`,
+      );
+    }
+  }
+
+  // 在准入锁内完成Skill选择、Harness循环、QQ动作和节奏状态更新。
+  private async processTriggeredMessage(
+    message: ChatEventContract,
+    mentionsAgent: boolean,
+    cadenceDecision: GroupChatCadenceDecision,
+  ): Promise<void> {
     writeDebugLog(
-      `🚧 [AgentRuntime-QQReplySubscriber-handleMessage] 开始生成QQ回复 conversationType=${message.conversationType} messageId=${maskId(
+      `🚧 [AgentRuntime-QQReplySubscriber-processTriggeredMessage] 开始生成QQ回复 conversationType=${message.conversationType} messageId=${maskId(
         message.message.id,
       )} textLength=${message.message.text.length}`,
     );
@@ -107,7 +135,7 @@ export class QqReplyEventSubscriber {
     const sent = await this.actionExecutor.executeReply(message, reply.text, reply.actions ?? []);
     if (sent) this.groupChatCadence?.markReplySent(message);
     console.info(
-      `✅ [AgentRuntime-QQReplySubscriber-handleMessage] 已发送QQ回复 conversationType=${message.conversationType} messageId=${maskId(
+      `✅ [AgentRuntime-QQReplySubscriber-processTriggeredMessage] 已发送QQ回复 conversationType=${message.conversationType} messageId=${maskId(
         message.message.id,
       )} replyLength=${reply.text?.length ?? 0} actionCount=${reply.actions?.length ?? 0}`,
     );

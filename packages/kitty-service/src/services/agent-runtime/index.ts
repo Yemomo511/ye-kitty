@@ -44,6 +44,13 @@ export type {
   GroupChatCadencePort,
   GroupChatCadenceTriggerMode,
 } from './ports/group-chat-cadence.port';
+export type {
+  QqHarnessAdmissionDropReason,
+  QqHarnessAdmissionQueueConfig,
+  QqHarnessAdmissionQueuePort,
+  QqHarnessAdmissionResult,
+  QqHarnessAdmissionTask,
+} from './ports/qq-harness-admission-queue.port';
 export type { SkillMarketPort } from './ports/skill-market.port';
 export type { SkillContentLoaderPort } from './ports/skill-content-loader.port';
 export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.port';
@@ -70,6 +77,10 @@ export {
   type GroupChatCadenceConfig,
 } from './application/group-chat-cadence-controller';
 export { QqReplyEventSubscriber } from './application/qq-reply-event-subscriber';
+export {
+  DEFAULT_QQ_HARNESS_ADMISSION_QUEUE_CONFIG,
+  InMemoryQqHarnessAdmissionQueue,
+} from './application/in-memory-qq-harness-admission-queue';
 export {
   DEFAULT_VISIBLE_SKILL_LIMIT,
   DefaultSkillSelector,

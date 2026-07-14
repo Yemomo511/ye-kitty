@@ -17,6 +17,7 @@ import type {
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { QqReplyAgentInput, QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillMetadata } from '../domain/skill';
+import type { QqHarnessAdmissionQueuePort } from '../ports/qq-harness-admission-queue.port';
 
 describe('QqReplyEventSubscriber', () => {
   afterEach(() => {
@@ -432,6 +433,53 @@ describe('QqReplyEventSubscriber', () => {
         segments: withTriggerContext([{ type: 'text', text: '私聊收到' }]),
       },
     ]);
+  });
+
+  test('准入队列丢弃消息时保留历史但不调用Agent或发送动作', async () => {
+    const agentInputs: QqReplyAgentInput[] = [];
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const conversationHistory = new InMemoryConversationHistory();
+    const queuedMentions: boolean[] = [];
+    const selectSkills = vi.fn(async () => []);
+    const skillRuntime = new SkillRuntimeService(
+      [],
+      { selectSkills },
+      {
+        async loadSkillContent() {
+          throw new Error('丢弃消息不应读取Skill');
+        },
+      },
+    );
+    const admissionQueue: QqHarnessAdmissionQueuePort = {
+      async enqueue(task) {
+        queuedMentions.push(task.mentionsAgent);
+        return { status: 'dropped', reason: 'queue_full' };
+      },
+    };
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ segments }),
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: '不应该触发' };
+        },
+      },
+      skillRuntime,
+      { selfQqId: '10000' },
+      conversationHistory,
+      undefined,
+      admissionQueue,
+    );
+
+    const event = createChatEvent();
+    await subscriber.handleMessage(event);
+
+    expect(queuedMentions).toEqual([true]);
+    expect(conversationHistory.getRecentMessages(event.conversationId, 100)).toEqual([event]);
+    expect(selectSkills).not.toHaveBeenCalled();
+    expect(agentInputs).toEqual([]);
+    expect(segments).toEqual([]);
   });
 });
 
