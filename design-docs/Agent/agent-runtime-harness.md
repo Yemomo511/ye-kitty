@@ -281,7 +281,7 @@ SKILL.md frontmatter
 
 QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/src/services/agent-runtime/domain/qq-reply-action.ts`。模型只能在 `reply.actions` 中声明项目允许的动作，不能指定任意群、任意好友、任意消息或任意 NapCat action；`QqReplyActionExecutor` 会把动作绑定到当前收到的 QQ 消息上下文，再交给 `QqBotClientPort`。
 
-群聊触发采用节奏门禁：`QqReplyEventSubscriber` 会先把白名单群聊消息写入共享消息池，再判断是否触发 Agent。明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息立即触发；未 @ 群聊只有命中 `design-docs/QQ/chat-time.md` 中的随机回复片段，或回复后计时计数器达标时才触发。节奏门控触发的未 @ 群聊会带上 `required_group_reply` 意图，Harness 必须要求模型先调用 `get_recent_messages` 读取最近 100 条群消息，再输出 `reply`，不能返回 `ignore`。私聊仍由 QQ 好友白名单控制，不要求 @。
+群聊触发采用低负载节奏门禁：`QqReplyEventSubscriber` 会先把白名单群聊消息写入共享消息池，再判断是否触发 Agent。明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息立即触发；未 @ 群聊只有命中 `design-docs/QQ/chat-time.md` 中每小时唯一且尚未消费的随机回复片段，或回复后计时计数器达到 `10-60 分钟` 与 `10-50 条新消息`的联合门槛，并取得跨群 2 分钟主动预算时才触发。回复后冷却期间不再检查随机片段，未取得预算的消息不排队。节奏门控触发的未 @ 群聊会带上 `required_group_reply` 意图，Harness 必须要求模型先调用 `get_recent_messages` 读取最近 100 条群消息，再输出 `reply`，不能返回 `ignore`。私聊仍由 QQ 好友白名单控制，不要求 @。
 
 执行层会对文本发送做兜底去重：当模型同时输出外层 `reply.text` 和同内容的 `send_text` 或 `send_text_with_face` 文本段时，只发送一次，避免群聊出现相同内容重复回复。
 
@@ -442,7 +442,7 @@ QqReplyEventSubscriber
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
 - 状态机测试：覆盖 `skill_call -> skill_loaded`、`skill_reference_call -> reference_loaded`、`tool_call -> tool_observing`、reference 超限后进入 `ready_to_decide`，并断言 `<run_state>`、预算和决策历史进入 Prompt。
-- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 先入消息池再走节奏门控、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射、文字类 `send_msg` 自动注入触发消息引用和发送者 @，以及自定义表情 `image` 段单独发送。
+- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 先入消息池再走节奏门控、每小时随机片段只消费一次、回复后 10-60 分钟与 10-50 条消息门槛、冷却期屏蔽随机入口、跨群 2 分钟主动预算、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射、文字类 `send_msg` 自动注入触发消息引用和发送者 @，以及自定义表情 `image` 段单独发送。
 - Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议、自动引用提醒说明、自定义表情单独发送说明和戳一戳独占说明。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、视觉推荐和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
