@@ -5,7 +5,7 @@ import type { SkillContent, SkillMetadata } from '../domain/skill';
 /**
  * Harness运行输入
  *
- * 调用方只提供平台事件和已命中的 Skill，循环细节由 Harness 接管。
+ * 调用方只提供平台事件和已命中的 Skill；Harness 会先记录事件并自动读取最近消息，再接管后续循环。
  */
 export interface AgentRuntimeRunInput {
   /** QQ标准消息 */

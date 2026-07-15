@@ -89,8 +89,8 @@ function renderReplyIntent(observation: AgentObservation): string {
   return [
     '<reply_intent>',
     'mode: required_group_reply',
-    '说明：本轮由群聊节奏门控触发，必须先调用 get_recent_messages 读取最近100条群消息，再基于群聊上下文输出 reply。',
-    '禁止：不能返回 ignore；不能在未读取 get_recent_messages 前直接 reply。',
+    '说明：本轮由群聊节奏门控触发，Harness 已在首轮决策前自动读取最近100条群消息；请直接基于该观察输出 reply。',
+    '禁止：不能返回 ignore；前置最近消息观察失败时，必须重新调用 get_recent_messages 成功后再 reply。',
     `required_tools: ${observation.requiredToolCalls?.join(', ') ?? 'get_recent_messages'}`,
     `recent_message_limit: ${observation.recentMessageLimitHint ?? 100}`,
     '</reply_intent>',

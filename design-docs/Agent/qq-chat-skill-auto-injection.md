@@ -7,7 +7,7 @@ QQ 消息进入 Harness 后，`qq-chat` 是所有私聊与群聊回复都必须�
 ## 目标
 
 - QQ 消息通过节奏门控与准入队列后，由运行时自动预启用 `qq-chat`。
-- Harness 首轮即可看到 `qq-chat` 正文，模型不再为该 Skill 返回 `skill_call`。
+- Harness 首轮即可看到 `qq-chat` 正文，模型不再为该 Skill 返回 `skill_call`；最近消息前置观察完成后首轮 phase 为 `tool_observing`。
 - 保留其他 Skill 的目录优先、按需加载机制。
 
 ## 非目标
@@ -32,10 +32,11 @@ flowchart LR
   Queue --> Catalog["选择可见Skill目录"]
   Catalog --> Load["运行时加载qq-chat正文"]
   Load --> Input["写入skills预启用输入"]
-  Input --> Harness["Harness首轮skill_loaded"]
+  Input --> Context["自动读取最近消息"]
+  Context --> Harness["Harness首轮tool_observing"]
   Harness --> Runner["模型直接观察并决策"]
   Load -->|"加载失败"| Degrade["记录警告并以普通Harness继续"]
-  Degrade --> Harness
+  Degrade --> Context
 ```
 
 ## 设计思想
@@ -55,7 +56,7 @@ flowchart LR
 
 - 入口：`packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts`
 - 职责：将 `AgentRuntimeRunInput.skills` 去重后写入 `enabledSkills` 和 `skill_content` 消息。
-- 重要细节：存在预启用 Skill 时，首轮状态直接为 `skill_loaded`，并从可请求 Skill 目录中排除已启用项；模型异常重复请求相同 Skill 时仍走已有幂等逻辑。
+- 重要细节：预启用正文从首轮开始生效，并从可请求 Skill 目录中排除已启用项；随后最近消息前置观察把首轮 phase 推进到 `tool_observing`，模型异常重复请求相同 Skill 时仍走已有幂等逻辑。
 - 边界：不根据 `event.platform` 自动选择 Skill。
 
 ## 数据与接口
@@ -65,6 +66,7 @@ flowchart LR
 | `QqReplyAgentInput.skills`    | 输入 | QQ 边界已经预启用的 Skill 正文。         |
 | `AgentRuntimeRunInput.skills` | 输入 | Harness 调用方确认后直接注入首轮的正文。 |
 | `enabledSkills`               | 内部 | 本次运行已生效的 Skill，按名称保持唯一。 |
+| `toolResults`                 | 内部 | 首项为 Harness 自动读取的最近消息结果。  |
 
 ## 风险与边界条件
 
@@ -76,7 +78,7 @@ flowchart LR
 
 ## 测试方案
 
-- 单元测试：预启用 Skill 在 Harness 首轮生效，状态为 `skill_loaded`，已从可请求目录排除且正文加载器不被重复调用。
+- 单元测试：预启用 Skill 在 Harness 首轮生效，最近消息读取后状态为 `tool_observing`，已从可请求目录排除且正文加载器不被重复调用。
 - 集成测试：QQ 消息固定加载 `qq-chat` 并通过 `skills` 传入 Agent。
 - 异常测试：`qq-chat` 加载失败时 Agent 仍被调用且 `skills` 为空。
 - 真实模型评估：QQ 观察默认带有已启用 `qq-chat`，分别验证低风险消息直接 `reply` 和其他未启用 Skill 仍能 `skill_call`。
@@ -84,7 +86,7 @@ flowchart LR
 
 ## 验收方式
 
-- 产品验收：QQ 消息的第一轮模型观察已包含 `qq-chat`，无需额外 `skill_call`。
+- 产品验收：QQ 消息的第一轮模型观察已包含 `qq-chat` 和最近消息，无需额外 `skill_call` 或固定的历史读取 `tool_call`。
 - 设计验收：用户可见回复协议不变。
 - 开发验收：定向测试、覆盖率、类型、Lint 通过；根目录 `pnpm check` 中既有反向 WebSocket 时序测试需单独验收。
 - Agent 验收：代码、Prompt、架构文档与 `design-docs/Task.md` 状态一致。

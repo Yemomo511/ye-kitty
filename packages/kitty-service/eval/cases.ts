@@ -105,14 +105,16 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
     expectation: { type: 'skill_call', skillName: 'chat-style' },
   },
   {
-    name: '需要上文时调用最近消息工具',
-    inputSummary: '用户明确要求结合最近聊天上下文。',
+    name: '最近消息已自动注入时直接回复',
+    inputSummary: '用户要求结合聊天上下文，首轮观察已经自动包含最近消息。',
     observation: createQqObservation({
       event: createChatEvent('结合最近聊天上下文，判断我刚刚是在回复谁。', 'group', 'tool'),
       availableSkills: [],
       tools: toolRegistry.listTools(),
+      recentMessagesObservation:
+        '会话最近 2 条消息：\n1. 小明：今晚八点开黑吗？\n2. 测试用户：可以，我刚刚是在回复小明。',
     }),
-    expectation: { type: 'tool_call', toolName: 'get_recent_messages' },
+    expectation: { type: 'reply' },
   },
   {
     name: '需要自定义表情时调用表情目录工具',
@@ -182,31 +184,53 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
   },
 ];
 
-// 构造与真实QQ入口一致的首轮观察，默认预启用qq-chat。
+// 构造与真实QQ入口一致的首轮观察，默认预启用qq-chat和最近消息结果。
 function createQqObservation(input: {
   readonly event: ChatEventContract;
   readonly availableSkills: readonly SkillMetadata[];
   readonly enabledSkills?: readonly SkillContent[];
   readonly tools: AgentObservation['tools'];
   readonly extraMessages?: readonly AgentObservation['conversationMessages'][number][];
+  readonly recentMessagesObservation?: string;
 }): AgentObservation {
   const enabledSkills = [enabledQqChatSkill, ...(input.enabledSkills ?? [])];
+  const visibleTools = [
+    ...new Map(
+      [...toolRegistry.listTools(), ...input.tools].map((tool) => [tool.name, tool]),
+    ).values(),
+  ];
+  const recentMessagesResult = {
+    toolName: 'get_recent_messages',
+    success: true,
+    observation:
+      input.recentMessagesObservation ??
+      `会话 ${input.event.conversationId} 最近 1 条消息：\n1. ${input.event.senderDisplayName ?? '未知用户'}：${input.event.message.text}`,
+    structuredData: [
+      {
+        messageId: String(input.event.message.id),
+        senderDisplayName: input.event.senderDisplayName ?? '未知用户',
+        text: input.event.message.text,
+        receivedAt: input.event.receivedAt.toISOString(),
+      },
+    ],
+  };
   const conversationMessages: AgentObservation['conversationMessages'] = [
     { type: 'user_event', event: input.event },
     { type: 'skill_catalog', skills: input.availableSkills },
     { type: 'skill_content', skill: enabledQqChatSkill },
     ...(input.extraMessages ?? []),
+    { type: 'tool_result', result: recentMessagesResult },
   ];
   return {
     event: input.event,
     availableSkills: input.availableSkills,
     enabledSkills,
-    tools: input.tools,
-    toolResults: [],
+    tools: visibleTools,
+    toolResults: [recentMessagesResult],
     conversationMessages,
     promptState: {
       traceId: `eval:${input.event.id}`,
-      phase: 'skill_loaded',
+      phase: 'tool_observing',
       budget: {
         turnIndex: 1,
         maxTurns: 100,
@@ -224,8 +248,8 @@ function createQqObservation(input: {
         loadedReferenceKeys: conversationMessages
           .filter((message) => message.type === 'skill_reference')
           .map((message) => `${message.reference.skill.name}:${message.reference.referencePath}`),
-        visibleToolNames: input.tools.map((tool) => tool.name),
-        latestObservation: '评估用例构造的初始观察。',
+        visibleToolNames: visibleTools.map((tool) => tool.name),
+        latestObservation: recentMessagesResult.observation,
       },
       decisionHistory: [],
     },

@@ -18,7 +18,9 @@ Harness的核心关键在于Prompt 对于 AI 的指导，告诉 AI 有哪些工�
 
 - 铁律5: **Skill Prompt 与 Tool Prompt 必须独立成文件再聚合**。Skill Prompt 负责把 Skill 元信息、结构化 Skill 文档和 reference 文档映射为 Prompt；Tool Prompt 负责把可见工具映射为 Prompt；`outside-context-prompt.ts` 只负责组装第二章，不直接拼具体目录细节。
 
-- 铁律6: **平台固定 Skill 必须由平台订阅边界预启用**。QQ 订阅器固定加载 `qq-chat` 并通过结构化 `skills` 输入传给 Harness；Harness 不根据平台名称写特例，只负责将预启用正文写入首轮 `skill_loaded` 上下文。
+- 铁律6: **平台固定 Skill 必须由平台订阅边界预启用**。QQ 订阅器固定加载 `qq-chat` 并通过结构化 `skills` 输入传给 Harness；Harness 不根据平台名称写特例，只负责将预启用正文写入首轮 `enabledSkills` 上下文，最终首轮 phase 由后续前置观察决定。
+
+- 铁律7: **每次 Harness 首轮决策前必须自动注入最近消息观察**。Harness 先记录当前事件，再通过 `ToolRegistry` 与 `ToolExecutor` 执行 `get_recent_messages`；该运行时准备动作不消耗模型工具预算、不写入模型决策历史，失败时必须注入可读错误观察并允许模型继续决策或主动重试。
 
 #### Prompt 如何书写
 
