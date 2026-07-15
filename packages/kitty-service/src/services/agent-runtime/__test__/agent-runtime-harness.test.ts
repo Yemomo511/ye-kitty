@@ -184,6 +184,63 @@ describe('AgentRuntimeHarness', () => {
     expect(loadSkillContent).toHaveBeenCalledTimes(1);
   });
 
+  test('预启用Skill会直接进入首轮上下文，不需要Agent调用', async () => {
+    const observations: AgentObservation[] = [];
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: {
+        name: 'qq-chat',
+        description: '用于 QQ 群聊回复',
+        rootPath: '/tmp/skills/qq-chat',
+      },
+      body: '不应重复读取。',
+    }));
+    const qqChatSkill = {
+      metadata: {
+        name: 'qq-chat',
+        description: '用于 QQ 群聊回复',
+        rootPath: '/tmp/skills/qq-chat',
+      },
+      body: '保持自然。',
+    };
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          return {
+            type: 'reply',
+            text: '首轮直接回复。',
+            reason: '已有QQ聊天方法论',
+          };
+        },
+      },
+      { loadSkillContent },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('预启用Skill测试'),
+      availableSkills: [qqChatSkill.metadata],
+      skills: [qqChatSkill, { ...qqChatSkill, body: '重复正文不应进入上下文。' }],
+    });
+
+    expect(result).toMatchObject({ type: 'reply', text: '首轮直接回复。' });
+    expect(observations).toHaveLength(1);
+    expect(observations[0]?.enabledSkills).toEqual([qqChatSkill]);
+    expect(observations[0]?.promptState.phase).toBe('skill_loaded');
+    expect(observations[0]?.availableSkills).toEqual([]);
+    expect(observations[0]?.promptState.context.availableSkillNames).toEqual([]);
+    expect(observations[0]?.promptState.context.enabledSkillNames).toEqual(['qq-chat']);
+    expect(observations[0]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        { type: 'skill_catalog', skills: [] },
+        {
+          type: 'skill_content',
+          skill: qqChatSkill,
+        },
+      ]),
+    );
+    expect(loadSkillContent).not.toHaveBeenCalled();
+  });
+
   test('不可用Skill请求不会读取正文', async () => {
     const loadSkillContent = vi.fn(async () => ({
       metadata: {

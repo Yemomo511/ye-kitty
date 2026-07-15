@@ -188,6 +188,7 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('## 1.3 JSON 行动契约');
     expect(prompt.instructions).toContain('每一轮输出必须是单个 JSON 对象');
     expect(prompt.instructions).toContain('当你想启用 Skill 时');
+    expect(prompt.instructions).toContain('已启用时直接遵守正文');
     expect(prompt.instructions).toContain('可请求Skill目录');
     expect(prompt.instructions).toContain('用于 QQ 回复');
     expect(prompt.instructions).not.toContain('能力说明：');

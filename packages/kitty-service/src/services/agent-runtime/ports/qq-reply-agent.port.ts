@@ -12,7 +12,7 @@ export type { QqReplyAction } from '../domain/qq-reply-action';
 export interface QqReplyAgentInput {
   /** QQ标准消息事件 */
   readonly event: ChatEventContract;
-  /** 兼容旧链路的已启用Skill正文 */
+  /** QQ平台已预启用的Skill正文 */
   readonly skills?: readonly SkillContent[];
   /** Harness主链路可请求的Skill目录 */
   readonly availableSkills?: readonly SkillMetadata[];

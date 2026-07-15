@@ -9,9 +9,12 @@ import type {
 } from '../ports/group-chat-cadence.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { QqHarnessAdmissionQueuePort } from '../ports/qq-harness-admission-queue.port';
+import type { SkillContent } from '../domain/skill';
 import { InMemoryQqHarnessAdmissionQueue } from './in-memory-qq-harness-admission-queue';
 import { QqReplyActionExecutor } from './qq-reply-action-executor';
 import type { SkillRuntimeService } from './skill-runtime.service';
+
+const QQ_CHAT_SKILL_NAME = 'qq-chat';
 
 /** QQ回复订阅器配置 */
 export interface QqReplyEventSubscriberConfig {
@@ -120,9 +123,11 @@ export class QqReplyEventSubscriber {
       mentionsAgent,
       receivedAt: message.receivedAt,
     });
+    const qqChatSkill = await this.loadQqChatSkill(message);
     const reply = await this.replyAgent.generateReply({
       event: message,
       availableSkills,
+      ...(qqChatSkill ? { skills: [qqChatSkill] } : {}),
       ...(cadenceDecision.replyRequired
         ? {
             replyIntent: 'required_group_reply' as const,
@@ -139,6 +144,28 @@ export class QqReplyEventSubscriber {
         message.message.id,
       )} replyLength=${reply.text?.length ?? 0} actionCount=${reply.actions?.length ?? 0}`,
     );
+  }
+
+  // QQ聊天方法论由平台边界预启用，避免每条消息都消耗一轮模型决策。
+  private async loadQqChatSkill(message: ChatEventContract): Promise<SkillContent | undefined> {
+    if (!this.skillRuntime) return undefined;
+
+    try {
+      const skill = await this.skillRuntime.loadSkillContent(QQ_CHAT_SKILL_NAME);
+      writeDebugLog(
+        `✅ [AgentRuntime-QQReplySubscriber-loadQqChatSkill] 已为QQ消息预启用Skill skill=${QQ_CHAT_SKILL_NAME} conversationType=${message.conversationType} messageId=${maskId(
+          message.message.id,
+        )}`,
+      );
+      return skill;
+    } catch (error) {
+      console.warn(
+        `⚠️ [AgentRuntime-QQReplySubscriber-loadQqChatSkill] QQ默认Skill加载失败，已降级为普通Harness回复 skill=${QQ_CHAT_SKILL_NAME} conversationType=${message.conversationType} messageId=${maskId(
+          message.message.id,
+        )} reason=${formatError(error)}`,
+      );
+      return undefined;
+    }
   }
 
   // 群聊先过节奏门控，私聊保持直接触发。
@@ -196,4 +223,9 @@ function maskId(value: string): string {
   const text = String(value);
   if (text.length <= 4) return '****';
   return `****${text.slice(-4)}`;
+}
+
+// 将未知异常转为可读原因，避免日志输出完整错误对象。
+function formatError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }

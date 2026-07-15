@@ -7,7 +7,7 @@ import type {
   HarnessPromptPhase,
   HarnessPromptState,
 } from '../domain/harness-prompt-state';
-import type { SkillContent } from '../domain/skill';
+import type { SkillContent, SkillMetadata } from '../domain/skill';
 import type { SkillReferenceContent } from '../domain/skill-reference';
 import type { ToolExecutionResult } from '../domain/tool';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
@@ -68,14 +68,16 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
   async run(input: AgentRuntimeRunInput): Promise<AgentRuntimeRunResult> {
     const traceId = createTraceId(input.event.id);
     const toolResults: ToolExecutionResult[] = [];
-    const enabledSkills: SkillContent[] = [];
+    const enabledSkills = deduplicateSkills(input.skills ?? []);
+    const requestableSkills = excludeEnabledSkills(input.availableSkills ?? [], enabledSkills);
     const loadedReferences: SkillReferenceContent[] = [];
     const decisionHistory: HarnessPromptDecisionHistoryItem[] = [];
     const conversationMessages: AgentConversationMessage[] = [
       { type: 'user_event', event: input.event },
-      { type: 'skill_catalog', skills: input.availableSkills ?? [] },
+      { type: 'skill_catalog', skills: requestableSkills },
+      ...enabledSkills.map((skill) => ({ type: 'skill_content' as const, skill })),
     ];
-    let phase: HarnessPromptPhase = 'initial_observe';
+    let phase: HarnessPromptPhase = enabledSkills.length > 0 ? 'skill_loaded' : 'initial_observe';
     let toolCallCount = 0;
     let decisionErrorCount = 0;
     const maxSkillReferences = this.config.maxSkillReferences ?? DEFAULT_MAX_SKILL_REFERENCES;
@@ -83,7 +85,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     // 1. 先写入当前消息，让本轮工具也能读取到刚进入的上下文。
     this.conversationHistory.recordMessage(input.event);
     console.info(
-      `🚧 [AgentRuntime-Harness-run] 开始Harness循环 traceId=${traceId} conversationType=${input.event.conversationType} messageId=${maskId(
+      `🚧 [AgentRuntime-Harness-run] 开始Harness循环 traceId=${traceId} conversationType=${input.event.conversationType} preEnabledSkillCount=${enabledSkills.length} messageId=${maskId(
         input.event.message.id,
       )}`,
     );
@@ -92,7 +94,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
       const tools = this.toolRegistry.listTools();
       const observation: AgentObservation = {
         event: input.event,
-        availableSkills: input.availableSkills ?? [],
+        availableSkills: requestableSkills,
         enabledSkills: [...enabledSkills],
         tools,
         toolResults,
@@ -107,7 +109,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           skillReferenceCount: loadedReferences.length,
           maxSkillReferences,
           decisionErrorCount,
-          availableSkillNames: (input.availableSkills ?? []).map((skill) => skill.name),
+          availableSkillNames: requestableSkills.map((skill) => skill.name),
           enabledSkillNames: enabledSkills.map((skill) => skill.metadata.name),
           loadedReferenceKeys: loadedReferences.map(toReferenceKey),
           visibleToolNames: tools.map((tool) => tool.name),
@@ -417,6 +419,24 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
       };
     }
   }
+}
+
+// 按名称去重平台预启用Skill，避免重复正文污染首轮上下文。
+function deduplicateSkills(skills: readonly SkillContent[]): SkillContent[] {
+  const skillByName = new Map<string, SkillContent>();
+  for (const skill of skills) {
+    if (!skillByName.has(skill.metadata.name)) skillByName.set(skill.metadata.name, skill);
+  }
+  return [...skillByName.values()];
+}
+
+// 已预启用Skill不再暴露为可请求目录，防止模型重复调用。
+function excludeEnabledSkills(
+  availableSkills: readonly SkillMetadata[],
+  enabledSkills: readonly SkillContent[],
+): SkillMetadata[] {
+  const enabledSkillNames = new Set(enabledSkills.map((skill) => skill.metadata.name));
+  return availableSkills.filter((skill) => !enabledSkillNames.has(skill.name));
 }
 
 /**

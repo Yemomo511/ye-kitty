@@ -35,7 +35,8 @@
 ```mermaid
 flowchart TD
   PlatformEvent["平台事件"] --> PlatformChannel["平台通道标准化"]
-  PlatformChannel --> Harness["AgentRuntimeHarness"]
+  PlatformChannel --> PlatformSkill["平台订阅边界预启用固定Skill"]
+  PlatformSkill --> Harness["AgentRuntimeHarness"]
   Harness --> Context["构造 RunContext"]
   Context --> SkillCatalog["准备可用Skill目录"]
   SkillCatalog --> ToolRegistry["准备可见工具清单"]
@@ -84,10 +85,10 @@ flowchart TD
 MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协议、稳定外界能力目录和每轮运行观察拆开治理。第一章 System Prompt 只承载最高优先级约束、状态机转移和 JSON 输出协议；第二章 Outside Context Prompt 维护在 `instructions` 中，承载 Skill Prompt 与 Tool Prompt；第三章 Runtime Observation 维护在 `input` 中，只承载本轮显式状态、用户事件、工具结果和错误恢复信息。
 
 1. 第一章 System Prompt：拆分为宪法约束、状态机约束和 JSON 行动契约；强制每轮只返回一个可解析 JSON 对象，禁止 Markdown、解释文字、代码块和多个 JSON；只允许 `skill_call`、`skill_reference_call`、`tool_call`、`reply`、`ignore`、`human_review` 六类决策。
-2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后，并随 `instructions` 传入模型。Skill 目录只展示 `name` 与 `description`；已启用 Skill 正文和 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
+2. 第二章 Outside Context Prompt：`2.1 Skill Prompt` 在前，`2.2 Tool Prompt` 在后，并随 `instructions` 传入模型。Skill 目录只展示 `name` 与 `description`；平台预启用或模型按需启用的 Skill 正文与 reference 会被渲染为结构化文档；Tool 目录只描述 Harness 当前可见工具，不授予额外权限。
 3. 第三章 Runtime Observation：承载 `<run_state>`、`<decision_history>`、用户事件、当前轮次、工具结果和决策错误，并作为每次 Agent 循环的 `input`。Skill 和 Tool 的具体目录不再散落在运行观察中。
 
-这套分章参考 DeepAgents 的状态分层、渐进式披露和上下文压缩思想：稳定宪法、Skill 目录和 Tool 目录由 `instructions` 维护，运行状态由 Harness 显式维护并在每轮 `input` 中渲染成快照，完整 Skill 由模型请求后进入后续 instruction 上下文。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
+这套分章参考 DeepAgents 的状态分层、渐进式披露和上下文压缩思想：稳定宪法、Skill 目录和 Tool 目录由 `instructions` 维护，运行状态由 Harness 显式维护并在每轮 `input` 中渲染成快照。通用 Skill 由模型请求后进入后续 instruction 上下文；平台固定 Skill 可由订阅边界预启用，并从 Harness 首轮开始进入 instruction。Ye-Kitty 在此基础上把 Skill 正文和 reference 都转成结构化 Prompt 文档，使用 `<skill_document>`、`<skill_reference_document>`、JSON 结构头和正文 body 保证可定位、可审计、可压缩。
 
 第一章运行协议保存在 `packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md`。第二章由 `outside-context-prompt.ts` 组装 `skill.prompt.ts` 和 `tool.prompt.ts`，并由 `composeHarnessPrompt()` 拼入 `instructions`。第三章由 `harness.prompt.ts` 渲染 `HarnessPromptState`，并由 `conversation-renderer.ts` 渲染事件与观察，最终作为每轮 `input`。后续新增系统约束时应优先修改 Markdown；新增 Skill/Tool 目录结构时应优先修改对应 TS Prompt 模块。
 
@@ -99,7 +100,7 @@ MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协
 - 职责：控制一次 Agent 运行的主循环，组织 Observation、Runner 决策、权限判断、工具执行和最终结果。
 - 重要细节：MVP 默认限制 `maxTurns=100`、`maxToolCalls=3`；Runner 单次决策超时继续复用 `YE_KITTY_AGENT_REPLY_TIMEOUT_MS`；每轮循环通过结构化日志记录。
 - 状态细节：Harness 内部维护显式 `HarnessPromptState`，包含 `phase`、预算、已启用 Skill、已读取 reference、可见工具、最近观察和决策历史；Prompt 只渲染状态快照，不把 `conversationMessages` 当成隐式状态机。
-- Skill 细节：Harness 内部维护 `conversationMessages`、已启用 Skill 和已读取 reference；`skill_call` 与 `skill_reference_call` 不消耗工具预算，但仍受最大轮次和单次运行 reference 次数限制。
+- Skill 细节：Harness 先将 `AgentRuntimeRunInput.skills` 按名称去重并写入首轮 `enabledSkills`、`skill_content` 与 `skill_loaded` 状态，同时从可请求目录中排除已预启用项；之后继续维护模型按需启用的 Skill 和已读取 reference。`skill_call` 与 `skill_reference_call` 不消耗工具预算，但仍受最大轮次和单次运行 reference 次数限制。
 - 边界：不直接发送 QQ 消息，不直接绕过 `risk/actions` 执行平台动作。
 
 ### 模块二：AgentRunnerPort
@@ -113,7 +114,7 @@ MVP 的 Harness Prompt 采用三章描述，目标是把不可覆盖的系统协
 
 - 入口：`packages/kitty-service/src/services/agent-runtime/infrastructure/skill-market/skill-frontmatter.parser.ts`
 - 职责：启动期读取市场 Agent Skills 协议中的基础字段，运行期按需读取 `SKILL.md` 正文并转换成 Ye-Kitty 可使用的运行时 Skill。
-- 重要细节：MVP 已支持 `name`、`description`、`metadata` 和单行 `allowed-tools` 的磁盘解析；未知字段不阻断加载，但首轮 Prompt 目录只展示 `name` 和 `description`，不展示工具、metadata、平台字段或正文；正文只在 `skill_call` 命中后注入下一轮 Observation。
+- 重要细节：MVP 已支持 `name`、`description`、`metadata` 和单行 `allowed-tools` 的磁盘解析；未知字段不阻断加载，但首轮 Prompt 目录只展示 `name` 和 `description`，不展示工具、metadata 或平台字段。通用 Skill 正文在 `skill_call` 命中后注入下一轮；QQ 订阅边界固定预启用的 `qq-chat` 从首轮开始注入。
 - 边界：Skill 只声明建议能力和建议工具，不直接执行工具，不直接扩大权限。
 
 ### 模块四：SkillReferenceLoader
@@ -187,7 +188,7 @@ packages/kitty-service/src/services/agent-runtime/
 | `AgentConversationMessage`     | 输入 | Harness 渲染给 Runner 的平台无关 Observation 消息模型。             |
 | `HarnessPromptState`           | 输入 | Harness 渲染给 Runner 的显式状态快照，包含 phase、预算和决策历史。  |
 | `SkillMetadata`                | 输入 | 启动期扫描的 Skill 元信息，首轮目录只渲染 `name` 和 `description`。 |
-| `SkillContent`                 | 输入 | `skill_call` 命中后按需读取并注入 Observation 的 Skill 正文。       |
+| `SkillContent`                 | 输入 | 由平台预启用或 `skill_call` 按需启用后注入的 Skill 正文。           |
 | `SkillReferenceContent`        | 输入 | `skill_reference_call` 命中后按需读取并注入 Observation 的引用。    |
 | `SkillPromptDocument`          | 输入 | 第二章中用于定位、审计和压缩 Skill 正文的结构化 Prompt 文档。       |
 | `SkillReferencePromptDocument` | 输入 | 第二章中用于定位、审计和压缩 reference 正文的结构化 Prompt 文档。   |
@@ -269,13 +270,13 @@ metadata:
 SKILL.md frontmatter
   -> SkillMetadata
   -> availableSkills
-  -> skill_call
-  -> SkillContent
+  -> QQ固定Skill: 订阅边界预启用 -> SkillContent
+  -> 其他Skill: skill_call -> SkillContent
   -> enabledSkills
   -> AgentRuntimeContext
 ```
 
-`allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`，并允许模型通过 `skill_call` 请求 Harness 启用某个本轮可见 Skill；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入第二章 `2.1 Skill Prompt`，并被渲染为 `<skill_document>` 结构化文档。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入第二章 `<skill_reference_document>`。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
+`allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`。QQ 消息由 `QqReplyEventSubscriber` 在准入锁内固定加载 `qq-chat`，通过 `skills` 输入使其从 Harness 首轮开始进入第二章，不需要模型再返回 `skill_call`。其他 Skill 仍由模型通过 `skill_call` 请求 Harness 启用；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入第二章 `2.1 Skill Prompt`，并被渲染为 `<skill_document>` 结构化文档。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入第二章 `<skill_reference_document>`。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
 
 ## QQ受控回复动作
 
@@ -284,6 +285,8 @@ QQ 回复动作仍然采用白名单模型，入口是 `packages/kitty-service/s
 群聊触发采用低负载节奏门禁：`QqReplyEventSubscriber` 会先把白名单群聊消息写入共享消息池，再判断是否触发 Agent。明确 @ `YE_KITTY_QQ_SELF_ID` 的群聊消息立即触发；未 @ 群聊只有命中 `design-docs/QQ/chat-time.md` 中每小时唯一且尚未消费的随机回复片段，或回复后计时计数器达到 `10-60 分钟` 与 `10-50 条新消息`的联合门槛，并取得跨群 2 分钟主动预算时才触发。回复后冷却期间不再检查随机片段，未取得预算的消息不排队。节奏门控触发的未 @ 群聊会带上 `required_group_reply` 意图，Harness 必须要求模型先调用 `get_recent_messages` 读取最近 100 条群消息，再输出 `reply`，不能返回 `ignore`。私聊仍由 QQ 好友白名单控制，不要求 @。
 
 通过门控且准备触发 Harness 的消息还要经过 `design-docs/Agent/qq-harness-admission-queue.md` 定义的准入队列。全局最多同时处理两条消息，等待队列最多十条；私聊优先于明确 @ 叶猫猫的群聊，明确 @ 又优先于未 @ 的节奏触发，同级按实际入队顺序处理。同一会话持有独立会话锁，从 Skill 选择、Harness 循环到 QQ 动作发送和节奏更新都保持串行。消息历史与节奏计数发生在准入前，因此满载丢弃不会让消息从后续上下文中消失。
+
+QQ 消息获得准入后，订阅器会在同一准入锁内固定加载 `qq-chat` 正文，并作为预启用 Skill 传给 Harness。加载成功时 Harness 首轮状态为 `skill_loaded`；加载失败时记录中文警告并降级为普通 Harness，不中断 QQ 回复。该边界详见 `design-docs/Agent/qq-chat-skill-auto-injection.md`。
 
 执行层会对文本发送做兜底去重：当模型同时输出外层 `reply.text` 和同内容的 `send_text` 或 `send_text_with_face` 文本段时，只发送一次，避免群聊出现相同内容重复回复。
 
@@ -437,16 +440,18 @@ QqReplyEventSubscriber
 | 工具调用超预算                       | 模型反复要求调用工具                                        | `AgentTurnController` 终止运行，返回 `human_review` 或降级回复。             |
 | Skill 声明高风险工具                 | Skill 的 `allowed-tools` 包含发消息、删内容、外部写入等工具 | `PermissionPolicy` 默认拒绝或转人工，不能仅凭 Skill 声明放行。               |
 | Skill reference 路径逃逸             | 模型请求绝对路径、`..`、软链或非白名单扩展                  | `SkillReferenceLoader` 拒绝读取，并把错误写入下一轮 Observation。            |
+| QQ 默认 Skill 加载失败               | `qq-chat` 文件缺失、格式错误或不可读                        | 订阅器记录警告并降级为不带预启用 Skill 的普通 Harness。                      |
 | MCP 工具返回不可信内容               | 外部工具结果包含提示注入或敏感内容                          | 工具结果进入 Observation 前做摘要、脱敏和来源标记。                          |
 | risk/actions 未落地                  | Harness 生成候选动作但没有执行链路                          | 第一阶段只允许候选动作进入待处理，不直接执行。                               |
 
 ## 测试方案
 
 - 单元测试：已覆盖 Harness 正常循环、工具调用回灌、`maxToolCalls` 降级、Runner 非法输出恢复、`ignore`、`human_review` 和最近消息会话隔离。
-- 状态机测试：覆盖 `skill_call -> skill_loaded`、`skill_reference_call -> reference_loaded`、`tool_call -> tool_observing`、reference 超限后进入 `ready_to_decide`，并断言 `<run_state>`、预算和决策历史进入 Prompt。
-- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖群聊未 @ 先入消息池再走节奏门控、每小时随机片段只消费一次、回复后 10-60 分钟与 10-50 条消息门槛、冷却期屏蔽随机入口、跨群 2 分钟主动预算、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射、文字类 `send_msg` 自动注入触发消息引用和发送者 @，以及自定义表情 `image` 段单独发送。
+- 状态机测试：覆盖预启用 Skill 直接进入首轮 `skill_loaded`、`skill_call -> skill_loaded`、`skill_reference_call -> reference_loaded`、`tool_call -> tool_observing`、reference 超限后进入 `ready_to_decide`，并断言 `<run_state>`、预算和决策历史进入 Prompt。
+- 集成测试：保持 `QqReplyEventSubscriber` 现有文本和 QQ 受控动作执行行为不回退，覆盖 QQ 消息自动预启用 `qq-chat`、加载失败降级、群聊未 @ 先入消息池再走节奏门控、每小时随机片段只消费一次、回复后 10-60 分钟与 10-50 条消息门槛、冷却期屏蔽随机入口、跨群 2 分钟主动预算、@ 机器人触发、私聊无需 @、NapCat `mface` 商城表情、`text` + `face` 混排消息段映射、文字类 `send_msg` 自动注入触发消息引用和发送者 @，以及自定义表情 `image` 段单独发送。
 - 准入队列测试：覆盖全局并发 2、等待容量 10、私聊/群聊 @/未 @ 节奏触发三级优先级、同级 FIFO、同会话串行、满载替换、任务异常释放，以及丢弃消息保留历史但不调用 Agent。
 - Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议、自动引用提醒说明、自定义表情单独发送说明和戳一戳独占说明。
+- 真实模型 eval：QQ 用例默认预启用 `qq-chat`，不再期望 `skill_call:qq-chat`；另保留未启用 `chat-style` 的 `skill_call` 结构评估。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、视觉推荐和返回摘要。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
@@ -482,3 +487,4 @@ QqReplyEventSubscriber
 | 2026-07-08 | 待验收 | 优化 Harness Prompt 宪法与状态机：第一章拆成宪法、状态机和行动契约，第三章渲染显式 `HarnessPromptState`。           |
 | 2026-07-08 | 待验收 | 调整 Prompt 承载边界：第二章 Outside Context 进入 `instructions`，第三章 `input` 只保留本轮循环观察。               |
 | 2026-07-14 | 待验收 | 新增 QQ Harness 准入队列：全局并发 2、等待容量 10、三级优先级、同会话串行和满载替换均已实现并通过定向测试。         |
+| 2026-07-15 | 待验收 | QQ 订阅边界固定预启用 `qq-chat`，Harness 首轮直接注入正文并排除重复可请求目录；32 项定向测试与覆盖率门槛通过。      |
