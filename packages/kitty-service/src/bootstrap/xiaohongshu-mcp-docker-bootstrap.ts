@@ -2,7 +2,11 @@ import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 
 /** 外部命令执行能力 */
-export type BootstrapCommandRunner = (command: string, args: readonly string[]) => Promise<void>;
+export type BootstrapCommandRunner = (
+  command: string,
+  args: readonly string[],
+  environment?: NodeJS.ProcessEnv,
+) => Promise<void>;
 
 /** 小红书MCP Docker启动参数 */
 export interface XiaohongshuMcpDockerBootstrapOptions {
@@ -16,6 +20,8 @@ export interface XiaohongshuMcpDockerBootstrapOptions {
   readonly pollIntervalMs?: number;
   /** 命令执行能力 */
   readonly runCommand?: BootstrapCommandRunner;
+  /** Compose环境覆盖 */
+  readonly environment?: NodeJS.ProcessEnv;
   /** 健康检查能力 */
   readonly checkHealth?: (url: string) => Promise<boolean>;
   /** 等待能力 */
@@ -26,6 +32,8 @@ export interface XiaohongshuMcpDockerBootstrapOptions {
 
 const DEFAULT_START_TIMEOUT_MS = 120000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
+const DEFAULT_XIAOHONGSHU_MCP_IMAGE = 'xpzouying/xiaohongshu-mcp';
+const ARM64_XIAOHONGSHU_MCP_IMAGE = 'xpzouying/xiaohongshu-mcp:latest-arm64';
 const executeFile = promisify(execFile);
 
 /**
@@ -53,11 +61,17 @@ export class XiaohongshuMcpDockerBootstrap {
 
   /** 启动容器并等待服务就绪 */
   async start(): Promise<void> {
+    const image = this.options.environment?.YE_KITTY_XIAOHONGSHU_MCP_IMAGE ?? 'compose-default';
     console.info(
-      `🚧 [XiaohongshuMCP-Docker-start] 正在启动小红书MCP composePath=${this.options.composePath}`,
+      `🚧 [XiaohongshuMCP-Docker-start] 正在启动小红书MCP composePath=${this.options.composePath} image=${image}`,
     );
     try {
-      await this.runCommand('docker', ['compose', '-f', this.options.composePath, 'up', '-d']);
+      const args = ['compose', '-f', this.options.composePath, 'up', '-d'];
+      if (this.options.environment) {
+        await this.runCommand('docker', args, this.options.environment);
+      } else {
+        await this.runCommand('docker', args);
+      }
     } catch (error) {
       throw new Error(
         `小红书MCP Docker启动失败，请确认Docker已经安装并正在运行。reason=${formatError(error)}`,
@@ -83,9 +97,30 @@ export class XiaohongshuMcpDockerBootstrap {
   }
 }
 
+/**
+ * 选择宿主架构对应的小红书MCP镜像
+ * @param configuredImage 用户显式镜像
+ * @param architecture Node宿主架构
+ * @returns Compose镜像名称
+ */
+export function resolveXiaohongshuMcpImage(
+  configuredImage: string | undefined,
+  architecture: NodeJS.Architecture,
+): string {
+  const explicitImage = configuredImage?.trim();
+  if (explicitImage) return explicitImage;
+  return architecture === 'arm64' ? ARM64_XIAOHONGSHU_MCP_IMAGE : DEFAULT_XIAOHONGSHU_MCP_IMAGE;
+}
+
 // 执行无交互外部命令。
-async function runCommand(command: string, args: readonly string[]): Promise<void> {
-  await executeFile(command, [...args]);
+async function runCommand(
+  command: string,
+  args: readonly string[],
+  environment?: NodeJS.ProcessEnv,
+): Promise<void> {
+  await executeFile(command, [...args], {
+    env: environment ? { ...process.env, ...environment } : process.env,
+  });
 }
 
 // 检查HTTP健康状态。

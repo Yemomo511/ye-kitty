@@ -14,6 +14,8 @@ describe('小红书MCP Compose安全边界', () => {
     expect(compose).toContain('./images:/app/images');
     expect(compose).not.toContain('docker.sock');
     expect(compose).not.toContain('${HOME}');
+    expect(compose).toContain('chmod 600 /app/data/cookies.json');
+    expect(compose).toContain('umask 077');
   });
 
   test('允许显式选择上游镜像以适配ARM64或固定版本', () => {

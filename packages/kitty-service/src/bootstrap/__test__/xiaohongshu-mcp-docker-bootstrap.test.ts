@@ -1,5 +1,8 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { XiaohongshuMcpDockerBootstrap } from '../xiaohongshu-mcp-docker-bootstrap';
+import {
+  resolveXiaohongshuMcpImage,
+  XiaohongshuMcpDockerBootstrap,
+} from '../xiaohongshu-mcp-docker-bootstrap';
 
 describe('小红书MCP Docker启动', () => {
   afterEach(() => {
@@ -80,5 +83,36 @@ describe('小红书MCP Docker启动', () => {
 
     await expect(bootstrap.start()).resolves.toBeUndefined();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  test('Apple Silicon自动选择上游ARM64镜像并保留用户显式配置', () => {
+    expect(resolveXiaohongshuMcpImage(undefined, 'arm64')).toBe(
+      'xpzouying/xiaohongshu-mcp:latest-arm64',
+    );
+    expect(resolveXiaohongshuMcpImage(undefined, 'x64')).toBe('xpzouying/xiaohongshu-mcp');
+    expect(resolveXiaohongshuMcpImage('registry.example.com/xhs:v1', 'arm64')).toBe(
+      'registry.example.com/xhs:v1',
+    );
+  });
+
+  test('启动Compose时注入已选择的镜像环境', async () => {
+    const runCommand = vi.fn(async () => undefined);
+    const bootstrap = new XiaohongshuMcpDockerBootstrap({
+      composePath: '/project/deploy/xiaohongshu/compose.yml',
+      healthUrl: 'http://127.0.0.1:18060/health',
+      environment: {
+        YE_KITTY_XIAOHONGSHU_MCP_IMAGE: 'xpzouying/xiaohongshu-mcp:latest-arm64',
+      },
+      runCommand,
+      checkHealth: vi.fn(async () => true),
+    });
+
+    await bootstrap.start();
+
+    expect(runCommand).toHaveBeenCalledWith(
+      'docker',
+      ['compose', '-f', '/project/deploy/xiaohongshu/compose.yml', 'up', '-d'],
+      { YE_KITTY_XIAOHONGSHU_MCP_IMAGE: 'xpzouying/xiaohongshu-mcp:latest-arm64' },
+    );
   });
 });

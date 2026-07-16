@@ -13,7 +13,10 @@ import { XiaohongshuMcpLoginService } from '../services/agent-runtime/applicatio
 import { loadMcpRuntimeConfig } from '../services/agent-runtime/infrastructure/mcp/mcp-config-loader';
 import { OpenAiMcpClientFactory } from '../services/agent-runtime/infrastructure/mcp/openai-mcp-client.factory';
 import { LocalXiaohongshuQrcodePresenter } from '../services/agent-runtime/infrastructure/mcp/xiaohongshu-qrcode.presenter';
-import { XiaohongshuMcpDockerBootstrap } from './xiaohongshu-mcp-docker-bootstrap';
+import {
+  resolveXiaohongshuMcpImage,
+  XiaohongshuMcpDockerBootstrap,
+} from './xiaohongshu-mcp-docker-bootstrap';
 
 /** 已启动MCP运行时能力 */
 export interface BootstrappedMcpRuntime
@@ -151,6 +154,12 @@ function createDockerBootstrap(
   return new XiaohongshuMcpDockerBootstrap({
     composePath,
     healthUrl: healthUrl.toString(),
+    environment: {
+      YE_KITTY_XIAOHONGSHU_MCP_IMAGE: resolveXiaohongshuMcpImage(
+        options.env.YE_KITTY_XIAOHONGSHU_MCP_IMAGE,
+        process.arch,
+      ),
+    },
     timeoutMs: readPositiveInteger(
       options.env.YE_KITTY_XIAOHONGSHU_DOCKER_TIMEOUT_MS,
       120000,

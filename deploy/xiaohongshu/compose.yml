@@ -5,6 +5,13 @@ services:
     restart: unless-stopped
     init: true
     tty: true
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -f /app/data/cookies.json ]; then chmod 600 /app/data/cookies.json; fi
+        umask 077
+        exec ./app
     volumes:
       - ./data:/app/data
       - ./images:/app/images

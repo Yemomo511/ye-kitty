@@ -9,7 +9,7 @@ Ye-Kitty 通过 `xpzouying/xiaohongshu-mcp` 接入小红书浏览器自动化能
 - 使用小红书移动 App 扫码。登录后不要让同一账号同时登录其他网页端，避免网页会话互相挤下线。
 
 项目不会自动安装 Docker，也不会在后台修改系统环境。
-MCP 默认只监听 `127.0.0.1`，不要在没有反向代理鉴权的情况下把它暴露到局域网或公网。
+MCP 默认只监听 `127.0.0.1`，不要在没有反向代理鉴权的情况下把它暴露到局域网或公网。容器启动时会把已有 Cookie 文件权限收紧到 `0600`，并通过 `umask 077` 约束后续凭据文件。
 
 ## 启动与登录
 
@@ -68,7 +68,7 @@ pnpm xiaohongshu:down
 YE_KITTY_XIAOHONGSHU_MCP_NAME=xiaohongshu
 YE_KITTY_XIAOHONGSHU_MCP_URL=http://127.0.0.1:18060/mcp
 
-# 默认镜像；Apple Silicon 如需原生ARM64镜像可改为 latest-arm64
+# 项目启动会在Apple Silicon自动选择latest-arm64；这里可以显式固定其他版本
 YE_KITTY_XIAOHONGSHU_MCP_IMAGE=xpzouying/xiaohongshu-mcp
 
 # MCP 调用、Docker 启动和扫码等待时间
