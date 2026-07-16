@@ -1,0 +1,52 @@
+design-docs/Agent/model-request-pool-v1.md
+  s_868bd536593454::t_68d74d90e9902b 19,69,71,78,100-101,109,123-125,132-133,139,153-156
+design-docs/Task.md
+  s_868bd536593454::t_9b3184ee6ab987 21,40,77
+docs/agent-model-request-pool.md
+  s_868bd536593454::t_7e560276247ee2 24-25,37-39,47-68,90-91,106-112
+packages/kitty-service/eval/runner.ts
+  s_868bd536593454::t_57015c992b3339 5-10,24-25,28-34
+packages/kitty-service/src/services/agent-runtime/__test__/model-request-pool.test.ts
+  s_868bd536593454::t_c697929d29d80f 1-406
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-agent.test.ts
+  s_868bd536593454::t_01b3dbad5791cb 57,78-93,98-133
+packages/kitty-service/src/services/agent-runtime/application/in-memory-model-request-pool.ts
+  s_868bd536593454::t_0e5415479b82ef 1-306
+packages/kitty-service/src/services/agent-runtime/application/model-request-error.ts
+  s_868bd536593454::t_688733a09aefe3 1-37
+packages/kitty-service/src/services/agent-runtime/application/model-request-pool-config.ts
+  s_868bd536593454::t_780f3420628dd6 1-167
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_868bd536593454::t_b3b8886e972f4f 12-15,36-37,60,66-76,105,112
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_868bd536593454::t_4cdb1f3313e32b 28-35,86-93,106
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-compatible-model.client.ts
+  s_868bd536593454::t_7fddf8857eb5e8 1-137
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-harness-agent-runner.ts
+  s_868bd536593454::t_784be4a82a2976 6,12,27-30,39-40,42-45,47,150-155
+packages/kitty-service/src/services/agent-runtime/ports/model-request-pool.port.ts
+  s_868bd536593454::t_2f2f8a46c496bf 1-88
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "1b65f66dad63407cec5567893f1881807a4266fb",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_868bd536593454": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f46ae-4160-7990-a60e-8ccc4f584ad9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

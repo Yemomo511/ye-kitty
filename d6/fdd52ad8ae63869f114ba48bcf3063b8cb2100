@@ -1,0 +1,36 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_3d5811cfc26988::t_90f5d1c2a873cf 284,445
+design-docs/QQ/chat-time.md
+  s_3d5811cfc26988::t_ccc96190d385a1 1,5,9-14,16,18-21,23,25-28,30-65,69-83,85,87-91,93,95-98,100-124,128-145
+design-docs/Task.md
+  s_3d5811cfc26988::t_cf7cd2742edea9 12,20,33-41,78
+packages/kitty-service/src/services/agent-runtime/__test__/group-chat-cadence-controller.test.ts
+  s_3d5811cfc26988::t_8f3905a596d5cc 42,45,74,84-149,153-235,238-260,290,297,310-322
+packages/kitty-service/src/services/agent-runtime/application/group-chat-cadence-controller.ts
+  s_3d5811cfc26988::t_8fa28781375164 28-29,33-35,37,39-40,44,46-48,50,52,54,63-71,76-77,81-82,91,103-104,147-150,152-156,161,175-186,261-268,274-275,278-279,281-295,297-313,333-334,336,339
+packages/kitty-service/src/services/agent-runtime/ports/group-chat-cadence.port.ts
+  s_3d5811cfc26988::t_7e1b9612552aa4 29
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d6fdd52ad8ae63869f114ba48bcf3063b8cb2100",
+  "prompts": {},
+  "humans": {
+    "h_b866b1ed626949": {
+      "author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "sessions": {
+    "s_3d5811cfc26988": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5f4d-ffa4-72f1-8782-fbb7ce22d8f9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

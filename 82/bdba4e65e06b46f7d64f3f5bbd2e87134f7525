@@ -1,0 +1,45 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_a59e6563c7d986::t_b2506b248c979a 15,40-41,105-106,134,288,292,447,453-454,458,465,481-495
+design-docs/Agent/harness-recent-messages-auto-observation.md
+  s_a59e6563c7d986::t_1e1f45bf406e76 1-118
+design-docs/Agent/qq-chat-skill-auto-injection.md
+  s_a59e6563c7d986::t_15f443fedec1a2 10,35-36,39,59,69,81,89
+design-docs/Task.md
+  s_a59e6563c7d986::t_640dc848b99f02 17-24,34-35,87
+packages/kitty-service/eval/cases.ts
+  s_a59e6563c7d986::t_00b5029a75cb84 108-109,114-115,117,187,194,197-216,222,228-229,233,251-252
+packages/kitty-service/src/ARCHITECTURE.md
+  s_a59e6563c7d986::t_d1a7fd63e5b80a 83
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  s_a59e6563c7d986::t_d9b9be38616948 21-23
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_a59e6563c7d986::t_4dc4de0c1eac33 16,30,38,49-96,196-198,202,221-224,269,330-332,474-478,682,693,700-701,715,717,719,721,757,876-896
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_a59e6563c7d986::t_af7b89ccac2483 192-193
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_a59e6563c7d986::t_93b584bc2a03cd 24,85,87-95,97,271-308,655
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/harness.prompt.ts
+  s_a59e6563c7d986::t_21e7497d75d171 92-93
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md
+  s_a59e6563c7d986::t_d8dfbc04b4a29a 8,17-26,53,96
+packages/kitty-service/src/services/agent-runtime/ports/agent-runtime-harness.port.ts
+  s_a59e6563c7d986::t_05f71ce552cd3d 8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "82bdba4e65e06b46f7d64f3f5bbd2e87134f7525",
+  "prompts": {},
+  "sessions": {
+    "s_a59e6563c7d986": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f65a6-4cc5-74e1-a5f8-f09f9b9c61e9",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

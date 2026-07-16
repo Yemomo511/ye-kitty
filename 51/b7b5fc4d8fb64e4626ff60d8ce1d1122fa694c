@@ -1,0 +1,25 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_5b6261a2bcd561::t_3c8b1a91edd6ee 286-287,448
+design-docs/Agent/qq-harness-admission-queue.md
+  s_5b6261a2bcd561::t_90fdf413e32e43 1-139
+design-docs/Task.md
+  s_5b6261a2bcd561::t_ec2edbddaa04c7 10,17-22,30-31,80
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "51b7b5fc4d8fb64e4626ff60d8ce1d1122fa694c",
+  "prompts": {},
+  "sessions": {
+    "s_5b6261a2bcd561": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f5f69-0203-77f1-a824-115404dd0f2d",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}

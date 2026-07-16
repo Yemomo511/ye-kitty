@@ -1,0 +1,47 @@
+design-docs/Agent/agent-runtime-harness.md
+  s_a3321f0c357790::t_98d1e54510d630 38-39,88,91,103,117,191,273-274,279,289-290,443,450-451,454,490
+design-docs/Agent/qq-chat-skill-auto-injection.md
+  s_a3321f0c357790::t_63a02b6a09c0cd 1-103
+design-docs/Task.md
+  s_a3321f0c357790::t_e9f404660def58 12,17-23,32-33,84
+packages/kitty-service/eval/cases.ts
+  s_a3321f0c357790::t_9d68d5a236e6f1 73-77,88-103,105,110,120,124,140,142,155-156,166,176,185-186,193,197,203,209,211,223,232
+packages/kitty-service/src/ARCHITECTURE.md
+  s_a3321f0c357790::t_07d755b76f1a33 82
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  s_a3321f0c357790::t_fd746f6eebe730 21-22
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_a3321f0c357790::t_0dc99edcd1a0fd 187-243
+packages/kitty-service/src/services/agent-runtime/__test__/prompt-composer.test.ts
+  s_a3321f0c357790::t_588e591fc8740c 191
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_a3321f0c357790::t_bb78b3ce739bd5 30-33,54,72-79,137,140-142,173-174
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_a3321f0c357790::t_25f809a84d5bea 10,71-72,77-78,80,88,97,112,424-441
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_a3321f0c357790::t_6182b2bc4b0b45 12,17-18,126,130,149-170,227-231
+packages/kitty-service/src/services/agent-runtime/infrastructure/prompt/markdown/System/harness-runtime.prompt.md
+  s_a3321f0c357790::t_de60a432057ae6 8,41,51,72-74
+packages/kitty-service/src/services/agent-runtime/ports/agent-runtime-harness.port.ts
+  s_a3321f0c357790::t_04e7a3a42485ef 3,15-16
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_a3321f0c357790::t_5c182966d39859 15
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3307a200992e026281df743c40046011209717de",
+  "prompts": {},
+  "sessions": {
+    "s_a3321f0c357790": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f657e-b0bf-7a72-93e5-5e22d9f4d8e7",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
