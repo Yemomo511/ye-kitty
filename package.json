@@ -24,6 +24,7 @@
   "type": "commonjs",
   "main": "index.js",
   "scripts": {
+    "start": "pnpm --filter @ye-kitty/kitty-service start",
     "lint": "pnpm -r lint",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
@@ -33,6 +34,10 @@
     "napcat:down": "docker compose -f deploy/napcat/compose.yml down",
     "napcat:restart": "docker compose -f deploy/napcat/compose.yml restart",
     "napcat:logs": "docker logs -f ye-kitty-napcat",
+    "xiaohongshu:up": "docker compose -f deploy/xiaohongshu/compose.yml up -d",
+    "xiaohongshu:down": "docker compose -f deploy/xiaohongshu/compose.yml down",
+    "xiaohongshu:restart": "docker compose -f deploy/xiaohongshu/compose.yml restart",
+    "xiaohongshu:logs": "docker compose -f deploy/xiaohongshu/compose.yml logs -f",
     "check": "pnpm lint && pnpm format:check && pnpm test && pnpm --filter @ye-kitty/kitty-service eval:agent:warn"
   },
   "devDependencies": {

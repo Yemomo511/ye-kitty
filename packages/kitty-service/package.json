@@ -6,7 +6,9 @@
   "type": "module",
   "main": "src/index.ts",
   "scripts": {
+    "start": "tsx scripts/start.ts",
     "start-platform:qq": "tsx scripts/start-platform-qq.ts",
+    "start-platform:xiaohongshu": "tsx scripts/start-platform-xiaohongshu.ts",
     "lint": "eslint .",
     "validate:architecture": "node scripts/validate-architecture.mjs",
     "eval:agent": "node --import tsx eval/index.ts",

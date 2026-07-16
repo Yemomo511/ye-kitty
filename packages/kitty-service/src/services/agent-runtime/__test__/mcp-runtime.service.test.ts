@@ -118,6 +118,25 @@ describe('MCP运行时', () => {
     });
   });
 
+  test('启动前置流程可以读取原始MCP图片内容', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const client = createClient('xiaohongshu', [{ name: 'get_login_qrcode' }]);
+    const rawResult = {
+      content: [{ type: 'image', mimeType: 'image/png', data: 'cG5n' }],
+    };
+    client.callTool.mockResolvedValue(rawResult);
+    const runtime = new McpRuntimeService(
+      [createHttpConfig('xiaohongshu', { defaultRiskLevel: 'low' })],
+      createFactory({ xiaohongshu: client }),
+    );
+    await runtime.start();
+
+    await expect(runtime.callToolRaw('xiaohongshu_get_login_qrcode', null)).resolves.toBe(
+      rawResult,
+    );
+    expect(runtime.hasTool('xiaohongshu_get_login_qrcode')).toBe(true);
+  });
+
   test('MCP返回isError时转换为失败观察', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);

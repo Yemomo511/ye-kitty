@@ -25,7 +25,7 @@
 | QQ 默认 Skill 自动注入       | `design-docs/Agent/qq-chat-skill-auto-injection.md`             | 待验收 | QQ 订阅边界已固定预启用 `qq-chat`，正文从 Harness 首轮开始生效并排除重复可请求目录；随后最近消息前置观察把首轮 phase 推进到 `tool_observing`，真实模型 eval 已同步新协议。                                                                                                                                                                                             |
 | Harness 最近消息前置观察     | `design-docs/Agent/harness-recent-messages-auto-observation.md` | 待验收 | 每次 Harness 首轮模型决策前自动执行 `get_recent_messages`，结果直接注入且不消耗模型工具预算；43 项相关测试通过，Harness 行覆盖率 89.29%、分支覆盖率 87.73%、函数覆盖率 100%，Lint、格式、类型和架构检查通过。                                                                                                                                                          |
 | Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 待验收 | 已完成 `.mcp.json` 加载、stdio、Streamable HTTP、SSE、多 Server 故障隔离、工具过滤与前缀、Harness 风险治理、QQ 启动装配和优雅关闭；59 项 MCP、Harness 与 QQ Agent 定向测试通过，新增 MCP 核心文件每文件覆盖率均高于 80%。                                                                                                                                              |
-| 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 开发中 | 已核对上游 13 个 MCP 工具、Docker 持久化、`check_login_status`、`get_login_qrcode` 图片内容块和四分钟扫码窗口，正在按 TDD 实现启动选项、登录状态检查与二维码展示。                                                                                                                                                                                                     |
+| 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 待验收 | 已完成 QQ/小红书/组合启动、Docker 健康检查、13 个工具默认配置、二维码展示、登录轮询和风险分级；56 项定向测试及每文件 80% 覆盖率门槛通过，等待用户批准第三方镜像并扫码完成真实账号验收。                                                                                                                                                                                |
 
 ## 开发顺序
 
@@ -96,3 +96,4 @@
 | 2026-07-16 | 设计 Agent Runtime 通用 MCP 接入            | 参考 LangGraph 和 Deep Agents，确定 `.mcp.json` 兼容、多 Server 生命周期和 Harness 风险治理边界。            |
 | 2026-07-16 | 实现 Agent Runtime 通用 MCP 接入            | 复用 OpenAI Agents SDK 传输层，把多 MCP 工具统一接入 Harness 注册、预算、风险判断和观察回灌。                |
 | 2026-07-16 | 设计小红书 MCP 启动与登录                   | 以项目启动选项编排上游 Docker、MCP 登录二维码、状态检查和 Harness 风险工具目录。                             |
+| 2026-07-16 | 实现小红书 MCP 启动与登录                   | 完成项目启动选择、上游容器编排、二维码扫码、状态轮询、工具风险配置和使用文档。                               |

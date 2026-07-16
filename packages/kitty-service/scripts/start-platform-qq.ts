@@ -1,5 +1,5 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, parse } from 'node:path';
+import { bootstrapMcpRuntime } from '../src/bootstrap/mcp-runtime-bootstrap';
+import { findNearestDirectory, loadNearestEnvFile } from '../src/bootstrap/runtime-environment';
 import {
   createQqAccountExperimentChannel,
   loadQqAccountExperimentConfig,
@@ -13,19 +13,16 @@ import {
   GroupChatCadenceController,
   InMemoryQqHarnessAdmissionQueue,
   InMemoryConversationHistory,
-  loadMcpRuntimeConfig,
   loadQqReplyAgentConfig,
   loadCustomFaceVisionAgentConfig,
   MarkdownSkillContentLoader,
-  McpRuntimeService,
-  OpenAiMcpClientFactory,
   OpenAiCustomFaceVisionAgent,
   QqReplyEventSubscriber,
   SkillRuntimeService,
 } from '../src/services/agent-runtime';
 
 // 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
-loadNearestEnvFile();
+loadNearestEnvFile(process.cwd(), process.env);
 
 // 2. 创建 QQ 实验通道，下层平台只负责发布事件和提供发送端口。
 const qqConfig = loadQqAccountExperimentConfig();
@@ -47,19 +44,11 @@ console.info(
 );
 
 // 4. 启动通用MCP运行时，连接失败的Server会被隔离，不阻断QQ主链路。
-const loadedMcpConfig = await loadMcpRuntimeConfig({
+const mcpRuntime = await bootstrapMcpRuntime({
   startDirectory: process.cwd(),
   env: process.env,
+  includeXiaohongshu: process.env.YE_KITTY_ENABLE_XIAOHONGSHU_MCP?.trim().toLowerCase() === 'true',
 });
-const mcpRuntime =
-  loadedMcpConfig.config.servers.length > 0
-    ? new McpRuntimeService(loadedMcpConfig.config.servers, new OpenAiMcpClientFactory(process.env))
-    : undefined;
-if (mcpRuntime) {
-  await mcpRuntime.start();
-} else {
-  console.info('⏭️ [AgentRuntime-MCPBootstrap] 未发现MCP配置，跳过外部工具加载');
-}
 
 // 5. 创建自定义表情目录，NapCat连接建立后刷新缓存。
 const visionAgentConfig = loadCustomFaceVisionAgentConfig();
@@ -133,71 +122,6 @@ async function stopRuntime(signal: string): Promise<void> {
   await qqRuntime.stop();
   console.info(`✅ [QQPlatform-Stop] QQ实验通道已关闭 signal=${signal}`);
   process.exit(0);
-}
-
-// 读取最近的 .env 文件
-function loadNearestEnvFile(): void {
-  const envPath = findNearestFile(process.cwd(), '.env');
-  if (!envPath) return;
-
-  const envContent = readFileSync(envPath, 'utf8');
-  for (const line of envContent.split(/\r?\n/)) {
-    const entry = parseEnvLine(line);
-    if (!entry) continue;
-
-    const [key, value] = entry;
-    process.env[key] ??= value;
-  }
-}
-
-// 从启动目录向父级查找文件
-function findNearestFile(startDirectory: string, fileName: string): string | undefined {
-  let currentDirectory = startDirectory;
-  const rootDirectory = parse(startDirectory).root;
-
-  while (true) {
-    const candidate = join(currentDirectory, fileName);
-    if (existsSync(candidate)) return candidate;
-    if (currentDirectory === rootDirectory) return undefined;
-
-    currentDirectory = dirname(currentDirectory);
-  }
-}
-
-// 从启动目录向父级查找目录
-function findNearestDirectory(startDirectory: string, directoryName: string): string | undefined {
-  let currentDirectory = startDirectory;
-  const rootDirectory = parse(startDirectory).root;
-
-  while (true) {
-    const candidate = join(currentDirectory, directoryName);
-    if (existsSync(candidate)) return candidate;
-    if (currentDirectory === rootDirectory) return undefined;
-
-    currentDirectory = dirname(currentDirectory);
-  }
-}
-
-// 解析单行环境变量
-function parseEnvLine(line: string): readonly [string, string] | undefined {
-  const trimmedLine = line.trim();
-  if (trimmedLine.length === 0 || trimmedLine.startsWith('#')) return undefined;
-
-  const separatorIndex = trimmedLine.indexOf('=');
-  if (separatorIndex < 1) return undefined;
-
-  const key = trimmedLine.slice(0, separatorIndex).trim();
-  const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-  return [key, unwrapEnvValue(rawValue)];
-}
-
-// 去掉包裹引号
-function unwrapEnvValue(rawValue: string): string {
-  const quote = rawValue[0];
-  const shouldUnwrap = (quote === '"' || quote === "'") && rawValue.endsWith(quote);
-  if (!shouldUnwrap) return rawValue;
-
-  return rawValue.slice(1, -1);
 }
 
 // 压缩错误内容

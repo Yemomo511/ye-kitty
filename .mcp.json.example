@@ -3,8 +3,30 @@
     "xiaohongshu": {
       "type": "http",
       "url": "http://127.0.0.1:18060/mcp",
-      "allowedTools": ["check_login_status", "search_feeds", "get_feed_detail"],
-      "defaultRiskLevel": "low"
+      "allowedTools": [
+        "check_login_status",
+        "get_login_qrcode",
+        "delete_cookies",
+        "publish_content",
+        "list_feeds",
+        "search_feeds",
+        "get_feed_detail",
+        "user_profile",
+        "post_comment_to_feed",
+        "reply_comment_in_feed",
+        "publish_with_video",
+        "like_feed",
+        "favorite_feed"
+      ],
+      "defaultRiskLevel": "medium",
+      "toolRiskLevels": {
+        "check_login_status": "low",
+        "get_login_qrcode": "low",
+        "list_feeds": "low",
+        "search_feeds": "low",
+        "get_feed_detail": "low",
+        "user_profile": "low"
+      }
     },
     "filesystem": {
       "command": "npx",

@@ -7,6 +7,7 @@ import type {
 } from '../ports/mcp-client.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
+import type { McpRawToolCallerPort } from '../ports/mcp-raw-tool-caller.port';
 
 /** MCP observation最大字符数 */
 export const MAX_MCP_OBSERVATION_LENGTH = 12000;
@@ -23,7 +24,9 @@ interface ActiveMcpTool {
  * 管理多个MCP Server连接、工具发现、过滤、前缀命名和调用结果转换。
  * Server之间相互隔离，单个连接失败只会移除该Server工具。
  */
-export class McpRuntimeService implements RuntimeToolRegistryPort, RuntimeToolExecutorPort {
+export class McpRuntimeService
+  implements RuntimeToolRegistryPort, RuntimeToolExecutorPort, McpRawToolCallerPort
+{
   private readonly activeClients: McpClientPort[] = [];
   private readonly toolsByName = new Map<string, ActiveMcpTool>();
   private started = false;
@@ -76,6 +79,26 @@ export class McpRuntimeService implements RuntimeToolRegistryPort, RuntimeToolEx
   /** 查找已发现工具 */
   getTool(toolName: string): RuntimeTool | undefined {
     return this.toolsByName.get(toolName)?.runtimeTool;
+  }
+
+  /** 判断公开MCP工具是否存在 */
+  hasTool(toolName: string): boolean {
+    return this.toolsByName.has(toolName);
+  }
+
+  /**
+   * 调用MCP工具并保留原始内容块
+   * @param toolName 带Server前缀的工具名
+   * @param input 工具参数
+   * @returns MCP原始结果
+   */
+  async callToolRaw(
+    toolName: string,
+    input: Record<string, unknown> | null,
+  ): Promise<McpToolCallResult> {
+    const activeTool = this.toolsByName.get(toolName);
+    if (!activeTool) throw new Error(`MCP工具 ${toolName} 未注册`);
+    return await activeTool.client.callTool(activeTool.originalName, input);
   }
 
   /**

@@ -2,3 +2,5 @@ node_modules/
 .env
 .mcp.json
 deploy/napcat/data/
+deploy/xiaohongshu/data/
+deploy/xiaohongshu/images/

@@ -120,6 +120,16 @@ export {
 } from './application/mcp-runtime-config';
 export { MAX_MCP_OBSERVATION_LENGTH, McpRuntimeService } from './application/mcp-runtime.service';
 export {
+  createXiaohongshuMcpServerConfig,
+  withXiaohongshuMcpServer,
+  XIAOHONGSHU_MCP_TOOLS,
+} from './application/xiaohongshu-mcp-config';
+export {
+  XiaohongshuMcpLoginService,
+  type XiaohongshuMcpLoginResult,
+  type XiaohongshuMcpLoginServiceOptions,
+} from './application/xiaohongshu-mcp-login.service';
+export {
   InMemoryModelRequestPool,
   type ModelRequestPoolClock,
   type ModelTextClient,
@@ -149,6 +159,12 @@ export {
   OpenAiMcpClientFactory,
   type McpSdkServerConstructors,
 } from './infrastructure/mcp/openai-mcp-client.factory';
+export { LocalXiaohongshuQrcodePresenter } from './infrastructure/mcp/xiaohongshu-qrcode.presenter';
+export type { McpRawToolCallerPort } from './ports/mcp-raw-tool-caller.port';
+export type {
+  XiaohongshuLoginQrcode,
+  XiaohongshuQrcodePresenterPort,
+} from './ports/xiaohongshu-qrcode-presenter.port';
 export {
   OpenAiCustomFaceVisionAgent,
   loadCustomFaceVisionAgentConfig,
