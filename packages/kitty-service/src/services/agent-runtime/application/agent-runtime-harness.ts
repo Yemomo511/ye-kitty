@@ -73,7 +73,9 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     const maxSkillReferences = this.config.maxSkillReferences ?? DEFAULT_MAX_SKILL_REFERENCES;
 
     // 1. 先写入当前消息，让本轮工具也能读取到刚进入的上下文。
-    this.conversationHistory.recordMessage(input.event);
+    // Actor 路径注入 per-run history，旧路径回退到构造时注入的全局 history
+    const history = input.conversationHistory ?? this.conversationHistory;
+    history.recordMessage(input.event);
     console.info(
       `🚧 [AgentRuntime-Harness-run] 开始Harness循环 traceId=${traceId} conversationType=${input.event.conversationType} messageId=${maskId(
         input.event.message.id,
@@ -163,6 +165,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           event: input.event,
           toolName: decision.toolName,
           input: decision.input,
+          conversationHistory: input.conversationHistory,
         });
         toolResults.push(result);
         conversationMessages.push({ type: 'tool_result', result });

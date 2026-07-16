@@ -119,6 +119,28 @@ export class ConversationActorSupervisor {
     return count;
   }
 
+  /**
+   * 优雅关闭——持久化所有 Actor 快照并清理资源
+   */
+  async shutdown(): Promise<void> {
+    console.info(
+      `🚧 [ConversationActorSupervisor-shutdown] 开始关闭，持久化 ${this.actors.size} 个 Actor`,
+    );
+    const tasks: Promise<void>[] = [];
+    for (const [id, actor] of this.actors) {
+      tasks.push(
+        actor.destroy().catch((error) => {
+          console.warn(
+            `⚠️ [ConversationActorSupervisor-shutdown] Actor 销毁失败 conversationId=${id} reason=${error instanceof Error ? error.message : String(error)}`,
+          );
+        }),
+      );
+    }
+    await Promise.allSettled(tasks);
+    this.actors.clear();
+    console.info('✅ [ConversationActorSupervisor-shutdown] 已关闭');
+  }
+
   // ─── 私有方法 ───
 
   // 获取或创建 Actor

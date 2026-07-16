@@ -1,16 +1,22 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { ConversationId } from '@kitty/shared/types/ids';
 import type { SkillMetadata } from '../domain/skill';
 import type { ActorState } from '../domain/actor-state';
 import type { ActorSnapshot } from '../domain/actor-snapshot';
+import type { SenderBatch } from '../domain/sender-batch';
 import type { ConversationActorMeta } from '../ports/eviction-policy.port';
 import type { RecoveryPolicyPort } from '../ports/recovery-policy.port';
 import type { SnapshotStorePort } from '../ports/snapshot-store.port';
+import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 import type {
   AgentRuntimeHarnessPort,
   AgentRuntimeRunResult,
 } from '../ports/agent-runtime-harness.port';
 import { ConversationMailbox } from './actor-mailbox';
 import { writeDebugLog } from '@kitty/shared/infrastructure/logging';
+
+/** 单 Actor 最多保留历史消息数（防内存溢出） */
+const MAX_HISTORY_MESSAGES = 200;
 
 /**
  * ConversationActor 配置
@@ -52,6 +58,7 @@ export class ConversationActor {
   private readonly harness: AgentRuntimeHarnessPort;
   private readonly snapshotStore: SnapshotStorePort;
   private readonly recoveryPolicy: RecoveryPolicyPort;
+  private readonly actorHistory: ActorConversationHistory;
   private destroyed = false;
 
   constructor(config: ConversationActorConfig) {
@@ -60,6 +67,10 @@ export class ConversationActor {
     this.snapshotStore = config.snapshotStore;
     this.recoveryPolicy = config.recoveryPolicy;
     this.mailbox = new ConversationMailbox(config.mailboxConfig);
+    this.actorHistory = new ActorConversationHistory(
+      this.history,
+      config.conversationId as ConversationId,
+    );
   }
 
   // ─── 公共属性 ───
@@ -100,7 +111,11 @@ export class ConversationActor {
     skills?: readonly SkillMetadata[],
   ): Promise<AgentRuntimeRunResult> {
     if (this.destroyed) {
-      return Promise.resolve(this.capacityError('Actor 已销毁'));
+      return Promise.reject(new Error('Actor 已销毁'));
+    }
+
+    if (this._state === 'faulty') {
+      return Promise.reject(new Error('Actor 处于故障状态'));
     }
 
     this.mailbox.push(event);
@@ -136,8 +151,9 @@ export class ConversationActor {
    */
   async destroy(): Promise<void> {
     this.destroyed = true;
-    this.mailbox.destroy();
-    await this.snapshotStore.save(this.snapshot());
+    const finalSnapshot = this.snapshot(); // 先拍快照
+    this.mailbox.destroy();                // 再清理
+    await this.snapshotStore.save(finalSnapshot);
   }
 
   // ─── 私有方法 ───
@@ -174,16 +190,19 @@ export class ConversationActor {
           event: batch.messages[0],
           availableSkills: this.availableSkills,
           batchHint: this.mailbox.buildBatchHint(batch),
+          conversationHistory: this.actorHistory,
         });
 
         lastResult = result;
 
         if (result.type === 'reply' || result.type === 'ignore') {
           this.history.push(...batch.messages);
+          this.trimHistory();
           this._sequenceNumber++;
           await this.snapshotStore.save(this.snapshot());
         } else if (result.type === 'human_review') {
           this.history.push(...batch.messages);
+          this.trimHistory();
           this._sequenceNumber++;
           await this.snapshotStore.save(this.snapshot());
           continue;
@@ -224,6 +243,13 @@ export class ConversationActor {
     return lastResult;
   }
 
+  // 截断历史，保留最近消息
+  private trimHistory(): void {
+    if (this.history.length > MAX_HISTORY_MESSAGES) {
+      this.history.splice(0, this.history.length - MAX_HISTORY_MESSAGES);
+    }
+  }
+
   // 生成过载拒绝结果
   private capacityError(reason: string): AgentRuntimeRunResult {
     return {
@@ -234,11 +260,58 @@ export class ConversationActor {
   }
 
   // 导出邮箱的快照视图
-  // Phase 1：只导出已封口的 batch（timer 状态不可序列化）
   private mailboxSnapshot(): ActorSnapshot['mailbox'] {
-    // 简化处理——已封口的 batch 直接存入快照
-    // 完整 timer 序列化留到 Phase 3
-    return [];
+    // 只导出已封口的 batch（timer 状态不可序列化，未封口的在崩溃后可丢弃）
+    const batches: SenderBatch[] = [];
+    for (const batch of this.mailbox.sealedBatches) {
+      batches.push({
+        id: batch.id,
+        senderId: batch.senderId,
+        messages: [...batch.messages],
+        sealed: true,
+        createdAt: batch.createdAt,
+        lastAppendedAt: batch.lastAppendedAt,
+      });
+    }
+    return batches;
+  }
+}
+
+/**
+ * Actor 私有会话历史适配器
+ *
+ * 把 Actor 的 history[] 包装为 ConversationHistoryPort，
+ * 注入 Harness 和工具执行器，替代全局 InMemoryConversationHistory。
+ */
+class ActorConversationHistory implements ConversationHistoryPort {
+  private validated = false;
+
+  /**
+   * @param history Actor 私有的消息数组（引用，不是副本）
+   * @param ownerId 该历史所属的会话ID
+   */
+  constructor(
+    private readonly history: ChatEventContract[],
+    private readonly ownerId: ConversationId,
+  ) {}
+
+  recordMessage(_event: ChatEventContract): void {
+    // no-op: Actor 的 processNext 是 history 的唯一写入者
+  }
+
+  getRecentMessages(
+    conversationId: ConversationId,
+    limit: number,
+  ): readonly ChatEventContract[] {
+    if (!this.validated) {
+      this.validated = true;
+      if (String(conversationId) !== String(this.ownerId)) {
+        console.warn(
+          `⚠️ [ActorConversationHistory] 会话ID不匹配 expected=${this.ownerId} actual=${conversationId}`,
+        );
+      }
+    }
+    return this.history.slice(-limit);
   }
 }
 
