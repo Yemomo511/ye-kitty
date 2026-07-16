@@ -23,7 +23,8 @@ export interface CodeAgentGateHook {
  * - 规范化后必须位于 CODE_AGENT_WORKSPACE_ROOT 下（防 .. 逃逸）
  */
 function createWorkdirHook(workspaceRoot: string): CodeAgentGateHook {
-  const normalizedRoot = normalize(workspaceRoot) + '/';
+  // normalize + realpath 均将 \\ 替换为 /，确保 Windows 上 startsWith 不因分隔符失配
+  const normalizedRoot = normalize(workspaceRoot).replace(/\\/g, '/') + '/';
 
   return {
     check(task) {
@@ -33,7 +34,7 @@ function createWorkdirHook(workspaceRoot: string): CodeAgentGateHook {
 
       let resolved: string;
       try {
-        resolved = `${realpathSync(task.workdir)}/`;
+        resolved = `${realpathSync(task.workdir)}`.replace(/\\/g, '/') + '/';
       } catch {
         return `无法解析工作目录: ${task.workdir}`;
       }
