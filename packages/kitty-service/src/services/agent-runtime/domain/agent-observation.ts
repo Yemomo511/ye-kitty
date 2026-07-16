@@ -29,4 +29,6 @@ export interface AgentObservation {
   readonly toolCallCount: number;
   /** 最大工具次数 */
   readonly maxToolCalls: number;
+  /** 消息批次说明（仅当消息来自 batch 时非空） */
+  readonly batchHint?: string;
 }

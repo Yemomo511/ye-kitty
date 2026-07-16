@@ -20,6 +20,7 @@ export interface QqReplyEventSubscriberConfig {
  */
 export class QqReplyEventSubscriber {
   private readonly actionExecutor: QqReplyActionExecutor;
+  private seenMessageIds = new Set<string>();
 
   constructor(
     private readonly qqMessageService: PlatformMessageService<ChatEventContract>,
@@ -49,6 +50,21 @@ export class QqReplyEventSubscriber {
    */
   async handleMessage(message: ChatEventContract): Promise<void> {
     if (!isQqReceivedMessage(message)) return;
+
+    // 去重：ChatEventContract.id 格式为 `qq:event:${messageId}`，重复投递时 id 不变
+    const dedupeKey = String(message.id);
+    if (this.seenMessageIds.has(dedupeKey)) {
+      writeDebugLog(
+        `⏭️ [AgentRuntime-QQReplySubscriber-handleMessage] 跳过重复消息 dedupeKey=${dedupeKey}`,
+      );
+      return;
+    }
+    this.seenMessageIds.add(dedupeKey);
+    // Set 上限保护：超过 10,000 条清理最早的一半
+    if (this.seenMessageIds.size > 10_000) {
+      const entries = [...this.seenMessageIds];
+      this.seenMessageIds = new Set(entries.slice(5_000));
+    }
 
     const mentionsAgent = isMentioningAgent(message, this.config?.selfQqId);
     if (message.conversationType === 'group' && !mentionsAgent) {

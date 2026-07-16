@@ -1,3 +1,6 @@
+import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { ConversationHistory } from './conversation-history';
+
 /**
  * 工具风险等级
  *
@@ -33,6 +36,8 @@ export interface RuntimeToolCall {
   readonly toolName: string;
   /** 工具入参 */
   readonly input: unknown;
+  /** 会话历史——Actor 路径按次注入，覆盖构造时注入 */
+  readonly conversationHistory?: ConversationHistory;
 }
 
 /**
@@ -52,4 +57,3 @@ export interface ToolExecutionResult {
   /** 错误原因 */
   readonly errorMessage?: string;
 }
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';

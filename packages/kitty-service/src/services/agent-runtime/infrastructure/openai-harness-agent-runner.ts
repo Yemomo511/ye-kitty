@@ -1,4 +1,5 @@
 import { Agent, OpenAIProvider, Runner } from '@openai/agents';
+import { setOpenAIAPI } from '@openai/agents-openai';
 import type { AgentDecision } from '../domain/agent-decision';
 import type { AgentObservation } from '../domain/agent-observation';
 import type { QqReplyAction } from '../ports/qq-reply-agent.port';
@@ -33,6 +34,8 @@ export class OpenAiHarnessAgentRunner implements AgentRunnerPort {
   private readonly runner: Runner;
 
   constructor(private readonly config: OpenAiHarnessAgentRunnerConfig) {
+    // 使用 Chat Completions API（非 OpenAI 专属 Responses API），兼容 DeepSeek 等第三方模型
+    setOpenAIAPI('chat_completions');
     const modelProvider = new OpenAIProvider({
       apiKey: config.apiKey,
       baseURL: config.baseURL,

@@ -8,6 +8,11 @@ import { InMemoryConversationHistory } from './in-memory-conversation-history';
 import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtime-tools';
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
 import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
+import { ConversationActorSupervisor } from './conversation-actor-supervisor';
+import { ActorQqReplyAgent } from './actor-qq-reply.agent';
+import { InMemorySnapshotStore } from './in-memory-snapshot-store';
+import { LeastRecentlyIdleEvictionPolicy } from './least-recently-idle-eviction-policy';
+import { ExponentialBackoffRecoveryPolicy } from './exponential-backoff-recovery-policy';
 
 /** Harness 单次运行默认最大轮次 */
 export const DEFAULT_HARNESS_MAX_TURNS = 100;
@@ -73,6 +78,66 @@ export function createQqReplyAgent(
   );
 
   return new SafeQqReplyAgent(new HarnessQqReplyAgentAdapter(harness), fallbackAgent);
+}
+
+/**
+ * 创建基于 Actor 模型的 QQ 回复 Agent
+ *
+ * 直接构造 AgentRuntimeHarnessPort 并包裹在 ConversationActorSupervisor 中，
+ * 每个会话拥有独立 Actor，内部严格串行处理消息。
+ *
+ * @param config 运行配置
+ * @param skillContentLoader Skill 正文加载器
+ * @param customFaceCatalog 自定义表情目录
+ * @returns 回复 Agent（Actor 路径）
+ */
+export function createActorQqReplyAgent(
+  config: QqReplyAgentRuntimeConfig,
+  skillContentLoader?: SkillContentLoaderPort & Partial<SkillReferenceLoaderPort>,
+  customFaceCatalog?: CustomFaceCatalogService,
+): QqReplyAgentPort {
+  const fallbackAgent = new FallbackQqReplyAgent();
+  if (!config.openAiApiKey) return fallbackAgent;
+
+  const conversationHistory = new InMemoryConversationHistory();
+  const toolDependencies = { customFaceCatalog };
+  const toolRegistry = new BuiltinRuntimeToolRegistry(toolDependencies);
+  const toolExecutor = new BuiltinRuntimeToolExecutor(
+    conversationHistory,
+    toolDependencies,
+  );
+  const runner = new OpenAiHarnessAgentRunner({
+    apiKey: config.openAiApiKey,
+    baseURL: config.openAiBaseUrl,
+    agentName: config.agentName,
+    model: config.agentModel,
+    timeoutMs: config.replyTimeoutMs,
+  });
+  const harness = new AgentRuntimeHarness(
+    runner,
+    toolRegistry,
+    toolExecutor,
+    conversationHistory,
+    skillContentLoader,
+    skillContentLoader?.loadSkillReference
+      ? (skillContentLoader as SkillReferenceLoaderPort)
+      : undefined,
+    fallbackAgent,
+    {
+      maxTurns: DEFAULT_HARNESS_MAX_TURNS,
+      maxToolCalls: 3,
+      maxSkillReferences: 3,
+    },
+  );
+
+  const supervisor = new ConversationActorSupervisor({
+    harness,
+    snapshotStore: new InMemorySnapshotStore(),
+    evictionPolicy: new LeastRecentlyIdleEvictionPolicy(300_000),
+    recoveryPolicy: new ExponentialBackoffRecoveryPolicy(),
+  });
+
+  return new ActorQqReplyAgent(supervisor);
 }
 
 /**

@@ -35,6 +35,9 @@ importers:
       '@openai/agents':
         specifier: ^0.12.0
         version: 0.12.0(ws@8.21.0)(zod@4.4.3)
+      '@openai/agents-openai':
+        specifier: ^0.12.0
+        version: 0.12.0(ws@8.21.0)(zod@4.4.3)
       fastify:
         specifier: ^5.4.0
         version: 5.9.0

@@ -1,6 +1,7 @@
 import type { QqReplyAction } from './qq-reply-agent.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { SkillMetadata } from '../domain/skill';
+import type { ConversationHistoryPort } from './conversation-history.port';
 
 /**
  * Harness运行输入
@@ -12,6 +13,10 @@ export interface AgentRuntimeRunInput {
   readonly event: ChatEventContract;
   /** 本轮可请求的Skill目录 */
   readonly availableSkills?: readonly SkillMetadata[];
+  /** 消息批次说明（仅当消息来自 batch 时非空） */
+  readonly batchHint?: string;
+  /** 会话历史——Actor 路径按次注入，覆盖构造时注入 */
+  readonly conversationHistory?: ConversationHistoryPort;
 }
 
 /**
@@ -42,6 +47,14 @@ export type AgentRuntimeRunResult =
       /** 结果类型 */
       readonly type: 'human_review';
       /** 审核原因 */
+      readonly reason: string;
+      /** 运行追踪ID */
+      readonly traceId: string;
+    }
+  | {
+      /** 结果类型 */
+      readonly type: 'capacity_error';
+      /** 过载原因 */
       readonly reason: string;
       /** 运行追踪ID */
       readonly traceId: string;
