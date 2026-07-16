@@ -1,0 +1,29 @@
+deploy/xiaohongshu/compose.yml
+  s_4f351f63b7174a::t_2acff90914af03 3,19
+design-docs/Agent/xiaohongshu-mcp-bootstrap.md
+  s_4f351f63b7174a::t_544aec154a19e5 71,102,123,135-137
+design-docs/Task.md
+  s_4f351f63b7174a::t_aa3941f0430e7b 28,55
+docs/xiaohongshu-mcp.md
+  s_4f351f63b7174a::t_e9562cbf76fece 12,71-73,90-95
+packages/kitty-service/src/bootstrap/__test__/xiaohongshu-mcp-compose.test.ts
+  s_4f351f63b7174a::t_d1a3c3a07a4646 1-26
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "2b28dffa4b9bfe43bf4c02ebc4dffd33af13db6c",
+  "prompts": {},
+  "sessions": {
+    "s_4f351f63b7174a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6900-bac1-7db2-8abb-634effe82888",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
