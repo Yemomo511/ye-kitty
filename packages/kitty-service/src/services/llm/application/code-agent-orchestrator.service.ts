@@ -410,20 +410,27 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
   ): void {
     if (session.status === 'canceled') return; // 已由 cancel() 处理
 
-    const killed = signal !== null;
-    const failure = classifyFailure({
-      exitCode: exitCode ?? null,
-      killed,
-      cancelRequested: false,
-      stderrTail,
-      phase: 'running',
-    });
+    // 若看门狗已设置精确失败原因（如 inactivity_timeout / session_timeout），保留不被覆盖
+    const hasExistingFailure = session.failure !== undefined;
 
-    if (exitCode === 0 && !killed) {
-      session.status = 'succeeded';
+    if (!hasExistingFailure) {
+      const killed = signal !== null;
+      const failure = classifyFailure({
+        exitCode: exitCode ?? null,
+        killed,
+        cancelRequested: false,
+        stderrTail,
+        phase: 'running',
+      });
+
+      if (exitCode === 0 && !killed) {
+        session.status = 'succeeded';
+      } else {
+        session.status = 'failed';
+        session.failure = failure;
+      }
     } else {
       session.status = 'failed';
-      session.failure = failure;
     }
 
     session.endedAt = Date.now();
