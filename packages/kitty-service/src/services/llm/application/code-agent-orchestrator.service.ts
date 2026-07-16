@@ -387,9 +387,11 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     }
 
     if (session.status === 'running' && session.child && !session.child.killed) {
-      await cancelChild(session.child);
+      // 将 status 设在 cancelChild 之前：防止 await 的 3s 窗口内 handleClose
+      // 因子进程自然退出而覆盖终态（handleClose 看到 canceled 后直接 early return）
       session.status = 'canceled';
       session.endedAt = Date.now();
+      await cancelChild(session.child);
       this.emitEvent(session, {
         type: 'session_end',
         sessionId,
