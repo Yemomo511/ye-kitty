@@ -1,0 +1,65 @@
+.gitignore
+  s_4f351f63b7174a::t_8b96d263fdb0d2 3
+.mcp.json.example
+  s_4f351f63b7174a::t_421018acf992cf 1-28
+design-docs/Agent/agent-runtime-harness.md
+  s_4f351f63b7174a::t_4a765ab96491c4 282,337,345,360,362,430,463
+design-docs/Agent/mcp-runtime.md
+  s_4f351f63b7174a::t_26553a9eea5912 59,149,155,162-165
+design-docs/Task.md
+  s_4f351f63b7174a::t_ed38e1ab83b298 11,26,93
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_4f351f63b7174a::t_ca5bf2c1130cfc 16,20-21,49-64,83,94-98,106,124,132
+packages/kitty-service/src/ARCHITECTURE.md
+  s_4f351f63b7174a::t_f6c6f400db4bac 79,81-83
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_4f351f63b7174a::t_e73afb579ba59b 17,121-175,953-974
+packages/kitty-service/src/services/agent-runtime/__test__/composite-runtime-tools.test.ts
+  s_4f351f63b7174a::t_20c5f4ce24132c 1-71
+packages/kitty-service/src/services/agent-runtime/__test__/mcp-config-loader.test.ts
+  s_4f351f63b7174a::t_ccf6534965378a 1-80
+packages/kitty-service/src/services/agent-runtime/__test__/mcp-runtime-config.test.ts
+  s_4f351f63b7174a::t_ad5deb5503f733 1-140
+packages/kitty-service/src/services/agent-runtime/__test__/mcp-runtime.service.test.ts
+  s_4f351f63b7174a::t_15bde6b465af2e 1-386
+packages/kitty-service/src/services/agent-runtime/__test__/openai-mcp-client.factory.test.ts
+  s_4f351f63b7174a::t_bea40289f1c227 1-170
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_4f351f63b7174a::t_2a8270148724b9 230-246
+packages/kitty-service/src/services/agent-runtime/application/composite-runtime-tools.ts
+  s_4f351f63b7174a::t_e628247d6611e3 1-81
+packages/kitty-service/src/services/agent-runtime/application/mcp-runtime-config.ts
+  s_4f351f63b7174a::t_1207a1aed8ddfc 1-228
+packages/kitty-service/src/services/agent-runtime/application/mcp-runtime.service.ts
+  s_4f351f63b7174a::t_45be81e5970725 1-332
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_4f351f63b7174a::t_721c99f866e66d 10-14,51-52,71-77
+packages/kitty-service/src/services/agent-runtime/domain/mcp.ts
+  s_4f351f63b7174a::t_b9b78659bcd077 1-67
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_4f351f63b7174a::t_c0dc3f708375cc 27-35,69-73,111-121,143-151
+packages/kitty-service/src/services/agent-runtime/infrastructure/mcp/mcp-config-loader.ts
+  s_4f351f63b7174a::t_ba0c544163d66e 1-85
+packages/kitty-service/src/services/agent-runtime/infrastructure/mcp/openai-mcp-client.factory.ts
+  s_4f351f63b7174a::t_c279e40464ce3f 1-149
+packages/kitty-service/src/services/agent-runtime/ports/mcp-client.port.ts
+  s_4f351f63b7174a::t_f2e4ec8be7697c 1-49
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0f7e81f882f38181995f040789585c0cf2d4efe5",
+  "prompts": {},
+  "sessions": {
+    "s_4f351f63b7174a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6900-bac1-7db2-8abb-634effe82888",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
