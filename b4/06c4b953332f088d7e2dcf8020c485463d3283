@@ -1,0 +1,23 @@
+design-docs/Agent/xiaohongshu-mcp-bootstrap.md
+  s_4f351f63b7174a::t_45e9906b19a842 1-136
+design-docs/Task.md
+  s_4f351f63b7174a::t_c4b8fa8e14afe1 7,12,15,28,41,54,98
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b406c4b953332f088d7e2dcf8020c485463d3283",
+  "prompts": {},
+  "sessions": {
+    "s_4f351f63b7174a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6900-bac1-7db2-8abb-634effe82888",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
