@@ -58,7 +58,7 @@ describe('control-plane HTTP', () => {
         '@kitty/control-plane/api/code-agent.controller'
       );
       app = await startHttpServer(testKey, (a) => {
-        registerCodeAgentRoutes(a, runner, runtime.registry);
+        registerCodeAgentRoutes(a, runner as unknown as import('@kitty/services/llm/ports/code-agent-runner.port').CodeAgentRunnerPort, runtime.registry);
       });
     });
 
