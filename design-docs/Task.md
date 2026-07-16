@@ -8,7 +8,7 @@
 
 ## 当前状态
 
-- 状态：开发中
+- 状态：待验收
 - 负责人：Codex
 - 最近更新：2026-07-16
 - 唯一入口：`design-docs/Agent/mcp-runtime.md`
@@ -23,7 +23,7 @@
 | QQ Harness 准入优先队列      | `design-docs/Agent/qq-harness-admission-queue.md`               | 待验收 | 已实现全局并发 2、等待容量 10、私聊优先于群聊 @ 和未 @ 节奏触发、同会话串行、高优先级满载替换及中文调度日志；19 项定向测试与每文件 80% 覆盖率门槛通过。                                                                                                                                                                                                                |
 | QQ 默认 Skill 自动注入       | `design-docs/Agent/qq-chat-skill-auto-injection.md`             | 待验收 | QQ 订阅边界已固定预启用 `qq-chat`，正文从 Harness 首轮开始生效并排除重复可请求目录；随后最近消息前置观察把首轮 phase 推进到 `tool_observing`，真实模型 eval 已同步新协议。                                                                                                                                                                                             |
 | Harness 最近消息前置观察     | `design-docs/Agent/harness-recent-messages-auto-observation.md` | 待验收 | 每次 Harness 首轮模型决策前自动执行 `get_recent_messages`，结果直接注入且不消耗模型工具预算；43 项相关测试通过，Harness 行覆盖率 89.29%、分支覆盖率 87.73%、函数覆盖率 100%，Lint、格式、类型和架构检查通过。                                                                                                                                                          |
-| Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 开发中 | 已完成 stdio、Streamable HTTP、SSE、多 Server、工具过滤、风险治理和生命周期设计，正在按 TDD 实现。                                                                                                                                                                                                                                                                     |
+| Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 待验收 | 已完成 `.mcp.json` 加载、stdio、Streamable HTTP、SSE、多 Server 故障隔离、工具过滤与前缀、Harness 风险治理、QQ 启动装配和优雅关闭；59 项 MCP、Harness 与 QQ Agent 定向测试通过，新增 MCP 核心文件每文件覆盖率均高于 80%。                                                                                                                                              |
 
 ## 开发顺序
 
@@ -90,3 +90,4 @@
 | 2026-07-15 | 开发 QQ 默认 Skill 自动注入                 | `qq-chat` 是 QQ 消息的固定方法论，不再由模型逐消息重复决策是否启用。                                         |
 | 2026-07-15 | 实现最近消息前置观察                        | 最近消息成为每次 Harness 首轮决策前的固定运行观察，避免模型重复消耗一次工具决策。                            |
 | 2026-07-16 | 设计 Agent Runtime 通用 MCP 接入            | 参考 LangGraph 和 Deep Agents，确定 `.mcp.json` 兼容、多 Server 生命周期和 Harness 风险治理边界。            |
+| 2026-07-16 | 实现 Agent Runtime 通用 MCP 接入            | 复用 OpenAI Agents SDK 传输层，把多 MCP 工具统一接入 Harness 注册、预算、风险判断和观察回灌。                |

@@ -13,9 +13,12 @@ import {
   GroupChatCadenceController,
   InMemoryQqHarnessAdmissionQueue,
   InMemoryConversationHistory,
+  loadMcpRuntimeConfig,
   loadQqReplyAgentConfig,
   loadCustomFaceVisionAgentConfig,
   MarkdownSkillContentLoader,
+  McpRuntimeService,
+  OpenAiMcpClientFactory,
   OpenAiCustomFaceVisionAgent,
   QqReplyEventSubscriber,
   SkillRuntimeService,
@@ -43,7 +46,22 @@ console.info(
   `✅ [AgentRuntime-SkillBootstrap] 已加载Skill元信息 count=${skillMetadataList.length}`,
 );
 
-// 4. 创建自定义表情目录，NapCat连接建立后刷新缓存。
+// 4. 启动通用MCP运行时，连接失败的Server会被隔离，不阻断QQ主链路。
+const loadedMcpConfig = await loadMcpRuntimeConfig({
+  startDirectory: process.cwd(),
+  env: process.env,
+});
+const mcpRuntime =
+  loadedMcpConfig.config.servers.length > 0
+    ? new McpRuntimeService(loadedMcpConfig.config.servers, new OpenAiMcpClientFactory(process.env))
+    : undefined;
+if (mcpRuntime) {
+  await mcpRuntime.start();
+} else {
+  console.info('⏭️ [AgentRuntime-MCPBootstrap] 未发现MCP配置，跳过外部工具加载');
+}
+
+// 5. 创建自定义表情目录，NapCat连接建立后刷新缓存。
 const visionAgentConfig = loadCustomFaceVisionAgentConfig();
 const customFaceCatalog = new CustomFaceCatalogService(
   qqRuntime.botClient,
@@ -62,7 +80,7 @@ console.info(
   `✅ [AgentRuntime-CustomFaceBootstrap] 自定义表情目录已注册 visionEnabled=${visionAgentConfig ? 'true' : 'false'}`,
 );
 
-// 5. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
+// 6. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
 const conversationHistory = new InMemoryConversationHistory();
 const groupChatCadence = new GroupChatCadenceController({ selfQqId: qqConfig.selfQqId });
@@ -73,7 +91,11 @@ const harnessAdmissionQueue = new InMemoryQqHarnessAdmissionQueue({
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
-  createQqReplyAgent(agentConfig, skillRuntime, { conversationHistory, customFaceCatalog }),
+  createQqReplyAgent(agentConfig, skillRuntime, {
+    conversationHistory,
+    customFaceCatalog,
+    runtimeToolProviders: mcpRuntime ? [{ registry: mcpRuntime, executor: mcpRuntime }] : undefined,
+  }),
   skillRuntime,
   { selfQqId: qqConfig.selfQqId },
   conversationHistory,
@@ -81,7 +103,7 @@ const qqReplySubscriber = new QqReplyEventSubscriber(
   harnessAdmissionQueue,
 );
 
-// 6. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+// 7. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
 console.info(
   `🚧 [QQPlatform-Start] 正在启动QQ实验通道 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
 );
@@ -99,7 +121,7 @@ process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
 });
 
-// 7. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
+// 8. 进程退出时关闭外部工具和WebSocket连接，避免残留无效会话。
 process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
@@ -107,6 +129,7 @@ process.once('SIGTERM', () => {
 // 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
   console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ实验通道 signal=${signal}`);
+  await mcpRuntime?.stop();
   await qqRuntime.stop();
   console.info(`✅ [QQPlatform-Stop] QQ实验通道已关闭 signal=${signal}`);
   process.exit(0);

@@ -56,7 +56,7 @@ MCP 工具不会直接注册到 OpenAI `Agent`。OpenAI Agents SDK 只提供 std
 - 入口：`packages/kitty-service/src/services/agent-runtime/application/mcp-runtime-config.ts`
 - 职责：解析和校验 `mcpServers`，识别传输方式、过滤规则、环境变量和风险扩展。
 - 重要细节：`command` 默认识别为 stdio；`url` 默认识别为 HTTP；`http`、`streamable-http`、`streamable_http` 等价；`type` 与 `transport` 兼容。
-- 边界：不读取 Cookie，不负责 OAuth，不在日志输出 Header 或环境变量值。
+- 边界：不读取 Cookie，不负责 OAuth；stdio 拒绝 `auth`，OAuth 与 `Authorization` Header 互斥；日志不输出 Header 或环境变量值。
 
 ### 模块二：MCP 客户端适配
 
@@ -146,18 +146,20 @@ MCP 工具不会直接注册到 OpenAI `Agent`。OpenAI Agents SDK 只提供 std
 
 - 产品验收：在项目根目录放置标准 `.mcp.json` 后启动 QQ 服务，日志能看到 Server 和工具数量，Agent Prompt 能看到带前缀工具。
 - 设计验收：配置兼容字段和 Ye-Kitty 风险扩展有明确区分。
-- 开发验收：定向测试、覆盖率、类型、Lint、Prettier、架构校验和根目录 `pnpm check` 通过。
+- 开发验收：59 项 MCP、Harness 与 QQ Agent 定向测试通过，排除既有 OneBot 超时文件后的其余 174 项测试全部通过；新增 MCP 核心文件行覆盖率 91.9% 以上、分支覆盖率 83% 以上、函数覆盖率 87.5% 以上。Lint、Prettier、类型和架构校验通过；根目录 `pnpm check` 仍被既有 OneBot `fetch_custom_face` 响应测试的固定 1 秒超时阻断，该测试脱离本次修改单独运行仍可复现。
 - Agent 验收：实现、本文档、`Task.md` 和 `src/ARCHITECTURE.md` 描述一致。
 
 ## 唯一入口
 
 - 使用入口：项目根目录 `.mcp.json`，或环境变量 `YE_KITTY_MCP_CONFIG_PATH` 指向显式配置文件。
+- 配置模板：复制项目根目录 `.mcp.json.example` 为 `.mcp.json`，按 Server 调整命令、地址、工具白名单和风险等级。
 - 代码入口：`packages/kitty-service/src/services/agent-runtime/application/mcp-runtime.service.ts`
 - 测试入口：`packages/kitty-service/src/services/agent-runtime/__test__/mcp-runtime*.test.ts`
 - 文档入口：`design-docs/Agent/mcp-runtime.md`
 
 ## 进度记录
 
-| 日期       | 状态   | 说明                                                              |
-| ---------- | ------ | ----------------------------------------------------------------- |
-| 2026-07-16 | 开发中 | 完成配置兼容、运行时边界、风险治理和测试方案设计，开始 TDD 实现。 |
+| 日期       | 状态   | 说明                                                                                    |
+| ---------- | ------ | --------------------------------------------------------------------------------------- |
+| 2026-07-16 | 开发中 | 完成配置兼容、运行时边界、风险治理和测试方案设计，开始 TDD 实现。                       |
+| 2026-07-16 | 待验收 | 完成配置加载、多传输适配、多 Server 生命周期、工具组合、风险门禁、QQ 装配和自动化验证。 |
