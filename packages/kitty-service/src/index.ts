@@ -1,5 +1,7 @@
 export * from './bootstrap/service-registry';
 export * from './contracts/actions/outgoing-action.contract';
+export * from './contracts/code-agent/code-agent-event.contract';
+export * from './contracts/code-agent/code-agent-task.contract';
 export * from './contracts/events/chat-event.contract';
 export * from './shared/application/service-module';
 export * from './shared/infrastructure/rxjs-event-bus';
