@@ -1,0 +1,21 @@
+packages/kitty-service/src/bootstrap/__test__/xiaohongshu-mcp-compose.test.ts
+  s_4f351f63b7174a::t_7490f1d1f36f0d 17-18
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "b00e313efc9314a7a9b9a4f69618992769597c2e",
+  "prompts": {},
+  "sessions": {
+    "s_4f351f63b7174a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6900-bac1-7db2-8abb-634effe82888",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
