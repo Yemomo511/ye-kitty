@@ -9,6 +9,7 @@ Ye-Kitty 通过 `xpzouying/xiaohongshu-mcp` 接入小红书浏览器自动化能
 - 使用小红书移动 App 扫码。登录后不要让同一账号同时登录其他网页端，避免网页会话互相挤下线。
 
 项目不会自动安装 Docker，也不会在后台修改系统环境。
+MCP 默认只监听 `127.0.0.1`，不要在没有反向代理鉴权的情况下把它暴露到局域网或公网。
 
 ## 启动与登录
 
@@ -67,6 +68,9 @@ pnpm xiaohongshu:down
 YE_KITTY_XIAOHONGSHU_MCP_NAME=xiaohongshu
 YE_KITTY_XIAOHONGSHU_MCP_URL=http://127.0.0.1:18060/mcp
 
+# 默认镜像；Apple Silicon 如需原生ARM64镜像可改为 latest-arm64
+YE_KITTY_XIAOHONGSHU_MCP_IMAGE=xpzouying/xiaohongshu-mcp
+
 # MCP 调用、Docker 启动和扫码等待时间
 YE_KITTY_XIAOHONGSHU_MCP_TIMEOUT_MS=60000
 YE_KITTY_XIAOHONGSHU_DOCKER_TIMEOUT_MS=120000
@@ -82,6 +86,12 @@ YE_KITTY_XIAOHONGSHU_MCP_URL=http://127.0.0.1:18061/mcp
 ```
 
 两个值必须指向同一个端口。
+
+如需让其他机器访问，可以显式设置 `YE_KITTY_XIAOHONGSHU_MCP_HOST`，但上游 MCP 没有提供 Ye-Kitty 侧鉴权，默认不建议修改：
+
+```dotenv
+YE_KITTY_XIAOHONGSHU_MCP_HOST=127.0.0.1
+```
 
 ## 使用已有远端 MCP
 

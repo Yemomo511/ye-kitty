@@ -1,6 +1,6 @@
 services:
   xiaohongshu-mcp:
-    image: xpzouying/xiaohongshu-mcp
+    image: ${YE_KITTY_XIAOHONGSHU_MCP_IMAGE:-xpzouying/xiaohongshu-mcp}
     container_name: ye-kitty-xiaohongshu-mcp
     restart: unless-stopped
     init: true
@@ -16,4 +16,4 @@ services:
       - XDG_CONFIG_HOME=/app/data/config
       - XHS_PROXY=${XHS_PROXY:-}
     ports:
-      - '${YE_KITTY_XIAOHONGSHU_MCP_PORT:-18060}:18060'
+      - '${YE_KITTY_XIAOHONGSHU_MCP_HOST:-127.0.0.1}:${YE_KITTY_XIAOHONGSHU_MCP_PORT:-18060}:18060'

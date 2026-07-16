@@ -25,7 +25,7 @@
 | QQ 默认 Skill 自动注入       | `design-docs/Agent/qq-chat-skill-auto-injection.md`             | 待验收 | QQ 订阅边界已固定预启用 `qq-chat`，正文从 Harness 首轮开始生效并排除重复可请求目录；随后最近消息前置观察把首轮 phase 推进到 `tool_observing`，真实模型 eval 已同步新协议。                                                                                                                                                                                             |
 | Harness 最近消息前置观察     | `design-docs/Agent/harness-recent-messages-auto-observation.md` | 待验收 | 每次 Harness 首轮模型决策前自动执行 `get_recent_messages`，结果直接注入且不消耗模型工具预算；43 项相关测试通过，Harness 行覆盖率 89.29%、分支覆盖率 87.73%、函数覆盖率 100%，Lint、格式、类型和架构检查通过。                                                                                                                                                          |
 | Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 待验收 | 已完成 `.mcp.json` 加载、stdio、Streamable HTTP、SSE、多 Server 故障隔离、工具过滤与前缀、Harness 风险治理、QQ 启动装配和优雅关闭；59 项 MCP、Harness 与 QQ Agent 定向测试通过，新增 MCP 核心文件每文件覆盖率均高于 80%。                                                                                                                                              |
-| 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 待验收 | 已完成 QQ/小红书/组合启动、Docker 健康检查、13 个工具默认配置、二维码展示、登录轮询和风险分级；56 项定向测试及每文件 80% 覆盖率门槛通过，等待用户批准第三方镜像并扫码完成真实账号验收。                                                                                                                                                                                |
+| 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 待验收 | 已完成 QQ/小红书/组合启动、Docker 健康检查、13 个工具默认配置、二维码展示、登录轮询和风险分级；58 项定向测试及每文件 80% 覆盖率门槛通过，MCP 默认只监听本机，等待用户批准第三方镜像并扫码完成真实账号验收。                                                                                                                                                            |
 
 ## 开发顺序
 
@@ -52,6 +52,7 @@
 | 本地 WebSocket 测试不稳定       | 沙箱内监听触发 `EPERM`；沙箱外复跑时一项既有动作响应测试在 1 秒内超时                 | 群聊节奏定向测试、类型、Lint 和架构检查已通过；WebSocket 时序问题不混入本次节奏提交，完整校验结果单独记录。                                  |
 | MCP 配置等同本机执行授权        | 项目级 stdio Server 可以启动本地命令，远端 Header 可以读取环境变量                    | 只加载明确发现或显式指定的配置；日志不输出敏感值；工具默认 `medium`，只有显式 `low` 才允许自主执行。                                         |
 | 小红书 MCP 依赖 Docker          | 本机缺少 Docker、镜像拉取失败或 18060 端口冲突会阻断小红书启动                        | 不自动安装环境；启动失败输出 Compose 与日志命令；QQ 单独启动不受影响。                                                                       |
+| 小红书 MCP 无内置鉴权           | 宿主机把 18060 暴露到局域网或公网后，其他设备可能直接调用写工具                       | Compose 默认只绑定 `127.0.0.1`；远程访问必须显式修改并在外层增加鉴权。                                                                       |
 
 ## 验收总览
 
