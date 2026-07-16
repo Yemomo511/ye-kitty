@@ -1,0 +1,85 @@
+.gitignore
+  s_4f351f63b7174a::t_93f1c4e202c3c4 5-6
+.mcp.json.example
+  s_4f351f63b7174a::t_d12c6fee80dec7 6-29
+README.md
+  s_4f351f63b7174a::t_ca1a9fd84acb28 28-29
+deploy/xiaohongshu/compose.yml
+  s_4f351f63b7174a::t_6d1e84f9dc80f8 1-19
+design-docs/Agent/xiaohongshu-mcp-bootstrap.md
+  s_4f351f63b7174a::t_d6fb8ee0835770 122,134-136
+design-docs/Task.md
+  s_4f351f63b7174a::t_3961eb2c795e21 28,99
+docs/xiaohongshu-mcp.md
+  s_4f351f63b7174a::t_132da41698d5d4 1-119
+package.json
+  s_4f351f63b7174a::t_dc5af4a9428bb2 27,37-40
+packages/kitty-service/package.json
+  s_4f351f63b7174a::t_9dc8e2b20b86e9 9,11
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_4f351f63b7174a::t_2e4ef5e57bfe19 1-2,25,47,50
+packages/kitty-service/scripts/start-platform-xiaohongshu.ts
+  s_4f351f63b7174a::t_228efd9f0d63de 1-37
+packages/kitty-service/scripts/start.ts
+  s_4f351f63b7174a::t_aede1dc940e7fd 1-25
+packages/kitty-service/src/ARCHITECTURE.md
+  s_4f351f63b7174a::t_506250d1f0991d 84-85
+packages/kitty-service/src/bootstrap/__test__/mcp-runtime-bootstrap.test.ts
+  s_4f351f63b7174a::t_bcc8f65406e0e1 1-250
+packages/kitty-service/src/bootstrap/__test__/runtime-environment.test.ts
+  s_4f351f63b7174a::t_6c8f378af7b979 1-61
+packages/kitty-service/src/bootstrap/__test__/startup-platform-selection.test.ts
+  s_4f351f63b7174a::t_06413cde7cfc7d 1-40
+packages/kitty-service/src/bootstrap/__test__/xiaohongshu-mcp-docker-bootstrap.test.ts
+  s_4f351f63b7174a::t_230a266c1f37e1 1-84
+packages/kitty-service/src/bootstrap/mcp-runtime-bootstrap.ts
+  s_4f351f63b7174a::t_de775463acebd3 1-189
+packages/kitty-service/src/bootstrap/runtime-environment.ts
+  s_4f351f63b7174a::t_4b2a6a438ae9b5 1-64
+packages/kitty-service/src/bootstrap/startup-platform-selection.ts
+  s_4f351f63b7174a::t_54b3c2a84cb7e5 1-45
+packages/kitty-service/src/bootstrap/xiaohongshu-mcp-docker-bootstrap.ts
+  s_4f351f63b7174a::t_8045a23a279e5c 1-109
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  s_4f351f63b7174a::t_73ee55766f185a 25-31
+packages/kitty-service/src/services/agent-runtime/__test__/mcp-runtime.service.test.ts
+  s_4f351f63b7174a::t_79e52b08392ebc 121-139
+packages/kitty-service/src/services/agent-runtime/__test__/xiaohongshu-mcp-config.test.ts
+  s_4f351f63b7174a::t_1fa5099e9906bd 1-68
+packages/kitty-service/src/services/agent-runtime/__test__/xiaohongshu-mcp-login.service.test.ts
+  s_4f351f63b7174a::t_e3ddcc4de6c4f8 1-149
+packages/kitty-service/src/services/agent-runtime/__test__/xiaohongshu-qrcode.presenter.test.ts
+  s_4f351f63b7174a::t_0565d1d6d4c487 1-84
+packages/kitty-service/src/services/agent-runtime/application/mcp-runtime.service.ts
+  s_4f351f63b7174a::t_c4a7670e60101b 10,27-29,84-103
+packages/kitty-service/src/services/agent-runtime/application/xiaohongshu-mcp-config.ts
+  s_4f351f63b7174a::t_3aa619a85b464c 1-91
+packages/kitty-service/src/services/agent-runtime/application/xiaohongshu-mcp-login.service.ts
+  s_4f351f63b7174a::t_0e95a7900aff7e 1-159
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_4f351f63b7174a::t_3164b11d081151 122-131,162-167
+packages/kitty-service/src/services/agent-runtime/infrastructure/mcp/xiaohongshu-qrcode.presenter.ts
+  s_4f351f63b7174a::t_715738dd68155f 1-86
+packages/kitty-service/src/services/agent-runtime/ports/mcp-raw-tool-caller.port.ts
+  s_4f351f63b7174a::t_c38b317c77f996 1-18
+packages/kitty-service/src/services/agent-runtime/ports/xiaohongshu-qrcode-presenter.port.ts
+  s_4f351f63b7174a::t_a06771e565d924 1-17
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "f47916e48614fc05f7ddcc4ba9113e4fb04b7fcc",
+  "prompts": {},
+  "sessions": {
+    "s_4f351f63b7174a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6900-bac1-7db2-8abb-634effe82888",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
