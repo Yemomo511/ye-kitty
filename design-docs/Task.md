@@ -28,6 +28,7 @@
 | Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 待验收 | 已完成 `.mcp.json` 加载、stdio、Streamable HTTP、SSE、多 Server 故障隔离、工具过滤与前缀、Harness 风险治理、QQ 启动装配和优雅关闭；59 项 MCP、Harness 与 QQ Agent 定向测试通过，新增 MCP 核心文件每文件覆盖率均高于 80%。                                                                                                                                              |
 | 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 已完成 | 已完成 QQ/小红书/组合启动、宿主架构镜像选择、Docker 健康检查、13 个工具默认配置、二维码展示、登录轮询和风险分级；60 项定向测试及每文件 80% 覆盖率门槛通过；真实扫码、容器重建、Cookie `0600`、重启登录检查和无环境覆盖启动均验收成功。                                                                                                                                 |
 | 小红书被提及信息源           | `design-docs/Agent/xiaohongshu-mention-event-source.md`         | 待验收 | 已完成固定上游补丁镜像、`list_mentions` 内部工具隔离、平台轮询信息源、持久化检查点和 Agent Runtime 暂不处理订阅。真实登录态已读取 20 条建立基线，30 秒后第二轮约 1.45 秒成功且无重复广播；待人工产生新 `@` 做产品验收。                                                                                                                                                |
+| Code Agent 通用接入          | `design-docs/code-agent-integration.md`                         | 设计定稿 | 四轮子 agent 审查收敛：声明式 AgentDef + streamFormat 分发 + 11 类统一事件 union + 9 类失败分类；port 签名完整（submit/getSession/cancel/injectToolResult）、并发排队规则、孤儿清理（进程印章）、背压（ring buffer + JSONL 双轨）、Windows 适配（taskkill/cmd 包裹/argv 预算）均已定义；阶段二 harness 集成的 5 个硬编码改动点与代码行号一一对应；可进入实施。 |
 
 ## 开发顺序
 
@@ -42,6 +43,7 @@
 9. 按通用 `.mcp.json` 配置接入多 MCP Server，并把发现和执行统一收敛到 Harness 工具边界。
 10. 在项目启动入口增加小红书选项，启动上游 MCP、完成扫码登录检查，并把工具交给同一 Harness 治理。
 11. 扩展上游 `list_mentions`，把被提及提醒转换为小红书平台信息源并接入 Agent Runtime 暂不处理边界。
+12. 在 `services/llm/` 下构建通用 code agent 接入基建：contracts → domain → infrastructure（json-line-stream + Claude Code/Codex adapter + 探测 + 失败分类）→ application（orchestrator + gate）→ control-plane API；第一消费者交付后验证，第二消费者（harness AgentDecision 集成）独立 PR 跟进。
 
 ## 阻塞与风险
 
