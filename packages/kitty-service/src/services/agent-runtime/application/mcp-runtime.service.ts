@@ -29,6 +29,7 @@ export class McpRuntimeService
 {
   private readonly activeClients: McpClientPort[] = [];
   private readonly toolsByName = new Map<string, ActiveMcpTool>();
+  private readonly rawToolsByName = new Map<string, ActiveMcpTool>();
   private started = false;
 
   constructor(
@@ -60,6 +61,7 @@ export class McpRuntimeService
     const clients = this.activeClients.splice(0);
     this.started = false;
     this.toolsByName.clear();
+    this.rawToolsByName.clear();
 
     const results = await Promise.allSettled(clients.map((client) => client.close()));
     results.forEach((result, index) => {
@@ -81,9 +83,9 @@ export class McpRuntimeService
     return this.toolsByName.get(toolName)?.runtimeTool;
   }
 
-  /** 判断公开MCP工具是否存在 */
+  /** 判断公开或内部MCP工具是否存在 */
   hasTool(toolName: string): boolean {
-    return this.toolsByName.has(toolName);
+    return this.rawToolsByName.has(toolName);
   }
 
   /**
@@ -96,7 +98,7 @@ export class McpRuntimeService
     toolName: string,
     input: Record<string, unknown> | null,
   ): Promise<McpToolCallResult> {
-    const activeTool = this.toolsByName.get(toolName);
+    const activeTool = this.rawToolsByName.get(toolName);
     if (!activeTool) throw new Error(`MCP工具 ${toolName} 未注册`);
     return await activeTool.client.callTool(activeTool.originalName, input);
   }
@@ -173,13 +175,23 @@ export class McpRuntimeService
       await client.connect();
       const remoteTools = await client.listTools();
       const visibleTools = remoteTools.filter((tool) => isToolVisible(config, tool.name));
-      const activeTools = visibleTools.map((tool) => createActiveTool(config, client!, tool));
-      this.ensureNoToolCollision(activeTools);
+      const internalTools = remoteTools.filter(
+        (tool) => !isToolVisible(config, tool.name) && isToolInternal(config, tool.name),
+      );
+      const activeVisibleTools = visibleTools.map((tool) =>
+        createActiveTool(config, client!, tool),
+      );
+      const activeInternalTools = internalTools.map((tool) =>
+        createActiveTool(config, client!, tool),
+      );
+      const activeRawTools = [...activeVisibleTools, ...activeInternalTools];
+      this.ensureNoToolCollision(activeRawTools);
 
       this.activeClients.push(client);
-      activeTools.forEach((tool) => this.toolsByName.set(tool.runtimeTool.name, tool));
+      activeVisibleTools.forEach((tool) => this.toolsByName.set(tool.runtimeTool.name, tool));
+      activeRawTools.forEach((tool) => this.rawToolsByName.set(tool.runtimeTool.name, tool));
       console.info(
-        `✅ [AgentRuntime-MCP-connect] MCP Server连接成功 server=${config.name} transport=${config.transport} discoveredToolCount=${remoteTools.length} visibleToolCount=${visibleTools.length}`,
+        `✅ [AgentRuntime-MCP-connect] MCP Server连接成功 server=${config.name} transport=${config.transport} discoveredToolCount=${remoteTools.length} visibleToolCount=${visibleTools.length} internalToolCount=${internalTools.length}`,
       );
     } catch (error) {
       if (client) await closeFailedClient(client);
@@ -192,11 +204,18 @@ export class McpRuntimeService
   // 检查跨Server公开工具重名。
   private ensureNoToolCollision(activeTools: readonly ActiveMcpTool[]): void {
     for (const tool of activeTools) {
-      if (this.toolsByName.has(tool.runtimeTool.name)) {
+      if (this.rawToolsByName.has(tool.runtimeTool.name)) {
         throw new Error(`MCP公开工具名称冲突：${tool.runtimeTool.name}`);
       }
     }
   }
+}
+
+// 内部工具只进入原始调用表，不进入Harness工具目录。
+function isToolInternal(config: McpServerRuntimeConfig, toolName: string): boolean {
+  if (!config.internalTools) return false;
+  const publicName = `${config.name}_${toolName}`;
+  return config.internalTools.some((pattern) => matchesToolPattern(pattern, toolName, publicName));
 }
 
 // 创建带Server前缀的Harness工具。

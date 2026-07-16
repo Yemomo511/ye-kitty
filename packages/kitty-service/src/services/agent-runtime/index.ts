@@ -91,6 +91,7 @@ export {
   type GroupChatCadenceConfig,
 } from './application/group-chat-cadence-controller';
 export { QqReplyEventSubscriber } from './application/qq-reply-event-subscriber';
+export { XiaohongshuMentionEventSubscriber } from './application/xiaohongshu-mention-event-subscriber';
 export {
   DEFAULT_QQ_HARNESS_ADMISSION_QUEUE_CONFIG,
   InMemoryQqHarnessAdmissionQueue,

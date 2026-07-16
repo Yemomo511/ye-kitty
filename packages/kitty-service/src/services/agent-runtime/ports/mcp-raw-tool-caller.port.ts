@@ -3,7 +3,7 @@ import type { McpToolCallResult } from './mcp-client.port';
 /** MCP原始工具调用能力 */
 export interface McpRawToolCallerPort {
   /**
-   * 判断公开工具是否存在
+   * 判断公开或内部工具是否存在
    * @param toolName 带Server前缀的工具名
    */
   hasTool(toolName: string): boolean;

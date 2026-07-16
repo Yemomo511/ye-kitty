@@ -70,6 +70,7 @@ contracts/events
 - `risk`：在对外发送前检查生成内容。
 - `actions`：持久化并执行对外社交动作。
 - `platforms/qq`：MVP 阶段提供 QQ 官方契约占位，并新增 OneBot v11 + NapCat 的 QQ 账号实验通道；实验通道只负责接收白名单消息、通过自身 `subscribe` 发布统一聊天事件，并提供 OneBot 发送端口。
+- `platforms/xiaohongshu`：通过 MCP 内部 `list_mentions` 读取通知中心最新一页，负责首次基线、持久化去重、轮询退避和被提及事件发布；不读取 Cookie，不反向依赖 Agent Runtime。
 
 每个边界都优先暴露端口。后续可以在不修改调用方的情况下补充基础设施实现。
 
@@ -80,9 +81,11 @@ contracts/events
 - MCP 只作为工具接入协议，不作为信任边界。MCP Server、工具名称、工具参数、调用预算和高风险工具都必须经过 Ye-Kitty 的权限治理。
 - 通用 MCP 配置使用项目根目录 `.mcp.json`，兼容 stdio、Streamable HTTP、旧版 SSE、`type`/`transport`、`allowedTools`/`disabledTools` 和多 Server；也可以通过 `YE_KITTY_MCP_CONFIG_PATH` 显式指定配置文件。
 - MCP Server 在启动期连接并发现工具，对外工具名统一为 `{server}_{tool}`。单个 Server 失败只隔离自身；进程退出时由 bootstrap 统一关闭所有已连接会话。
+- MCP `internalTools` 只注册到原始调用表，不出现在 Harness 工具目录，也不能经 `execute()` 执行；小红书 `list_mentions` 使用该边界。
 - MCP 工具默认风险为 `medium`，只有配置为 `low` 的工具允许 Harness 自动执行；`medium`、`high` 工具返回风险观察，等待后续 `risk/actions` 或人工审核链路。
 - 项目统一启动入口位于 `scripts/start.ts`，提供 QQ、小红书和组合启动。小红书启动由 `bootstrap` 编排 Docker 健康检查、MCP 连接、二维码登录和状态确认；Cookie 只由上游容器持久化，业务代码不得读取或打印。
 - 小红书 MCP 登录检查使用原始工具调用端口读取二维码图片内容，但原始 Base64 不进入 Harness observation；登录完成后工具仍通过组合注册表和风险门禁提供给 Agent。
+- 小红书被提及事件已进入 Agent Runtime 订阅边界，但当前订阅器不持有 Agent、Harness、Skill、工具执行器或动作端口，收到后只记录脱敏跳过日志。
 - Skills 是可版本化的中文能力包，用于描述专项能力、Prompt 片段、示例、可用工具和风险等级。
 - 平台固定 Skill 由 `agent-runtime` 内的平台订阅边界预启用；QQ 消息固定注入 `qq-chat`，通用 Harness 只接收结构化的预启用正文，不直接判断平台。
 - 每次 Harness 首轮模型决策前自动执行 `get_recent_messages` 并注入当前会话历史；前置执行不消耗模型工具预算，失败时以观察结果降级而不是中断运行。

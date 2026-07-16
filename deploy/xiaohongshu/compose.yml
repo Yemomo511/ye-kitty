@@ -1,6 +1,11 @@
 services:
   xiaohongshu-mcp:
-    image: ${YE_KITTY_XIAOHONGSHU_MCP_IMAGE:-xpzouying/xiaohongshu-mcp}
+    build:
+      context: .
+      dockerfile: Dockerfile.mentions
+      args:
+        XIAOHONGSHU_MCP_BASE_IMAGE: ${YE_KITTY_XIAOHONGSHU_MCP_BASE_IMAGE:-xpzouying/xiaohongshu-mcp:latest-arm64}
+    image: ${YE_KITTY_XIAOHONGSHU_MCP_IMAGE:-ye-kitty/xiaohongshu-mcp-mentions:local}
     container_name: ye-kitty-xiaohongshu-mcp
     restart: unless-stopped
     init: true

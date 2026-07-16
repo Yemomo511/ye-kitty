@@ -8,7 +8,7 @@ export type PersonaId = Brand<string, 'PersonaId'>;
 export type PolicyId = Brand<string, 'PolicyId'>;
 export type ActionId = Brand<string, 'ActionId'>;
 
-export type Platform = 'qq';
+export type Platform = 'qq' | 'xiaohongshu';
 
 export interface Timestamped {
   readonly createdAt: Date;

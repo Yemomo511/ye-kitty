@@ -137,6 +137,38 @@ describe('MCP运行时', () => {
     expect(runtime.hasTool('xiaohongshu_get_login_qrcode')).toBe(true);
   });
 
+  test('内部工具只允许系统原始调用且不暴露给Harness', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const client = createClient('xiaohongshu', [{ name: 'list_feeds' }, { name: 'list_mentions' }]);
+    client.callTool.mockResolvedValue({ content: [{ type: 'text', text: '{"message_list":[]}' }] });
+    const runtime = new McpRuntimeService(
+      [
+        createHttpConfig('xiaohongshu', {
+          allowedTools: ['list_feeds'],
+          internalTools: ['list_mentions'],
+          defaultRiskLevel: 'low',
+        }),
+      ],
+      createFactory({ xiaohongshu: client }),
+    );
+    await runtime.start();
+
+    expect(runtime.listTools().map((tool) => tool.name)).toEqual(['xiaohongshu_list_feeds']);
+    expect(runtime.getTool('xiaohongshu_list_mentions')).toBeUndefined();
+    expect(runtime.hasTool('xiaohongshu_list_mentions')).toBe(true);
+    await expect(runtime.callToolRaw('xiaohongshu_list_mentions', null)).resolves.toMatchObject({
+      content: [{ type: 'text', text: '{"message_list":[]}' }],
+    });
+    await expect(
+      runtime.execute({
+        event: createChatEvent(),
+        toolName: 'xiaohongshu_list_mentions',
+        input: {},
+      }),
+    ).resolves.toMatchObject({ errorMessage: '工具未注册' });
+    expect(client.callTool).toHaveBeenCalledOnce();
+  });
+
   test('MCP返回isError时转换为失败观察', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);

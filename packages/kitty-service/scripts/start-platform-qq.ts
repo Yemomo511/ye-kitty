@@ -4,6 +4,7 @@ import {
   createQqAccountExperimentChannel,
   loadQqAccountExperimentConfig,
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
+import { createXiaohongshuMentionSource } from '../src/platforms/xiaohongshu';
 import {
   createQqReplyAgent,
   CustomFaceCatalogService,
@@ -19,6 +20,8 @@ import {
   OpenAiCustomFaceVisionAgent,
   QqReplyEventSubscriber,
   SkillRuntimeService,
+  createXiaohongshuMcpServerConfig,
+  XiaohongshuMentionEventSubscriber,
 } from '../src/services/agent-runtime';
 
 // 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
@@ -44,11 +47,31 @@ console.info(
 );
 
 // 4. 启动通用MCP运行时，连接失败的Server会被隔离，不阻断QQ主链路。
+const includeXiaohongshu =
+  process.env.YE_KITTY_ENABLE_XIAOHONGSHU_MCP?.trim().toLowerCase() === 'true';
 const mcpRuntime = await bootstrapMcpRuntime({
   startDirectory: process.cwd(),
   env: process.env,
-  includeXiaohongshu: process.env.YE_KITTY_ENABLE_XIAOHONGSHU_MCP?.trim().toLowerCase() === 'true',
+  includeXiaohongshu,
 });
+
+// 小红书组合模式下装配独立信息源，本期不把事件送入Harness。
+const deployDirectory = includeXiaohongshu
+  ? findNearestDirectory(process.cwd(), 'deploy')
+  : undefined;
+if (includeXiaohongshu && !deployDirectory) throw new Error('未找到根目录 deploy 资产目录');
+const xiaohongshuMentionSource =
+  includeXiaohongshu && mcpRuntime && deployDirectory
+    ? createXiaohongshuMentionSource({
+        caller: mcpRuntime,
+        serverName: createXiaohongshuMcpServerConfig(process.env).name,
+        deployDirectory,
+        env: process.env,
+      })
+    : undefined;
+const xiaohongshuMentionSubscriber = xiaohongshuMentionSource
+  ? new XiaohongshuMentionEventSubscriber(xiaohongshuMentionSource)
+  : undefined;
 
 // 5. 创建自定义表情目录，NapCat连接建立后刷新缓存。
 const visionAgentConfig = loadCustomFaceVisionAgentConfig();
@@ -92,11 +115,13 @@ const qqReplySubscriber = new QqReplyEventSubscriber(
   harnessAdmissionQueue,
 );
 
-// 7. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+// 7. 先注册全部 Agent Runtime 订阅，再启动平台信息源。
 console.info(
   `🚧 [QQPlatform-Start] 正在启动QQ实验通道 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
 );
 await qqReplySubscriber.start();
+await xiaohongshuMentionSubscriber?.start();
+await xiaohongshuMentionSource?.start();
 await qqRuntime.start();
 
 console.info(
@@ -118,6 +143,7 @@ process.once('SIGTERM', () => {
 // 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
   console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ实验通道 signal=${signal}`);
+  await xiaohongshuMentionSource?.stop();
   await mcpRuntime?.stop();
   await qqRuntime.stop();
   console.info(`✅ [QQPlatform-Stop] QQ实验通道已关闭 signal=${signal}`);

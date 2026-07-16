@@ -25,6 +25,8 @@ export interface McpServerBaseConfig {
   readonly allowedTools?: readonly string[];
   /** 工具禁用规则 */
   readonly disabledTools?: readonly string[];
+  /** 仅供系统组件原始调用、不暴露给Harness的工具规则 */
+  readonly internalTools?: readonly string[];
   /** 默认风险等级 */
   readonly defaultRiskLevel: RuntimeToolRiskLevel;
   /** 单工具风险覆盖 */

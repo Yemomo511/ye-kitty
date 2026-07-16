@@ -32,6 +32,7 @@ export interface XiaohongshuMcpDockerBootstrapOptions {
 
 const DEFAULT_START_TIMEOUT_MS = 120000;
 const DEFAULT_POLL_INTERVAL_MS = 1000;
+const DEFAULT_PATCHED_XIAOHONGSHU_MCP_IMAGE = 'ye-kitty/xiaohongshu-mcp-mentions:local';
 const DEFAULT_XIAOHONGSHU_MCP_IMAGE = 'xpzouying/xiaohongshu-mcp';
 const ARM64_XIAOHONGSHU_MCP_IMAGE = 'xpzouying/xiaohongshu-mcp:latest-arm64';
 const executeFile = promisify(execFile);
@@ -66,7 +67,7 @@ export class XiaohongshuMcpDockerBootstrap {
       `🚧 [XiaohongshuMCP-Docker-start] 正在启动小红书MCP composePath=${this.options.composePath} image=${image}`,
     );
     try {
-      const args = ['compose', '-f', this.options.composePath, 'up', '-d'];
+      const args = ['compose', '-f', this.options.composePath, 'up', '-d', '--build'];
       if (this.options.environment) {
         await this.runCommand('docker', args, this.options.environment);
       } else {
@@ -95,6 +96,11 @@ export class XiaohongshuMcpDockerBootstrap {
       await this.sleep(this.pollIntervalMs);
     }
   }
+}
+
+/** 选择项目补丁镜像名称，与用作运行层的上游基础镜像分离 */
+export function resolvePatchedXiaohongshuMcpImage(configuredImage: string | undefined): string {
+  return configuredImage?.trim() || DEFAULT_PATCHED_XIAOHONGSHU_MCP_IMAGE;
 }
 
 /**

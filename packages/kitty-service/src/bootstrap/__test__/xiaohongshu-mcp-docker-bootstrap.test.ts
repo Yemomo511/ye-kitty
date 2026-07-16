@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
+  resolvePatchedXiaohongshuMcpImage,
   resolveXiaohongshuMcpImage,
   XiaohongshuMcpDockerBootstrap,
 } from '../xiaohongshu-mcp-docker-bootstrap';
@@ -32,6 +33,7 @@ describe('小红书MCP Docker启动', () => {
       '/project/deploy/xiaohongshu/compose.yml',
       'up',
       '-d',
+      '--build',
     ]);
     expect(checkHealth).toHaveBeenCalledTimes(2);
     expect(sleep).toHaveBeenCalledWith(1000);
@@ -95,6 +97,15 @@ describe('小红书MCP Docker启动', () => {
     );
   });
 
+  test('补丁镜像使用独立默认名称并允许显式覆盖', () => {
+    expect(resolvePatchedXiaohongshuMcpImage(undefined)).toBe(
+      'ye-kitty/xiaohongshu-mcp-mentions:local',
+    );
+    expect(resolvePatchedXiaohongshuMcpImage('registry.example.com/xhs-mentions:v1')).toBe(
+      'registry.example.com/xhs-mentions:v1',
+    );
+  });
+
   test('启动Compose时注入已选择的镜像环境', async () => {
     const runCommand = vi.fn(async () => undefined);
     const bootstrap = new XiaohongshuMcpDockerBootstrap({
@@ -111,7 +122,7 @@ describe('小红书MCP Docker启动', () => {
 
     expect(runCommand).toHaveBeenCalledWith(
       'docker',
-      ['compose', '-f', '/project/deploy/xiaohongshu/compose.yml', 'up', '-d'],
+      ['compose', '-f', '/project/deploy/xiaohongshu/compose.yml', 'up', '-d', '--build'],
       { YE_KITTY_XIAOHONGSHU_MCP_IMAGE: 'xpzouying/xiaohongshu-mcp:latest-arm64' },
     );
   });

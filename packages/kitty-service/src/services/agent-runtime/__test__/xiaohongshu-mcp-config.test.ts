@@ -16,6 +16,7 @@ describe('小红书MCP默认配置', () => {
       timeoutMs: 60000,
     });
     expect(config.allowedTools).toHaveLength(13);
+    expect(config.internalTools).toEqual(['list_mentions']);
     expect(config.toolRiskLevels).toMatchObject({
       check_login_status: 'low',
       get_login_qrcode: 'low',

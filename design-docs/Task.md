@@ -5,6 +5,7 @@
 - 将当前“一条 QQ 消息触发一次模型回复”的短链路升级为可审计的 Harness Agent 方案，支持循环观察、工具调用、Skill 加载、工具结果回灌和最终决策。
 - 通过兼容市面常见 `.mcp.json` 的通用 MCP Runtime，让 Agent 能在 Harness 治理下发现并调用外部工具。
 - 通过 `xpzouying/xiaohongshu-mcp` 完成项目级小红书启动、扫码登录、登录状态检查和 Harness 工具接入。
+- 通过上游 `list_mentions`、小红书平台信息源和 Agent Runtime 暂不处理订阅，建立被 `@` 提醒的近实时输入链路。
 - 让产品、开发、设计和 Agent 对第二版 Agent Runtime 的边界、分阶段实现、验收口径和唯一入口达成一致。
 
 ## 当前状态
@@ -26,6 +27,7 @@
 | Harness 最近消息前置观察     | `design-docs/Agent/harness-recent-messages-auto-observation.md` | 待验收 | 每次 Harness 首轮模型决策前自动执行 `get_recent_messages`，结果直接注入且不消耗模型工具预算；43 项相关测试通过，Harness 行覆盖率 89.29%、分支覆盖率 87.73%、函数覆盖率 100%，Lint、格式、类型和架构检查通过。                                                                                                                                                          |
 | Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 待验收 | 已完成 `.mcp.json` 加载、stdio、Streamable HTTP、SSE、多 Server 故障隔离、工具过滤与前缀、Harness 风险治理、QQ 启动装配和优雅关闭；59 项 MCP、Harness 与 QQ Agent 定向测试通过，新增 MCP 核心文件每文件覆盖率均高于 80%。                                                                                                                                              |
 | 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 已完成 | 已完成 QQ/小红书/组合启动、宿主架构镜像选择、Docker 健康检查、13 个工具默认配置、二维码展示、登录轮询和风险分级；60 项定向测试及每文件 80% 覆盖率门槛通过；真实扫码、容器重建、Cookie `0600`、重启登录检查和无环境覆盖启动均验收成功。                                                                                                                                 |
+| 小红书被提及信息源           | `design-docs/Agent/xiaohongshu-mention-event-source.md`         | 待验收 | 已完成固定上游补丁镜像、`list_mentions` 内部工具隔离、平台轮询信息源、持久化检查点和 Agent Runtime 暂不处理订阅。真实登录态已读取 20 条建立基线，30 秒后第二轮约 1.45 秒成功且无重复广播；待人工产生新 `@` 做产品验收。                                                                                                                                                |
 
 ## 开发顺序
 
@@ -39,6 +41,7 @@
 8. 扩展工具治理、RunTrace、risk/actions 对接、MCP 工具来源和长期记忆工具。
 9. 按通用 `.mcp.json` 配置接入多 MCP Server，并把发现和执行统一收敛到 Harness 工具边界。
 10. 在项目启动入口增加小红书选项，启动上游 MCP、完成扫码登录检查，并把工具交给同一 Harness 治理。
+11. 扩展上游 `list_mentions`，把被提及提醒转换为小红书平台信息源并接入 Agent Runtime 暂不处理边界。
 
 ## 阻塞与风险
 
@@ -54,6 +57,8 @@
 | 小红书 MCP 依赖 Docker          | 本机缺少 Docker、镜像拉取失败或 18060 端口冲突会阻断小红书启动                        | 不自动安装环境；启动失败输出 Compose 与日志命令；QQ 单独启动不受影响。                                                                       |
 | 小红书 MCP 无内置鉴权           | 宿主机把 18060 暴露到局域网或公网后，其他设备可能直接调用写工具                       | Compose 默认只绑定 `127.0.0.1`；远程访问必须显式修改并在外层增加鉴权。                                                                       |
 | 小红书 Cookie 文件权限          | 上游默认写出 `0644` 时，同机其他系统用户可能读取登录凭据                              | 容器入口将已有 Cookie 收紧到 `0600`，并设置 `umask 077` 保护后续文件。                                                                       |
+| 小红书通知接口属于网页内部能力  | 页面路径、响应结构或签名链路变化会导致 `list_mentions` 失效                           | 固定上游提交，通过页面自身请求读取并做结构校验；失败时退避且不发布不完整事件。                                                               |
+| 被提及内容包含提示注入          | 外部用户可以在 @内容中编写针对 Agent 的恶意指令                                       | 本期事件只到 Agent Runtime 订阅边界并明确跳过，不进入 Harness Prompt。                                                                       |
 
 ## 验收总览
 
@@ -100,3 +105,5 @@
 | 2026-07-16 | 设计小红书 MCP 启动与登录                   | 以项目启动选项编排上游 Docker、MCP 登录二维码、状态检查和 Harness 风险工具目录。                             |
 | 2026-07-16 | 实现小红书 MCP 启动与登录                   | 完成项目启动选择、上游容器编排、二维码扫码、状态轮询、工具风险配置和使用文档。                               |
 | 2026-07-16 | 验收小红书 MCP 真实登录                     | Apple Silicon 自动选择 ARM64 镜像，扫码与重启登录检查成功，13 个工具可见，Cookie 权限为 `0600`。             |
+| 2026-07-16 | 设计小红书被提及信息源                      | 确定上游 `list_mentions` 内部工具、平台轮询与检查点、Agent Runtime 暂不处理订阅和组合启动生命周期。          |
+| 2026-07-16 | 落地小红书被提及信息源                      | 内部工具、轮询去重、检查点和暂不处理订阅已完成；真实 MCP 发现 14 个工具且只向 Harness 公开 13 个。           |

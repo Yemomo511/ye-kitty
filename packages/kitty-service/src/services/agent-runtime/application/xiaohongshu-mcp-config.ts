@@ -45,6 +45,7 @@ export function createXiaohongshuMcpServerConfig(env: NodeJS.ProcessEnv): McpRem
     headers: {},
     timeoutMs,
     allowedTools: XIAOHONGSHU_MCP_TOOLS,
+    internalTools: ['list_mentions'],
     defaultRiskLevel: 'medium',
     toolRiskLevels: {
       check_login_status: 'low',

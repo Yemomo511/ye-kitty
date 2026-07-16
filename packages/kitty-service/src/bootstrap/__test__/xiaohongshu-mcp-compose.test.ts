@@ -18,11 +18,26 @@ describe('小红书MCP Compose安全边界', () => {
     expect(compose).toContain('umask 077');
   });
 
-  test('允许显式选择上游镜像以适配ARM64或固定版本', () => {
+  test('补丁镜像与上游基础镜像分离配置', () => {
     const deployRoot = findNearestDirectory(process.cwd(), 'deploy');
     if (!deployRoot) throw new Error('未找到项目deploy目录');
     const compose = readFileSync(join(deployRoot, 'xiaohongshu', 'compose.yml'), 'utf8');
 
-    expect(compose).toContain('YE_KITTY_XIAOHONGSHU_MCP_IMAGE:-xpzouying/xiaohongshu-mcp');
+    expect(compose).toContain(
+      'YE_KITTY_XIAOHONGSHU_MCP_IMAGE:-ye-kitty/xiaohongshu-mcp-mentions:local',
+    );
+    expect(compose).toContain(
+      'YE_KITTY_XIAOHONGSHU_MCP_BASE_IMAGE:-xpzouying/xiaohongshu-mcp:latest-arm64',
+    );
+  });
+
+  test('Dockerfile固定上游提交并先验证再应用补丁', () => {
+    const deployRoot = findNearestDirectory(process.cwd(), 'deploy');
+    if (!deployRoot) throw new Error('未找到项目deploy目录');
+    const dockerfile = readFileSync(join(deployRoot, 'xiaohongshu', 'Dockerfile.mentions'), 'utf8');
+
+    expect(dockerfile).toContain('5c5197d6867032130e850f1ae46070004689d6d5');
+    expect(dockerfile).toContain('git apply --check /tmp/list-mentions.patch');
+    expect(dockerfile).toContain('go test .');
   });
 });

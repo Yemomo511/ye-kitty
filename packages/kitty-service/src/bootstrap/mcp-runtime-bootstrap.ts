@@ -14,6 +14,7 @@ import { loadMcpRuntimeConfig } from '../services/agent-runtime/infrastructure/m
 import { OpenAiMcpClientFactory } from '../services/agent-runtime/infrastructure/mcp/openai-mcp-client.factory';
 import { LocalXiaohongshuQrcodePresenter } from '../services/agent-runtime/infrastructure/mcp/xiaohongshu-qrcode.presenter';
 import {
+  resolvePatchedXiaohongshuMcpImage,
   resolveXiaohongshuMcpImage,
   XiaohongshuMcpDockerBootstrap,
 } from './xiaohongshu-mcp-docker-bootstrap';
@@ -155,8 +156,11 @@ function createDockerBootstrap(
     composePath,
     healthUrl: healthUrl.toString(),
     environment: {
-      YE_KITTY_XIAOHONGSHU_MCP_IMAGE: resolveXiaohongshuMcpImage(
+      YE_KITTY_XIAOHONGSHU_MCP_IMAGE: resolvePatchedXiaohongshuMcpImage(
         options.env.YE_KITTY_XIAOHONGSHU_MCP_IMAGE,
+      ),
+      YE_KITTY_XIAOHONGSHU_MCP_BASE_IMAGE: resolveXiaohongshuMcpImage(
+        options.env.YE_KITTY_XIAOHONGSHU_MCP_BASE_IMAGE,
         process.arch,
       ),
     },

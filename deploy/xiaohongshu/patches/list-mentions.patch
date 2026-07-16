@@ -1,0 +1,188 @@
+diff --git a/mcp_handlers.go b/mcp_handlers.go
+index 52151ca..239f747 100644
+--- a/mcp_handlers.go
++++ b/mcp_handlers.go
+@@ -301,6 +301,25 @@ func (s *AppServer) handleListFeeds(ctx context.Context) *MCPToolResult {
+ 	}
+ }
+ 
++// handleListMentions 处理通知中心被提及读取。
++// 结果保持页面接口的 JSON 结构，由下游平台适配器转为稳定事件。
++func (s *AppServer) handleListMentions(ctx context.Context) *MCPToolResult {
++	logrus.Info("MCP: 读取通知中心被提及提醒")
++
++	result, err := s.xiaohongshuService.ListMentions(ctx)
++	if err != nil {
++		return &MCPToolResult{
++			Content: []MCPContent{{
++				Type: "text",
++				Text: "读取被提及提醒失败: " + err.Error(),
++			}},
++			IsError: true,
++		}
++	}
++
++	return &MCPToolResult{Content: []MCPContent{{Type: "text", Text: string(result)}}}
++}
++
+ // handleSearchFeeds 处理搜索Feeds
+ func (s *AppServer) handleSearchFeeds(ctx context.Context, args SearchFeedsArgs) *MCPToolResult {
+ 	logrus.Info("MCP: 搜索Feeds")
+diff --git a/mcp_server.go b/mcp_server.go
+index 19a214e..64ec49b 100644
+--- a/mcp_server.go
++++ b/mcp_server.go
+@@ -443,7 +443,23 @@ func registerTools(server *mcp.Server, appServer *AppServer) {
+ 		}),
+ 	)
+ 
+-	logrus.Infof("Registered %d MCP tools", 13)
++	// 工具 14: 读取通知中心中的评论和被提及提醒。
++	mcp.AddTool(server,
++		&mcp.Tool{
++			Name:        "list_mentions",
++			Description: "读取小红书通知中心最新的评论和被提及提醒",
++			Annotations: &mcp.ToolAnnotations{
++				Title:        "List Mentions",
++				ReadOnlyHint: true,
++			},
++		},
++		withPanicRecovery("list_mentions", func(ctx context.Context, req *mcp.CallToolRequest, _ any) (*mcp.CallToolResult, any, error) {
++			result := appServer.handleListMentions(ctx)
++			return convertToMCPResult(result), nil, nil
++		}),
++	)
++
++	logrus.Infof("Registered %d MCP tools", 14)
+ }
+ 
+ // convertToMCPResult 将自定义的 MCPToolResult 转换为官方 SDK 的格式
+diff --git a/service.go b/service.go
+index 8ef5735..2e44dfd 100644
+--- a/service.go
++++ b/service.go
+@@ -4,10 +4,12 @@ import (
+ 	"context"
+ 	"encoding/json"
+ 	"fmt"
++	"net/http"
+ 	"os"
+ 	"time"
+ 
+ 	"github.com/go-rod/rod"
++	"github.com/go-rod/rod/lib/proto"
+ 	"github.com/sirupsen/logrus"
+ 	"github.com/xpzouying/headless_browser"
+ 	"github.com/xpzouying/xiaohongshu-mcp/browser"
+@@ -86,6 +88,82 @@ type FeedsListResponse struct {
+ 	Count int                `json:"count"`
+ }
+ 
++const mentionsEndpointPath = "/api/sns/web/v1/you/mentions"
++
++// ListMentions 打开通知中心并读取页面自身已签名的被提及接口响应。
++// Cookie 和请求签名始终由上游浏览器持有，工具不会拼装或输出任何凭据。
++func (s *XiaohongshuService) ListMentions(ctx context.Context) (json.RawMessage, error) {
++	b := newBrowser()
++	defer b.Close()
++
++	page := b.NewPage().Context(ctx)
++	defer page.Close()
++
++	type captureResult struct {
++		body       string
++		statusCode int
++		err        error
++	}
++	captured := make(chan captureResult, 1)
++	router := page.HijackRequests()
++	defer router.MustStop()
++	router.MustAdd("*"+mentionsEndpointPath+"*", func(hijack *rod.Hijack) {
++		if hijack.Request.Method() != http.MethodGet {
++			hijack.ContinueRequest(&proto.FetchContinueRequest{})
++			return
++		}
++		err := hijack.LoadResponse(http.DefaultClient, true)
++		result := captureResult{err: err}
++		if err == nil {
++			result.body = hijack.Response.Body()
++			result.statusCode = hijack.Response.Payload().ResponseCode
++		}
++		select {
++		case captured <- result:
++		default:
++		}
++	})
++	go router.Run()
++
++	if err := page.Navigate("https://www.xiaohongshu.com/notification"); err != nil {
++		return nil, fmt.Errorf("打开通知中心失败: %w", err)
++	}
++
++	select {
++	case result := <-captured:
++		if result.err != nil {
++			return nil, fmt.Errorf("读取被提及接口响应失败: %w", result.err)
++		}
++		if result.statusCode < 200 || result.statusCode >= 300 {
++			return nil, fmt.Errorf("被提及接口返回异常状态: status=%d bodyLength=%d", result.statusCode, len(result.body))
++		}
++		return validateMentionsResponse(result.body)
++	case <-ctx.Done():
++		return nil, fmt.Errorf("等待被提及接口超时: %w", ctx.Err())
++	}
++}
++
++// validateMentionsResponse 在返回前验证关键列表字段，避免登录页或风控页被当成通知。
++func validateMentionsResponse(body string) (json.RawMessage, error) {
++	var root map[string]json.RawMessage
++	if err := json.Unmarshal([]byte(body), &root); err != nil {
++		return nil, fmt.Errorf("被提及接口返回非法 JSON: %w", err)
++	}
++	container := root
++	if rawData, ok := root["data"]; ok {
++		if err := json.Unmarshal(rawData, &container); err != nil {
++			return nil, fmt.Errorf("被提及接口 data 结构无效: %w", err)
++		}
++	}
++	var messages []json.RawMessage
++	if rawMessages, ok := container["message_list"]; !ok {
++		return nil, fmt.Errorf("被提及接口缺少 message_list")
++	} else if err := json.Unmarshal(rawMessages, &messages); err != nil {
++		return nil, fmt.Errorf("被提及接口 message_list 结构无效: %w", err)
++	}
++	return json.RawMessage(body), nil
++}
++
+ // UserProfileResponse 用户主页响应
+ type UserProfileResponse struct {
+ 	UserBasicInfo xiaohongshu.UserBasicInfo      `json:"userBasicInfo"`
+diff --git a/service_mentions_test.go b/service_mentions_test.go
+new file mode 100644
+index 0000000..a540dee
+--- /dev/null
++++ b/service_mentions_test.go
+@@ -0,0 +1,22 @@
++package main
++
++import (
++	"testing"
++
++	"github.com/stretchr/testify/assert"
++	"github.com/stretchr/testify/require"
++)
++
++func TestValidateMentionsResponse(t *testing.T) {
++	t.Run("接受网页原始 data 包装", func(t *testing.T) {
++		body := `{"success":true,"data":{"message_list":[],"has_more":false}}`
++		result, err := validateMentionsResponse(body)
++		require.NoError(t, err)
++		assert.JSONEq(t, body, string(result))
++	})
++
++	t.Run("拒绝非通知响应", func(t *testing.T) {
++		_, err := validateMentionsResponse(`{"success":true,"data":{}}`)
++		require.ErrorContains(t, err, "message_list")
++	})
++}
+

@@ -29,6 +29,12 @@ Harness的核心关键在于Prompt 对于 AI 的指导，告诉 AI 有哪些工�
 - Cookie 由上游容器持久化，Agent Runtime 不读取、不复制、不打印 Cookie 内容。
 - 小红书读取工具可以显式标记为 `low`；删除 Cookie、发布、评论、回复、点赞和收藏保持 `medium`，继续受 Harness 风险门禁约束。
 
+### 小红书被提及订阅边界
+
+- `list_mentions` 是 MCP `internalTools`，只允许平台信息源通过原始调用端口访问，不允许 Harness 或 Skill 发现和执行。
+- `XiaohongshuMentionEventSubscriber` 是当前唯一的 Agent Runtime 入口；它只订阅稳定平台事件并记录脱敏跳过日志。
+- 订阅器禁止持有 Agent、Harness、Skill、工具执行器和小红书动作端口；后续启用智能反应前必须单独设计不可信输入、决策和动作风险边界。
+
 #### Prompt 如何书写
 
 **请注意，本部分的所有示例都仅作参考，禁止直接复制作为Prompt使用**
