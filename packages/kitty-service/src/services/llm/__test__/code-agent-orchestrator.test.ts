@@ -26,24 +26,31 @@ function createTempWorkdir(): string {
 
 describe('CodeAgentGateService', () => {
   let testDir: string;
+  let whiteRoot: string;
 
   beforeEach(() => {
-    testDir = createTempWorkdir();
+    whiteRoot = createTempWorkdir();  // 作为白名单根
+    testDir = createTempWorkdir();    // 在白名单外的独立目录（用于 T6-3）
   });
 
   afterEach(() => {
+    // 在 tmpdir() 下创建的白名单根，直接用 realpathSync 匹配
+    if (existsSync(whiteRoot)) rmSync(whiteRoot, { recursive: true, force: true });
     if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
   });
 
-  it('T6-1: workdir 存在且在白名单下 → null（通过）', async () => {
+  it('T6-1: workdir 存在且在 whiteRoot 白名单下 → 通过', async () => {
     const { CodeAgentGateService } = await import(
       '@kitty/services/llm/application/code-agent-gate.service'
     );
-    const gate = new CodeAgentGateService(tmpdir());
+    // whiteRoot 是独立的 tmp 目录，其直接子目录必然在其 realpath 下
+    const subDir = join(whiteRoot, 'agent-workspace');
+    mkdirSync(subDir, { recursive: true });
+    const gate = new CodeAgentGateService(whiteRoot);
     const result = gate.check({
       agentId: 'claude-code',
       prompt: 'test',
-      workdir: testDir,
+      workdir: subDir,
       source: 'control-plane',
     });
     await expect(result).resolves.toBeUndefined();
@@ -53,11 +60,11 @@ describe('CodeAgentGateService', () => {
     const { CodeAgentGateService } = await import(
       '@kitty/services/llm/application/code-agent-gate.service'
     );
-    const gate = new CodeAgentGateService(tmpdir());
+    const gate = new CodeAgentGateService(whiteRoot);
     const result = gate.check({
       agentId: 'claude-code',
       prompt: 'test',
-      workdir: join(testDir, 'nonexistent'),
+      workdir: join(whiteRoot, 'nonexistent-dir'),
       source: 'control-plane',
     });
     await expect(result).rejects.toThrow('工作目录不存在');
@@ -67,20 +74,15 @@ describe('CodeAgentGateService', () => {
     const { CodeAgentGateService } = await import(
       '@kitty/services/llm/application/code-agent-gate.service'
     );
-    const otherDir = join(tmpdir(), 'other-workspace');
-    mkdirSync(otherDir, { recursive: true });
-    try {
-      const gate = new CodeAgentGateService(join(tmpdir(), 'kitty-restricted'));
-      const result = gate.check({
-        agentId: 'claude-code',
-        prompt: 'test',
-        workdir: otherDir,
-        source: 'control-plane',
-      });
-      await expect(result).rejects.toThrow();
-    } finally {
-      rmSync(otherDir, { recursive: true, force: true });
-    }
+    // testDir 是独立目录，不在 whiteRoot 下
+    const gate = new CodeAgentGateService(whiteRoot);
+    const result = gate.check({
+      agentId: 'claude-code',
+      prompt: 'test',
+      workdir: testDir,
+      source: 'control-plane',
+    });
+    await expect(result).rejects.toThrow();
   });
 });
 
