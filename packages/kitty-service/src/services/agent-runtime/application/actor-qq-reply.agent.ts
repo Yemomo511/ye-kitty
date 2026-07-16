@@ -32,4 +32,11 @@ export class ActorQqReplyAgent implements QqReplyAgentPort {
     // ignore / human_review / capacity_error → 静默
     return {};
   }
+
+  /**
+   * 优雅关闭——委托 Supervisor 持久化所有 Actor 快照
+   */
+  async shutdown(): Promise<void> {
+    await this.supervisor.shutdown();
+  }
 }

@@ -139,6 +139,13 @@ export class ConversationMailbox {
     return this.batches[0]?.batch.sealed ?? false;
   }
 
+  /** 返回所有已封口的 batch（快照用） */
+  get sealedBatches(): readonly SenderBatch[] {
+    return this.batches
+      .filter((entry) => entry.batch.sealed)
+      .map((entry) => entry.batch);
+  }
+
   /** 销毁邮件箱，清理所有计时器 */
   destroy(): void {
     for (const active of this.batches) {
