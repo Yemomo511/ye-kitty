@@ -12,7 +12,8 @@
     "eval:agent": "node --import tsx eval/index.ts",
     "eval:agent:warn": "node --import tsx eval/run-agent-eval-warn.ts",
     "typecheck": "tsc --noEmit",
-    "test": "pnpm run validate:architecture && pnpm run typecheck && vitest run"
+    "test": "pnpm run validate:architecture && pnpm run typecheck && vitest run",
+    "test:coverage:qq-harness": "vitest run src/services/agent-runtime/__test__/qq-harness-admission-queue.test.ts src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/services/agent-runtime/application/in-memory-qq-harness-admission-queue.ts --coverage.include=src/services/agent-runtime/application/qq-reply-event-subscriber.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80"
   },
   "keywords": [
     "ye-kitty",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@types/node": "^24.0.10",
     "@types/ws": "^8.18.1",
+    "@vitest/coverage-v8": "3.2.6",
     "tsx": "^4.20.3",
     "typescript": "^5.8.3",
     "vite-tsconfig-paths": "^5.1.4",

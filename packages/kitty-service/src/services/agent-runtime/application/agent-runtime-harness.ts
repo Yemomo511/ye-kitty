@@ -7,7 +7,7 @@ import type {
   HarnessPromptPhase,
   HarnessPromptState,
 } from '../domain/harness-prompt-state';
-import type { SkillContent } from '../domain/skill';
+import type { SkillContent, SkillMetadata } from '../domain/skill';
 import type { SkillReferenceContent } from '../domain/skill-reference';
 import type { ToolExecutionResult } from '../domain/tool';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
@@ -21,6 +21,7 @@ import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port'
 import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
+import { GET_RECENT_MESSAGES_TOOL_NAME } from './runtime-tools';
 import type {
   QqReplyAgentInput,
   QqReplyAgentPort,
@@ -68,22 +69,32 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
   async run(input: AgentRuntimeRunInput): Promise<AgentRuntimeRunResult> {
     const traceId = createTraceId(input.event.id);
     const toolResults: ToolExecutionResult[] = [];
-    const enabledSkills: SkillContent[] = [];
+    const enabledSkills = deduplicateSkills(input.skills ?? []);
+    const requestableSkills = excludeEnabledSkills(input.availableSkills ?? [], enabledSkills);
     const loadedReferences: SkillReferenceContent[] = [];
     const decisionHistory: HarnessPromptDecisionHistoryItem[] = [];
     const conversationMessages: AgentConversationMessage[] = [
       { type: 'user_event', event: input.event },
-      { type: 'skill_catalog', skills: input.availableSkills ?? [] },
+      { type: 'skill_catalog', skills: requestableSkills },
+      ...enabledSkills.map((skill) => ({ type: 'skill_content' as const, skill })),
     ];
-    let phase: HarnessPromptPhase = 'initial_observe';
     let toolCallCount = 0;
     let decisionErrorCount = 0;
     const maxSkillReferences = this.config.maxSkillReferences ?? DEFAULT_MAX_SKILL_REFERENCES;
 
-    // 1. 先写入当前消息，让本轮工具也能读取到刚进入的上下文。
+    // 1. 先写入当前消息，让前置观察能包含本次请求。
     this.conversationHistory.recordMessage(input.event);
+    const initialContextResult = await this.observeRecentMessagesBeforeDecision(
+      input.event,
+      traceId,
+    );
+    toolResults.push(initialContextResult);
+    conversationMessages.push({ type: 'tool_result', result: initialContextResult });
+    let phase: HarnessPromptPhase = initialContextResult.success
+      ? 'tool_observing'
+      : 'ready_to_decide';
     console.info(
-      `🚧 [AgentRuntime-Harness-run] 开始Harness循环 traceId=${traceId} conversationType=${input.event.conversationType} messageId=${maskId(
+      `🚧 [AgentRuntime-Harness-run] 开始Harness循环 traceId=${traceId} conversationType=${input.event.conversationType} preEnabledSkillCount=${enabledSkills.length} recentMessagesReady=${initialContextResult.success} messageId=${maskId(
         input.event.message.id,
       )}`,
     );
@@ -92,7 +103,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
       const tools = this.toolRegistry.listTools();
       const observation: AgentObservation = {
         event: input.event,
-        availableSkills: input.availableSkills ?? [],
+        availableSkills: requestableSkills,
         enabledSkills: [...enabledSkills],
         tools,
         toolResults,
@@ -107,7 +118,7 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           skillReferenceCount: loadedReferences.length,
           maxSkillReferences,
           decisionErrorCount,
-          availableSkillNames: (input.availableSkills ?? []).map((skill) => skill.name),
+          availableSkillNames: requestableSkills.map((skill) => skill.name),
           enabledSkillNames: enabledSkills.map((skill) => skill.metadata.name),
           loadedReferenceKeys: loadedReferences.map(toReferenceKey),
           visibleToolNames: tools.map((tool) => tool.name),
@@ -255,6 +266,44 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
       `⚠️ [AgentRuntime-Harness-run] Harness达到最大轮次，执行降级 traceId=${traceId} maxTurns=${this.config.maxTurns}`,
     );
     return await this.fallback(input, traceId, enabledSkills);
+  }
+
+  // 在首轮模型决策前固定读取会话历史，避免模型为必需上下文额外消耗一轮决策。
+  private async observeRecentMessagesBeforeDecision(
+    event: AgentRuntimeRunInput['event'],
+    traceId: string,
+  ): Promise<ToolExecutionResult> {
+    const tool = this.toolRegistry.getTool(GET_RECENT_MESSAGES_TOOL_NAME);
+    if (!tool) {
+      console.warn(
+        `⚠️ [AgentRuntime-Harness-context] 前置最近消息工具未注册，已注入失败观察 traceId=${traceId} tool=${GET_RECENT_MESSAGES_TOOL_NAME}`,
+      );
+      return {
+        toolName: GET_RECENT_MESSAGES_TOOL_NAME,
+        success: false,
+        observation: 'Harness 未配置最近消息工具，当前无法读取会话历史。请基于当前消息谨慎决策。',
+        errorMessage: '最近消息工具未注册',
+      };
+    }
+
+    try {
+      return await this.toolExecutor.execute({
+        event,
+        toolName: tool.name,
+        input: {},
+      });
+    } catch (error) {
+      const reason = formatError(error);
+      console.warn(
+        `⚠️ [AgentRuntime-Harness-context] 前置最近消息读取失败，已注入失败观察 traceId=${traceId} tool=${tool.name} reason=${reason}`,
+      );
+      return {
+        toolName: tool.name,
+        success: false,
+        observation: `Harness 在首轮决策前读取会话历史失败，原因：${reason}。请基于当前消息谨慎决策，必要时重新调用最近消息工具。`,
+        errorMessage: reason,
+      };
+    }
   }
 
   // 调用旧降级Agent，确保循环失效时仍能产生可用回复。
@@ -417,6 +466,24 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
       };
     }
   }
+}
+
+// 按名称去重平台预启用Skill，避免重复正文污染首轮上下文。
+function deduplicateSkills(skills: readonly SkillContent[]): SkillContent[] {
+  const skillByName = new Map<string, SkillContent>();
+  for (const skill of skills) {
+    if (!skillByName.has(skill.metadata.name)) skillByName.set(skill.metadata.name, skill);
+  }
+  return [...skillByName.values()];
+}
+
+// 已预启用Skill不再暴露为可请求目录，防止模型重复调用。
+function excludeEnabledSkills(
+  availableSkills: readonly SkillMetadata[],
+  enabledSkills: readonly SkillContent[],
+): SkillMetadata[] {
+  const enabledSkillNames = new Set(enabledSkills.map((skill) => skill.metadata.name));
+  return availableSkills.filter((skill) => !enabledSkillNames.has(skill.name));
 }
 
 /**
@@ -585,7 +652,7 @@ function validateRequiredGroupReply(
   );
 
   if (!hasRecentMessages) {
-    return '本轮由群聊节奏门控触发，必须先调用 get_recent_messages 读取最近100条群消息，再基于上下文回复。请先返回 tool_call。';
+    return '本轮由群聊节奏门控触发，但前置最近消息观察没有成功。必须重新调用 get_recent_messages 读取最近100条群消息，再基于上下文回复。请先返回 tool_call。';
   }
 
   if (decision.type !== 'reply') {

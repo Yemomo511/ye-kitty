@@ -9,6 +9,10 @@ import { InMemoryConversationHistory } from './in-memory-conversation-history';
 import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtime-tools';
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
 import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
+import { InMemoryModelRequestPool } from './in-memory-model-request-pool';
+import { loadModelPoolConfig } from './model-request-pool-config';
+import { OpenAiCompatibleModelClient } from '../infrastructure/openai-compatible-model.client';
+import type { ModelNodeConfig } from '../ports/model-request-pool.port';
 
 /** Harness 单次运行默认最大轮次 */
 export const DEFAULT_HARNESS_MAX_TURNS = 100;
@@ -29,6 +33,8 @@ export interface QqReplyAgentRuntimeConfig {
   readonly agentName: string;
   /** 回复超时毫秒 */
   readonly replyTimeoutMs: number;
+  /** Agent模型池节点 */
+  readonly modelPoolNodes: readonly ModelNodeConfig[];
 }
 
 /** QQ回复Agent创建依赖 */
@@ -51,19 +57,23 @@ export function createQqReplyAgent(
   dependencies: QqReplyAgentRuntimeDependencies = {},
 ): QqReplyAgentPort {
   const fallbackAgent = new FallbackQqReplyAgent();
-  if (!config.openAiApiKey) return fallbackAgent;
+  if (config.modelPoolNodes.length === 0) return fallbackAgent;
 
   const conversationHistory = dependencies.conversationHistory ?? new InMemoryConversationHistory();
   const toolDependencies = { customFaceCatalog: dependencies.customFaceCatalog };
   const toolRegistry = new BuiltinRuntimeToolRegistry(toolDependencies);
   const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies);
-  const runner = new OpenAiHarnessAgentRunner({
-    apiKey: config.openAiApiKey,
-    baseURL: config.openAiBaseUrl,
-    agentName: config.agentName,
-    model: config.agentModel,
-    timeoutMs: config.replyTimeoutMs,
-  });
+  const modelPool = new InMemoryModelRequestPool(
+    config.modelPoolNodes,
+    new OpenAiCompatibleModelClient(),
+  );
+  const runner = new OpenAiHarnessAgentRunner(
+    {
+      agentName: config.agentName,
+      timeoutMs: config.replyTimeoutMs,
+    },
+    modelPool,
+  );
   const harness = new AgentRuntimeHarness(
     runner,
     toolRegistry,
@@ -92,12 +102,14 @@ export function createQqReplyAgent(
 export function loadQqReplyAgentConfig(
   env: NodeJS.ProcessEnv = process.env,
 ): QqReplyAgentRuntimeConfig {
+  const modelPoolNodes = loadModelPoolConfig(env);
   return {
     openAiApiKey: normalizeOptionalValue(env.OPENAI_API_KEY),
     openAiBaseUrl: normalizeOptionalValue(env.OPENAI_BASE_URL),
     agentModel: normalizeOptionalValue(env.YE_KITTY_AGENT_MODEL) ?? 'gpt-4.1-mini',
     agentName: normalizeOptionalValue(env.YE_KITTY_AGENT_NAME) ?? '叶猫猫',
     replyTimeoutMs: readPositiveInteger(env.YE_KITTY_AGENT_REPLY_TIMEOUT_MS, 30000),
+    modelPoolNodes,
   };
 }
 

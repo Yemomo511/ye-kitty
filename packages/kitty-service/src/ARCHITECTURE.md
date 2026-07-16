@@ -79,6 +79,8 @@ contracts/events
 - OpenAI Agents SDK 先作为默认短链路 `AgentRunner` 实现，负责 Agent loop、工具调用、MCP 接入、会话、追踪和人工介入。
 - MCP 只作为工具接入协议，不作为信任边界。MCP Server、工具名称、工具参数、调用预算和高风险工具都必须经过 Ye-Kitty 的权限治理。
 - Skills 是可版本化的中文能力包，用于描述专项能力、Prompt 片段、示例、可用工具和风险等级。
+- 平台固定 Skill 由 `agent-runtime` 内的平台订阅边界预启用；QQ 消息固定注入 `qq-chat`，通用 Harness 只接收结构化的预启用正文，不直接判断平台。
+- 每次 Harness 首轮模型决策前自动执行 `get_recent_messages` 并注入当前会话历史；前置执行不消耗模型工具预算，失败时以观察结果降级而不是中断运行。
 - LangGraph 类运行时只用于长任务、复杂状态流、可暂停恢复流程和多 Agent 协作，不进入普通 QQ 短回复默认路径。
 - Agent 运行记录至少应包含事件 ID、人格版本、策略版本、Skill 版本、工具权限、工具调用、模型结果、候选输出、成本、耗时和错误信息。
 

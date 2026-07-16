@@ -17,6 +17,7 @@ import type {
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { QqReplyAgentInput, QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillMetadata } from '../domain/skill';
+import type { QqHarnessAdmissionQueuePort } from '../ports/qq-harness-admission-queue.port';
 
 describe('QqReplyEventSubscriber', () => {
   afterEach(() => {
@@ -26,6 +27,10 @@ describe('QqReplyEventSubscriber', () => {
   test('订阅QQ消息后调用Agent并发送回复', async () => {
     const messageService = new TestQqMessageService();
     const skillMetadata = createSkillMetadata();
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: skillMetadata,
+      body: '群聊回复短一点。',
+    }));
     const agentInputs: QqReplyAgentInput[] = [];
     const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
     const botClient = createTestBotClient({ segments });
@@ -46,12 +51,7 @@ describe('QqReplyEventSubscriber', () => {
           },
         },
         {
-          async loadSkillContent() {
-            return {
-              metadata: skillMetadata,
-              body: '群聊回复短一点。',
-            };
-          },
+          loadSkillContent,
         },
       ),
       { selfQqId: '10000' },
@@ -69,7 +69,14 @@ describe('QqReplyEventSubscriber', () => {
       message: { text: '你好' },
     });
     expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
-    expect(agentInputs[0]?.skills).toBeUndefined();
+    expect(agentInputs[0]?.skills).toEqual([
+      {
+        metadata: skillMetadata,
+        body: '群聊回复短一点。',
+      },
+    ]);
+    expect(loadSkillContent).toHaveBeenCalledOnce();
+    expect(loadSkillContent).toHaveBeenCalledWith('qq-chat');
     expect(segments).toEqual([
       {
         conversationExternalId: '123456',
@@ -127,13 +134,12 @@ describe('QqReplyEventSubscriber', () => {
     expect(segments).toEqual([]);
   });
 
-  test('订阅器只传入Skill目录，不提前读取正文', async () => {
+  test('qq-chat正文加载失败时降级为不带Skill的Agent回复', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     const skillMetadata = createSkillMetadata();
-    const loadSkillContent = vi.fn(async () => ({
-      metadata: skillMetadata,
-      body: '不应该提前读取。',
-    }));
+    const loadSkillContent = vi.fn(async () => {
+      throw new Error('qq-chat不可读');
+    });
     const agentInputs: QqReplyAgentInput[] = [];
     const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
     const botClient = createTestBotClient({ segments });
@@ -164,7 +170,8 @@ describe('QqReplyEventSubscriber', () => {
 
     expect(agentInputs[0]?.availableSkills).toEqual([skillMetadata]);
     expect(agentInputs[0]?.skills).toBeUndefined();
-    expect(loadSkillContent).not.toHaveBeenCalled();
+    expect(loadSkillContent).toHaveBeenCalledOnce();
+    expect(loadSkillContent).toHaveBeenCalledWith('qq-chat');
     expect(segments[0]?.segments).toEqual(
       withTriggerContext([{ type: 'text', text: 'Skill失败也能回复' }]),
     );
@@ -432,6 +439,53 @@ describe('QqReplyEventSubscriber', () => {
         segments: withTriggerContext([{ type: 'text', text: '私聊收到' }]),
       },
     ]);
+  });
+
+  test('准入队列丢弃消息时保留历史但不调用Agent或发送动作', async () => {
+    const agentInputs: QqReplyAgentInput[] = [];
+    const segments: Array<Parameters<QqBotClientPort['sendMessageSegments']>[0]> = [];
+    const conversationHistory = new InMemoryConversationHistory();
+    const queuedMentions: boolean[] = [];
+    const selectSkills = vi.fn(async () => []);
+    const skillRuntime = new SkillRuntimeService(
+      [],
+      { selectSkills },
+      {
+        async loadSkillContent() {
+          throw new Error('丢弃消息不应读取Skill');
+        },
+      },
+    );
+    const admissionQueue: QqHarnessAdmissionQueuePort = {
+      async enqueue(task) {
+        queuedMentions.push(task.mentionsAgent);
+        return { status: 'dropped', reason: 'queue_full' };
+      },
+    };
+    const subscriber = new QqReplyEventSubscriber(
+      new TestQqMessageService(),
+      createTestBotClient({ segments }),
+      {
+        async generateReply(input) {
+          agentInputs.push(input);
+          return { text: '不应该触发' };
+        },
+      },
+      skillRuntime,
+      { selfQqId: '10000' },
+      conversationHistory,
+      undefined,
+      admissionQueue,
+    );
+
+    const event = createChatEvent();
+    await subscriber.handleMessage(event);
+
+    expect(queuedMentions).toEqual([true]);
+    expect(conversationHistory.getRecentMessages(event.conversationId, 100)).toEqual([event]);
+    expect(selectSkills).not.toHaveBeenCalled();
+    expect(agentInputs).toEqual([]);
+    expect(segments).toEqual([]);
   });
 });
 

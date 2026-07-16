@@ -26,6 +26,14 @@ export type { AgentConversationMessage } from './domain/agent-conversation-messa
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
 export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
+  ModelDecisionRequest,
+  ModelDecisionResult,
+  ModelNodeConfig,
+  ModelRequestPoolPort,
+  ModelRequestPriority,
+  ModelRuntimeState,
+} from './ports/model-request-pool.port';
+export type {
   AgentRuntimeHarnessPort,
   AgentRuntimeRunInput,
   AgentRuntimeRunResult,
@@ -36,6 +44,13 @@ export type {
   GroupChatCadencePort,
   GroupChatCadenceTriggerMode,
 } from './ports/group-chat-cadence.port';
+export type {
+  QqHarnessAdmissionDropReason,
+  QqHarnessAdmissionQueueConfig,
+  QqHarnessAdmissionQueuePort,
+  QqHarnessAdmissionResult,
+  QqHarnessAdmissionTask,
+} from './ports/qq-harness-admission-queue.port';
 export type { SkillMarketPort } from './ports/skill-market.port';
 export type { SkillContentLoaderPort } from './ports/skill-content-loader.port';
 export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.port';
@@ -63,6 +78,10 @@ export {
 } from './application/group-chat-cadence-controller';
 export { QqReplyEventSubscriber } from './application/qq-reply-event-subscriber';
 export {
+  DEFAULT_QQ_HARNESS_ADMISSION_QUEUE_CONFIG,
+  InMemoryQqHarnessAdmissionQueue,
+} from './application/in-memory-qq-harness-admission-queue';
+export {
   DEFAULT_VISIBLE_SKILL_LIMIT,
   DefaultSkillSelector,
 } from './application/default-skill-selector';
@@ -75,6 +94,14 @@ export {
   GET_CUSTOM_FACES_TOOL_NAME,
   GET_RECENT_MESSAGES_TOOL_NAME,
 } from './application/runtime-tools';
+export {
+  InMemoryModelRequestPool,
+  type ModelRequestPoolClock,
+  type ModelTextClient,
+  type ModelTextClientRequest,
+} from './application/in-memory-model-request-pool';
+export { ModelRequestError } from './application/model-request-error';
+export { loadModelPoolConfig, parseModelPoolConfig } from './application/model-request-pool-config';
 export { QqReplyActionExecutor } from './application/qq-reply-action-executor';
 export {
   createQqReplyAgent,
@@ -87,6 +114,7 @@ export {
   parseAgentDecision,
   type OpenAiHarnessAgentRunnerConfig,
 } from './infrastructure/openai-harness-agent-runner';
+export { OpenAiCompatibleModelClient } from './infrastructure/openai-compatible-model.client';
 export {
   OpenAiCustomFaceVisionAgent,
   loadCustomFaceVisionAgentConfig,

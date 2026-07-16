@@ -26,7 +26,7 @@ export interface GroupChatCadenceDecision {
 /**
  * 群聊节奏端口
  *
- * 维护每个群的随机观察片段和回复后计时计数器。
+ * 维护每个群的随机观察片段、回复后计时计数器，以及跨群主动请求预算。
  */
 export interface GroupChatCadencePort {
   /**

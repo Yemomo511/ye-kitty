@@ -54,6 +54,7 @@ describe('QQ回复Agent', () => {
       agentModel: 'gpt-4.1-mini',
       agentName: '叶猫猫',
       replyTimeoutMs: 15000,
+      modelPoolNodes: [],
     });
     expect(agent).toBeInstanceOf(FallbackQqReplyAgent);
   });
@@ -74,7 +75,59 @@ describe('QQ回复Agent', () => {
       agentModel: 'gpt-4.1-mini',
       agentName: '测试叶猫猫',
       replyTimeoutMs: 20000,
+      modelPoolNodes: [
+        {
+          id: 'default-openai-agent',
+          apiKey: 'sk-test',
+          baseURL: 'https://relay.example.com',
+          model: 'gpt-4.1-mini',
+          maxConcurrency: 3,
+          minIntervalMs: 2000,
+          maxRetries: 3,
+          backoff: {
+            initialMs: 2000,
+            maxMs: 60000,
+            multiplier: 2,
+          },
+        },
+      ],
     });
+    expect(agent).toBeInstanceOf(SafeQqReplyAgent);
+  });
+
+  test('有YE_KITTY_MODEL_POOL时不依赖全局OPENAI_API_KEY', () => {
+    const config = loadQqReplyAgentConfig({
+      YE_KITTY_MODEL_POOL: JSON.stringify({
+        models: [
+          {
+            id: 'pool-main',
+            apiKey: 'sk-pool',
+            baseURL: 'https://pool.example.com',
+            model: 'deepseek-chat',
+            maxConcurrency: 4,
+            minIntervalMs: 2000,
+          },
+        ],
+      }),
+    });
+    const agent = createQqReplyAgent(config);
+
+    expect(config.modelPoolNodes).toEqual([
+      {
+        id: 'pool-main',
+        apiKey: 'sk-pool',
+        baseURL: 'https://pool.example.com',
+        model: 'deepseek-chat',
+        maxConcurrency: 4,
+        minIntervalMs: 2000,
+        maxRetries: 3,
+        backoff: {
+          initialMs: 2000,
+          maxMs: 60000,
+          multiplier: 2,
+        },
+      },
+    ]);
     expect(agent).toBeInstanceOf(SafeQqReplyAgent);
   });
 

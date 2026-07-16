@@ -1,17 +1,19 @@
 import type { QqReplyAction } from './qq-reply-agent.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillMetadata } from '../domain/skill';
+import type { SkillContent, SkillMetadata } from '../domain/skill';
 
 /**
  * Harness运行输入
  *
- * 调用方只提供平台事件和已命中的 Skill，循环细节由 Harness 接管。
+ * 调用方只提供平台事件和已命中的 Skill；Harness 会先记录事件并自动读取最近消息，再接管后续循环。
  */
 export interface AgentRuntimeRunInput {
   /** QQ标准消息 */
   readonly event: ChatEventContract;
   /** 本轮可请求的Skill目录 */
   readonly availableSkills?: readonly SkillMetadata[];
+  /** 调用方按平台上下文预启用的Skill正文 */
+  readonly skills?: readonly SkillContent[];
   /** 本轮回复意图 */
   readonly replyIntent?: 'normal' | 'required_group_reply';
   /** 本轮必须调用的工具 */

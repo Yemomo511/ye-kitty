@@ -13,6 +13,7 @@ import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
 import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
+import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   ChatEventId,
@@ -26,24 +27,15 @@ describe('AgentRuntimeHarness', () => {
     vi.restoreAllMocks();
   });
 
-  test('模型先调用最近消息工具，再根据工具观察输出回复', async () => {
+  test('首轮模型决策前自动注入最近消息观察', async () => {
     const observations: AgentObservation[] = [];
     const harness = createHarness({
       async decide(observation) {
         observations.push(observation);
-        if (observation.turnIndex === 1) {
-          return {
-            type: 'tool_call',
-            toolName: 'get_recent_messages',
-            input: { limit: 3 },
-            reason: '需要上下文',
-          };
-        }
-
         return {
           type: 'reply',
           text: '看到了上下文，我来接一句。',
-          reason: '上下文足够',
+          reason: '首轮已自动获得上下文',
         };
       },
     });
@@ -54,8 +46,54 @@ describe('AgentRuntimeHarness', () => {
       type: 'reply',
       text: '看到了上下文，我来接一句。',
     });
-    expect(observations).toHaveLength(2);
-    expect(observations[1]?.toolResults[0]?.observation).toContain('最近 1 条消息');
+    expect(observations).toHaveLength(1);
+    expect(observations[0]?.toolResults[0]).toMatchObject({
+      toolName: 'get_recent_messages',
+      success: true,
+      observation: expect.stringContaining('最近 1 条消息'),
+    });
+    expect(observations[0]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'tool_result',
+          result: expect.objectContaining({ toolName: 'get_recent_messages', success: true }),
+        }),
+      ]),
+    );
+    expect(observations[0]?.promptState.phase).toBe('tool_observing');
+    expect(observations[0]?.promptState.budget.toolCallCount).toBe(0);
+  });
+
+  test('前置最近消息读取异常时注入失败观察并继续决策', async () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const observations: AgentObservation[] = [];
+    const execute = vi.fn(async () => {
+      throw new Error('历史存储暂不可用');
+    });
+    const harness = createHarnessWithToolExecutor(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          return {
+            type: 'reply',
+            text: '暂时看不到历史，我先回应当前消息。',
+            reason: '已收到前置观察失败信息',
+          };
+        },
+      },
+      { execute },
+    );
+
+    const result = await harness.run({ event: createChatEvent('异常测试') });
+
+    expect(result).toMatchObject({ type: 'reply', text: '暂时看不到历史，我先回应当前消息。' });
+    expect(execute).toHaveBeenCalledOnce();
+    expect(observations[0]?.toolResults[0]).toMatchObject({
+      toolName: 'get_recent_messages',
+      success: false,
+      errorMessage: '历史存储暂不可用',
+    });
+    expect(observations[0]?.promptState.phase).toBe('ready_to_decide');
   });
 
   test('工具调用超过预算时降级到fallback', async () => {
@@ -155,11 +193,13 @@ describe('AgentRuntimeHarness', () => {
       type: 'reply',
       text: '我会按群聊方法论来回。',
     });
-    expect(observations[1]?.toolResults[0]).toMatchObject({
+    expect(
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill_call:qq-chat'),
+    ).toMatchObject({
       toolName: 'skill_call:qq-chat',
       success: true,
     });
-    expect(observations[0]?.promptState.phase).toBe('initial_observe');
+    expect(observations[0]?.promptState.phase).toBe('tool_observing');
     expect(observations[1]?.promptState.phase).toBe('skill_loaded');
     expect(observations[1]?.promptState.context.enabledSkillNames).toEqual(['qq-chat']);
     expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
@@ -178,10 +218,68 @@ describe('AgentRuntimeHarness', () => {
         }),
       ]),
     );
-    expect(observations[1]?.toolResults[0]?.observation).toContain(
-      '正文将在下一轮模型上下文中生效',
-    );
+    expect(
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill_call:qq-chat')
+        ?.observation,
+    ).toContain('正文将在下一轮模型上下文中生效');
     expect(loadSkillContent).toHaveBeenCalledTimes(1);
+  });
+
+  test('预启用Skill会直接进入首轮上下文，不需要Agent调用', async () => {
+    const observations: AgentObservation[] = [];
+    const loadSkillContent = vi.fn(async () => ({
+      metadata: {
+        name: 'qq-chat',
+        description: '用于 QQ 群聊回复',
+        rootPath: '/tmp/skills/qq-chat',
+      },
+      body: '不应重复读取。',
+    }));
+    const qqChatSkill = {
+      metadata: {
+        name: 'qq-chat',
+        description: '用于 QQ 群聊回复',
+        rootPath: '/tmp/skills/qq-chat',
+      },
+      body: '保持自然。',
+    };
+    const harness = createHarness(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          return {
+            type: 'reply',
+            text: '首轮直接回复。',
+            reason: '已有QQ聊天方法论',
+          };
+        },
+      },
+      { loadSkillContent },
+    );
+
+    const result = await harness.run({
+      event: createChatEvent('预启用Skill测试'),
+      availableSkills: [qqChatSkill.metadata],
+      skills: [qqChatSkill, { ...qqChatSkill, body: '重复正文不应进入上下文。' }],
+    });
+
+    expect(result).toMatchObject({ type: 'reply', text: '首轮直接回复。' });
+    expect(observations).toHaveLength(1);
+    expect(observations[0]?.enabledSkills).toEqual([qqChatSkill]);
+    expect(observations[0]?.promptState.phase).toBe('tool_observing');
+    expect(observations[0]?.availableSkills).toEqual([]);
+    expect(observations[0]?.promptState.context.availableSkillNames).toEqual([]);
+    expect(observations[0]?.promptState.context.enabledSkillNames).toEqual(['qq-chat']);
+    expect(observations[0]?.conversationMessages).toEqual(
+      expect.arrayContaining([
+        { type: 'skill_catalog', skills: [] },
+        {
+          type: 'skill_content',
+          skill: qqChatSkill,
+        },
+      ]),
+    );
+    expect(loadSkillContent).not.toHaveBeenCalled();
   });
 
   test('不可用Skill请求不会读取正文', async () => {
@@ -229,7 +327,9 @@ describe('AgentRuntimeHarness', () => {
 
     expect(result).toMatchObject({ type: 'human_review' });
     expect(loadSkillContent).not.toHaveBeenCalled();
-    expect(observations[1]?.toolResults[0]).toMatchObject({
+    expect(
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill_call:missing-skill'),
+    ).toMatchObject({
       toolName: 'skill_call:missing-skill',
       success: false,
     });
@@ -371,7 +471,11 @@ describe('AgentRuntimeHarness', () => {
 
     expect(result).toMatchObject({ type: 'human_review' });
     expect(loadSkillReference).not.toHaveBeenCalled();
-    expect(observations[1]?.toolResults[0]).toMatchObject({
+    expect(
+      observations[1]?.toolResults.find(
+        (result) => result.toolName === 'skill_reference_call:chat-style',
+      ),
+    ).toMatchObject({
       toolName: 'skill_reference_call:chat-style',
       success: false,
       errorMessage: 'Skill未启用',
@@ -575,7 +679,7 @@ describe('AgentRuntimeHarness', () => {
 
     await harness.run({ event: createChatEvent('状态测试') });
 
-    expect(observations[0]?.promptState.phase).toBe('initial_observe');
+    expect(observations[0]?.promptState.phase).toBe('tool_observing');
     expect(observations[1]?.promptState.phase).toBe('tool_observing');
     expect(observations[1]?.promptState.budget.toolCallCount).toBe(1);
     expect(observations[1]?.promptState.context.latestObservation).toContain('最近 1 条消息');
@@ -586,32 +690,15 @@ describe('AgentRuntimeHarness', () => {
     });
   });
 
-  test('强制群聊回复未读取最近消息时要求先调用工具', async () => {
+  test('强制群聊回复可基于前置最近消息直接回复', async () => {
     const observations: AgentObservation[] = [];
     const harness = createHarness({
       async decide(observation) {
         observations.push(observation);
-        if (observation.turnIndex === 1) {
-          return {
-            type: 'reply',
-            text: '我先直接回。',
-            reason: '想直接回复',
-          };
-        }
-
-        if (observation.turnIndex === 2) {
-          return {
-            type: 'tool_call',
-            toolName: 'get_recent_messages',
-            input: {},
-            reason: '按协议读取最近消息',
-          };
-        }
-
         return {
           type: 'reply',
-          text: '看完最近消息再接一句。',
-          reason: '已读取最近消息',
+          text: '我已看过最近消息，直接接一句。',
+          reason: '前置观察已经读取最近消息',
         };
       },
     });
@@ -625,15 +712,13 @@ describe('AgentRuntimeHarness', () => {
 
     expect(result).toMatchObject({
       type: 'reply',
-      text: '看完最近消息再接一句。',
+      text: '我已看过最近消息，直接接一句。',
     });
+    expect(observations).toHaveLength(1);
     expect(observations[0]?.replyIntent).toBe('required_group_reply');
-    expect(observations[1]?.conversationMessages).toEqual(
+    expect(observations[0]?.toolResults).toEqual(
       expect.arrayContaining([
-        expect.objectContaining({
-          type: 'decision_error',
-          observation: expect.stringContaining('必须先调用 get_recent_messages'),
-        }),
+        expect.objectContaining({ toolName: 'get_recent_messages', success: true }),
       ]),
     );
   });
@@ -644,15 +729,6 @@ describe('AgentRuntimeHarness', () => {
       async decide(observation) {
         observations.push(observation);
         if (observation.turnIndex === 1) {
-          return {
-            type: 'tool_call',
-            toolName: 'get_recent_messages',
-            input: {},
-            reason: '读取最近消息',
-          };
-        }
-
-        if (observation.turnIndex === 2) {
           return {
             type: 'ignore',
             reason: '不想打扰',
@@ -678,7 +754,7 @@ describe('AgentRuntimeHarness', () => {
       type: 'reply',
       text: '那我短短接一句。',
     });
-    expect(observations[2]?.conversationMessages).toEqual(
+    expect(observations[1]?.conversationMessages).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           type: 'decision_error',
@@ -794,6 +870,27 @@ function createHarness(
     history,
     skillContentLoader,
     skillReferenceLoader,
+    createFallbackAgent(),
+    {
+      maxTurns: 6,
+      maxToolCalls: 3,
+      maxSkillReferences: 3,
+    },
+  );
+}
+
+function createHarnessWithToolExecutor(
+  runner: AgentRunnerPort,
+  toolExecutor: RuntimeToolExecutorPort,
+): AgentRuntimeHarness {
+  const history = new InMemoryConversationHistory();
+  return new AgentRuntimeHarness(
+    runner,
+    new BuiltinRuntimeToolRegistry(),
+    toolExecutor,
+    history,
+    createSkillContentLoader(),
+    createSkillReferenceLoader(),
     createFallbackAgent(),
     {
       maxTurns: 6,
