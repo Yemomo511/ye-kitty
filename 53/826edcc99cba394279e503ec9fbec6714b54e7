@@ -1,0 +1,23 @@
+design-docs/Agent/mcp-runtime.md
+  s_4f351f63b7174a::t_30613efd94457c 1-163
+design-docs/Task.md
+  s_4f351f63b7174a::t_f6be5d8778d073 6,11,13-14,26,38,50,92
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "53826edcc99cba394279e503ec9fbec6714b54e7",
+  "prompts": {},
+  "sessions": {
+    "s_4f351f63b7174a": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f6900-bac1-7db2-8abb-634effe82888",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
