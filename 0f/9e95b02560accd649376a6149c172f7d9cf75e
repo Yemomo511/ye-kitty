@@ -1,0 +1,81 @@
+package.json
+  s_ff30d0ad329eef::t_1da6453509c996 37,39
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_ff30d0ad329eef::t_867462d0f7ff9d 7,23-24,50-51,55,58-75,118,123-124,146
+packages/kitty-service/scripts/start-platform-xiaohongshu.ts
+  s_ff30d0ad329eef::t_6cf3f68d424f83 2-7,20-32,37-39,48,51,54
+packages/kitty-service/src/ARCHITECTURE.md
+  s_ff30d0ad329eef::t_8fb16b16c7b807 73,84,88
+packages/kitty-service/src/bootstrap/__test__/xiaohongshu-mcp-docker-bootstrap.test.ts
+  s_ff30d0ad329eef::t_dbc93216d14a7d 3,36,100-108,125
+packages/kitty-service/src/bootstrap/mcp-runtime-bootstrap.ts
+  s_ff30d0ad329eef::t_802bbe1bd5e98a 17,159,161-163
+packages/kitty-service/src/bootstrap/xiaohongshu-mcp-docker-bootstrap.ts
+  s_ff30d0ad329eef::t_a7f135d4134eeb 35,70,101-105
+packages/kitty-service/src/contracts/events/xiaohongshu-mention-event.contract.ts
+  s_ff30d0ad329eef::t_a2f09258ab0ada 1-27
+packages/kitty-service/src/platforms/xiaohongshu/__test__/mcp-xiaohongshu-mention.reader.test.ts
+  s_ff30d0ad329eef::t_f63db9f8531d25 1-191
+packages/kitty-service/src/platforms/xiaohongshu/__test__/xiaohongshu-mention-infrastructure.test.ts
+  s_ff30d0ad329eef::t_15a24b9df3f044 1-70
+packages/kitty-service/src/platforms/xiaohongshu/__test__/xiaohongshu-mention-source.test.ts
+  s_ff30d0ad329eef::t_13dd6deef5074b 1-184
+packages/kitty-service/src/platforms/xiaohongshu/application/xiaohongshu-mention-source.ts
+  s_ff30d0ad329eef::t_838e47d0251de7 1-179
+packages/kitty-service/src/platforms/xiaohongshu/application/xiaohongshu-mention.factory.ts
+  s_ff30d0ad329eef::t_d0257038f1e135 1-47
+packages/kitty-service/src/platforms/xiaohongshu/domain/xiaohongshu-mention.ts
+  s_ff30d0ad329eef::t_a53a6c3e122b84 1-25
+packages/kitty-service/src/platforms/xiaohongshu/index.ts
+  s_ff30d0ad329eef::t_404ebeb5cfb4c5 1-15
+packages/kitty-service/src/platforms/xiaohongshu/infrastructure/json-xiaohongshu-mention-checkpoint.repository.ts
+  s_ff30d0ad329eef::t_48e8dce449e7b9 1-57
+packages/kitty-service/src/platforms/xiaohongshu/infrastructure/mcp-xiaohongshu-mention.reader.ts
+  s_ff30d0ad329eef::t_552eb97d1425ed 1-154
+packages/kitty-service/src/platforms/xiaohongshu/ports/xiaohongshu-mcp-raw-tool-caller.port.ts
+  s_ff30d0ad329eef::t_fc5a1bd8ea760c 1-19
+packages/kitty-service/src/platforms/xiaohongshu/ports/xiaohongshu-mention-checkpoint.repository.port.ts
+  s_ff30d0ad329eef::t_a50ef03ee8864c 1-9
+packages/kitty-service/src/platforms/xiaohongshu/ports/xiaohongshu-mention-reader.port.ts
+  s_ff30d0ad329eef::t_bf709564a870c1 1-7
+packages/kitty-service/src/services/agent-runtime/ARCHITECTURE.md
+  s_ff30d0ad329eef::t_37136b65848354 32-37
+packages/kitty-service/src/services/agent-runtime/__test__/mcp-runtime.service.test.ts
+  s_ff30d0ad329eef::t_847510d4e6b38f 140-171
+packages/kitty-service/src/services/agent-runtime/__test__/xiaohongshu-mcp-config.test.ts
+  s_ff30d0ad329eef::t_ef110f4e50094a 19
+packages/kitty-service/src/services/agent-runtime/__test__/xiaohongshu-mention-event-subscriber.test.ts
+  s_ff30d0ad329eef::t_9f034a592ee4bf 1-40
+packages/kitty-service/src/services/agent-runtime/application/mcp-runtime.service.ts
+  s_ff30d0ad329eef::t_d1f60895f4f3e3 32,64,86,88,101,178-188,191-192,194,207,214-220
+packages/kitty-service/src/services/agent-runtime/application/xiaohongshu-mcp-config.ts
+  s_ff30d0ad329eef::t_2e189d928738a9 48
+packages/kitty-service/src/services/agent-runtime/application/xiaohongshu-mention-event-subscriber.ts
+  s_ff30d0ad329eef::t_59b4953e5a4e63 1-35
+packages/kitty-service/src/services/agent-runtime/domain/mcp.ts
+  s_ff30d0ad329eef::t_42c325edb87076 28-29
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_ff30d0ad329eef::t_090362b4ee32a0 94
+packages/kitty-service/src/services/agent-runtime/ports/mcp-raw-tool-caller.port.ts
+  s_ff30d0ad329eef::t_7f2afc41256aa4 6
+packages/kitty-service/src/shared/types/ids.ts
+  s_ff30d0ad329eef::t_be144d4818a28e 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0f9e95b02560accd649376a6149c172f7d9cf75e",
+  "prompts": {},
+  "sessions": {
+    "s_ff30d0ad329eef": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f69cc-4fe9-79c0-975a-a108a786c670",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
