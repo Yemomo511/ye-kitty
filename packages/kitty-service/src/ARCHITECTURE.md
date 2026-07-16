@@ -66,7 +66,7 @@ contracts/events
 - `persona`：负责 Ye-Kitty 人格版本和启用规则。
 - `policy`：判断事件应当触发回复、拒绝、人工审核还是静默处理。
 - `agent-runtime`：承载可审计 Agent Harness，负责上下文组装、Skill 选择、MCP 工具授权、运行记录和 OpenAI Agents SDK 等底层 Runner 调用。
-- `llm`：构造模型请求，并返回结构化生成结果。
+- `llm`：构造模型请求并返回结构化生成结果；同时作为**智能供应端**承载 code agent 子进程编排（进程编排 + 协议翻译，不做会话/Prompt/工具治理）。提供两套并行 port：`LlmProviderPort.generateReply()`（HTTP API 模型回复）和 `CodeAgentRunnerPort.submit()`（stdio 子进程 code agent 任务执行）。
 - `risk`：在对外发送前检查生成内容。
 - `actions`：持久化并执行对外社交动作。
 - `platforms/qq`：MVP 阶段提供 QQ 官方契约占位，并新增 OneBot v11 + NapCat 的 QQ 账号实验通道；实验通道只负责接收白名单消息、通过自身 `subscribe` 发布统一聊天事件，并提供 OneBot 发送端口。
@@ -91,6 +91,16 @@ contracts/events
 - 每次 Harness 首轮模型决策前自动执行 `get_recent_messages` 并注入当前会话历史；前置执行不消耗模型工具预算，失败时以观察结果降级而不是中断运行。
 - LangGraph 类运行时只用于长任务、复杂状态流、可暂停恢复流程和多 Agent 协作，不进入普通 QQ 短回复默认路径。
 - Agent 运行记录至少应包含事件 ID、人格版本、策略版本、Skill 版本、工具权限、工具调用、模型结果、候选输出、成本、耗时和错误信息。
+
+### llm code agent 约束
+
+- code agent 接入层只做**进程编排 + 协议翻译**，不做会话历史治理、不做 Prompt/Skill 治理、不做工具决策（三条禁忌）。
+- 工具透传走**中间人模式**：code agent 产出的 `tool_use` 事件经由 llm 透传给 harness，由 harness 的 ToolExecutor 执行，结果经 `injectToolResult()` 注回子进程 stdin。code agent 不直接执行任何工具。
+- 安全门禁经 `CodeAgentGateHook` 接口注入，不引入反向依赖（risk 已 `dependsOn: ['llm']`）。
+- 子进程启动时在 env 注入进程印章，服务启动时清理残留孤儿进程（PID 登记文件 + CommandLine 校验防 PID 复用）。
+- control-plane HTTP API（`/admin/code-agent/*`）仅监听 127.0.0.1，Bearer 鉴权；API key 为空则不启动。
+- Agent CLI 的所有参数经 `buildArgs` 函数构建（prompt 不得进入 argv），prompt 恒经 stdin（stream-json 格式）传递。
+- 声明式 AgentDef 注册新 agent：加一个 plain object，不改引擎代码。
 
 ## 设计模式约束
 
