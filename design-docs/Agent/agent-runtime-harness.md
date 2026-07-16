@@ -279,7 +279,7 @@ SKILL.md frontmatter
   -> AgentRuntimeContext
 ```
 
-`allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`。QQ 消息由 `QqReplyEventSubscriber` 在准入锁内固定加载 `qq-chat`，通过 `skills` 输入使其从 Harness 首轮开始进入第二章，不需要模型再返回 `skill_call`。其他 Skill 仍由模型通过 `skill_call` 请求 Harness 启用；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入第二章 `2.1 Skill Prompt`，并被渲染为 `<skill_document>` 结构化文档。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入第二章 `<skill_reference_document>`。最终只执行 `ToolRegistry` 内已注册的内置工具，并受 `maxToolCalls` 约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
+`allowed-tools` 只表示 Skill 建议工具，不进入首轮 Skill 目录 Prompt。MVP 目录只展示 `name` 和 `description`。QQ 消息由 `QqReplyEventSubscriber` 在准入锁内固定加载 `qq-chat`，通过 `skills` 输入使其从 Harness 首轮开始进入第二章，不需要模型再返回 `skill_call`。其他 Skill 仍由模型通过 `skill_call` 请求 Harness 启用；如果 Skill 不在可见目录中，Harness 会把失败原因写入 Observation，不读取磁盘正文。启用成功后，正文进入第二章 `2.1 Skill Prompt`，并被渲染为 `<skill_document>` 结构化文档。模型如需补充材料，可通过 `skill_reference_call` 请求已启用 Skill 的 `references/` 文件，合法内容进入第二章 `<skill_reference_document>`。最终只执行组合 `ToolRegistry` 内已注册的内置或 MCP 工具，并受 `maxToolCalls` 和风险等级约束；`skill_call` 和 `skill_reference_call` 只改变上下文，不消耗工具调用预算。
 
 ## QQ受控回复动作
 
@@ -334,6 +334,7 @@ NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`
 | `get_recent_messages` | low      | 已实现。读取当前会话最近消息，帮助 Agent 判断上下文和是否回复。      |
 | `get_custom_faces`    | low      | 已实现。读取启动期缓存的 QQ 自定义表情目录，异常时返回中文降级观察。 |
 | `search_memory`       | medium   | 后续阶段。查询长期记忆或项目知识库。                                 |
+| `{server}_{tool}`     | 可配置   | 已实现。MCP 工具默认 `medium`，只有显式设为 `low` 才允许自动执行。   |
 
 工具调用过程：
 
@@ -341,6 +342,7 @@ NapCat WebUI `send_msg` 调试页确认的参数为：`message_type`、`user_id`
 Runner 提出 tool_call
   -> DecisionRouter 识别工具调用
   -> ToolRegistry 判断工具是否注册
+  -> Harness 判断风险等级是否为 low
   -> ToolExecutor 执行工具
   -> ToolExecutionResult 写入 RunTrace
   -> ToolExecutionResult 转 Observation
@@ -355,8 +357,9 @@ MVP 权限判断包含：
 - 本次运行是否超过 `maxToolCalls`。
 - 本次运行是否超过 `maxTurns` 或 `timeoutMs`。
 - `skill_reference_call` 是否来自已启用 Skill、是否位于 `references/`、是否未超过单次运行读取次数。
+- 工具风险等级是否为 `low`；`medium`、`high` 只回灌拒绝观察，不进入执行器，也不消耗工具调用预算。
 
-独立 `PermissionPolicy`、风险等级审批、参数 schema 校验和人工确认流进入后续阶段。
+独立 `PermissionPolicy`、参数 schema 校验和人工确认流进入后续阶段；当前 Harness 已提供最小风险门禁。
 
 ## 运行记录与日志
 
@@ -424,7 +427,7 @@ QqReplyEventSubscriber
 ### 第二阶段：能力扩展
 
 - 增加 `search_memory`。
-- 接入 MCP 作为工具来源，但所有 MCP 调用仍经过 Harness 权限治理。
+- 已接入 MCP 作为工具来源，所有 MCP 调用继续经过 Harness 风险与预算治理。
 - 增加人工审核队列。
 - 将 RunTrace 从内存记录升级为可查询持久化记录。
 
@@ -457,6 +460,7 @@ QqReplyEventSubscriber
 - Skill 测试：覆盖标准 `SKILL.md` frontmatter 解析、最小目录渲染、结构化 Skill 文档、reference 索引、按需正文注入、`references/` 合法读取、路径逃逸拒绝、`qq-chat` 动作协议、自动引用提醒说明、自定义表情单独发送说明和戳一戳独占说明。
 - 真实模型 eval：QQ 用例默认预启用 `qq-chat` 和最近消息结果，不再期望 `skill_call:qq-chat` 或固定的 `tool_call:get_recent_messages`；另保留未启用 `chat-style` 的 `skill_call` 结构评估。
 - 工具测试：覆盖 `get_recent_messages` 成功、空结果、异常和返回摘要；覆盖 `get_custom_faces` 缓存刷新、视觉失败降级、视觉推荐和返回摘要。
+- MCP 测试：覆盖常见 JSON 配置、三种传输、环境变量、OAuth 边界、工具过滤与前缀、多 Server 故障隔离、风险拒绝、结果截断、SDK 适配和 QQ Agent 组合装配。
 - 手动验证：使用 NapCat 发送 QQ 消息，确认 Agent 能先读取最近消息，再结合工具结果回复。
 - 回归范围：现有 `FallbackQqReplyAgent`、`SafeQqReplyAgent`、Skill 加载和 QQ 平台白名单过滤不能被破坏。
 

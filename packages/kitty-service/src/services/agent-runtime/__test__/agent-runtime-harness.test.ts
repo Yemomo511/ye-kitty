@@ -14,6 +14,7 @@ import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
 import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
+import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   ChatEventId,
@@ -114,6 +115,61 @@ describe('AgentRuntimeHarness', () => {
     expect(result).toMatchObject({
       type: 'reply',
       text: 'fallback:预算测试',
+    });
+  });
+
+  test('非low风险工具不会进入执行器', async () => {
+    const execute = vi.fn();
+    const observations: AgentObservation[] = [];
+    let decisionCount = 0;
+    const registry: RuntimeToolRegistryPort = {
+      listTools: () => [
+        {
+          name: 'remote_write',
+          description: '写入远端数据',
+          riskLevel: 'medium',
+          inputSchemaDescription: '{}',
+        },
+      ],
+      getTool: (toolName) =>
+        toolName === 'remote_write'
+          ? {
+              name: 'remote_write',
+              description: '写入远端数据',
+              riskLevel: 'medium',
+              inputSchemaDescription: '{}',
+            }
+          : undefined,
+    };
+    const harness = createHarnessWithTools(
+      {
+        async decide(observation) {
+          observations.push(observation);
+          decisionCount += 1;
+          if (decisionCount === 1) {
+            return {
+              type: 'tool_call',
+              toolName: 'remote_write',
+              input: {},
+              reason: '尝试写入',
+            };
+          }
+          return { type: 'reply', text: '需要人工确认后执行。', reason: '风险受限' };
+        },
+      },
+      registry,
+      { execute },
+    );
+
+    await expect(harness.run({ event: createChatEvent('风险测试') })).resolves.toMatchObject({
+      type: 'reply',
+      text: '需要人工确认后执行。',
+    });
+    expect(execute).not.toHaveBeenCalled();
+    expect(observations[1]?.toolResults.at(-1)).toMatchObject({
+      toolName: 'remote_write',
+      success: false,
+      errorMessage: '工具风险等级不允许自动执行',
     });
   });
 
@@ -887,6 +943,28 @@ function createHarnessWithToolExecutor(
   return new AgentRuntimeHarness(
     runner,
     new BuiltinRuntimeToolRegistry(),
+    toolExecutor,
+    history,
+    createSkillContentLoader(),
+    createSkillReferenceLoader(),
+    createFallbackAgent(),
+    {
+      maxTurns: 6,
+      maxToolCalls: 3,
+      maxSkillReferences: 3,
+    },
+  );
+}
+
+function createHarnessWithTools(
+  runner: AgentRunnerPort,
+  toolRegistry: RuntimeToolRegistryPort,
+  toolExecutor: RuntimeToolExecutorPort,
+): AgentRuntimeHarness {
+  const history = new InMemoryConversationHistory();
+  return new AgentRuntimeHarness(
+    runner,
+    toolRegistry,
     toolExecutor,
     history,
     createSkillContentLoader(),

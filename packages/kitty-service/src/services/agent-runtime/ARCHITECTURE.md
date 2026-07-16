@@ -22,6 +22,19 @@ Harness的核心关键在于Prompt 对于 AI 的指导，告诉 AI 有哪些工�
 
 - 铁律7: **每次 Harness 首轮决策前必须自动注入最近消息观察**。Harness 先记录当前事件，再通过 `ToolRegistry` 与 `ToolExecutor` 执行 `get_recent_messages`；该运行时准备动作不消耗模型工具预算、不写入模型决策历史，失败时必须注入可读错误观察并允许模型继续决策或主动重试。
 
+### 小红书 MCP 登录边界
+
+- 项目启动入口负责选择平台；选择小红书后，`bootstrap` 必须先完成 Docker 健康检查，再启动 MCP Runtime 和账号登录检查。
+- 登录编排只允许调用 `check_login_status` 和 `get_login_qrcode`。二维码图片通过原始 MCP 调用端口交给本地展示器，不进入 Harness observation，也不写入日志。
+- Cookie 由上游容器持久化，Agent Runtime 不读取、不复制、不打印 Cookie 内容。
+- 小红书读取工具可以显式标记为 `low`；删除 Cookie、发布、评论、回复、点赞和收藏保持 `medium`，继续受 Harness 风险门禁约束。
+
+### 小红书被提及订阅边界
+
+- `list_mentions` 是 MCP `internalTools`，只允许平台信息源通过原始调用端口访问，不允许 Harness 或 Skill 发现和执行。
+- `XiaohongshuMentionEventSubscriber` 是当前唯一的 Agent Runtime 入口；它只订阅稳定平台事件并记录脱敏跳过日志。
+- 订阅器禁止持有 Agent、Harness、Skill、工具执行器和小红书动作端口；后续启用智能反应前必须单独设计不可信输入、决策和动作风险边界。
+
 #### Prompt 如何书写
 
 **请注意，本部分的所有示例都仅作参考，禁止直接复制作为Prompt使用**

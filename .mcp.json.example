@@ -1,0 +1,50 @@
+{
+  "mcpServers": {
+    "xiaohongshu": {
+      "type": "http",
+      "url": "http://127.0.0.1:18060/mcp",
+      "allowedTools": [
+        "check_login_status",
+        "get_login_qrcode",
+        "delete_cookies",
+        "publish_content",
+        "list_feeds",
+        "search_feeds",
+        "get_feed_detail",
+        "user_profile",
+        "post_comment_to_feed",
+        "reply_comment_in_feed",
+        "publish_with_video",
+        "like_feed",
+        "favorite_feed"
+      ],
+      "defaultRiskLevel": "medium",
+      "toolRiskLevels": {
+        "check_login_status": "low",
+        "get_login_qrcode": "low",
+        "list_feeds": "low",
+        "search_feeds": "low",
+        "get_feed_detail": "low",
+        "user_profile": "low"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "/tmp"],
+      "allowedTools": ["read_file", "list_*"],
+      "defaultRiskLevel": "medium",
+      "toolRiskLevels": {
+        "read_file": "low",
+        "list_directory": "low"
+      }
+    },
+    "remote-api": {
+      "transport": "streamable-http",
+      "url": "https://api.example.com/mcp",
+      "headers": {
+        "Authorization": "Bearer ${MCP_ACCESS_TOKEN}"
+      },
+      "defaultRiskLevel": "medium"
+    }
+  }
+}

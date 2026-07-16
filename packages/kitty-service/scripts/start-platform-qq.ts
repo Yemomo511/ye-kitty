@@ -1,9 +1,10 @@
-import { existsSync, readFileSync } from 'node:fs';
-import { dirname, join, parse } from 'node:path';
+import { bootstrapMcpRuntime } from '../src/bootstrap/mcp-runtime-bootstrap';
+import { findNearestDirectory, loadNearestEnvFile } from '../src/bootstrap/runtime-environment';
 import {
   createQqAccountExperimentChannel,
   loadQqAccountExperimentConfig,
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
+import { createXiaohongshuMentionSource } from '../src/platforms/xiaohongshu';
 import {
   createQqReplyAgent,
   CustomFaceCatalogService,
@@ -19,10 +20,12 @@ import {
   OpenAiCustomFaceVisionAgent,
   QqReplyEventSubscriber,
   SkillRuntimeService,
+  createXiaohongshuMcpServerConfig,
+  XiaohongshuMentionEventSubscriber,
 } from '../src/services/agent-runtime';
 
 // 1. 读取本地 .env，拿到 OneBot 和 QQ 白名单配置。
-loadNearestEnvFile();
+loadNearestEnvFile(process.cwd(), process.env);
 
 // 2. 创建 QQ 实验通道，下层平台只负责发布事件和提供发送端口。
 const qqConfig = loadQqAccountExperimentConfig();
@@ -43,7 +46,34 @@ console.info(
   `✅ [AgentRuntime-SkillBootstrap] 已加载Skill元信息 count=${skillMetadataList.length}`,
 );
 
-// 4. 创建自定义表情目录，NapCat连接建立后刷新缓存。
+// 4. 启动通用MCP运行时，连接失败的Server会被隔离，不阻断QQ主链路。
+const includeXiaohongshu =
+  process.env.YE_KITTY_ENABLE_XIAOHONGSHU_MCP?.trim().toLowerCase() === 'true';
+const mcpRuntime = await bootstrapMcpRuntime({
+  startDirectory: process.cwd(),
+  env: process.env,
+  includeXiaohongshu,
+});
+
+// 小红书组合模式下装配独立信息源，本期不把事件送入Harness。
+const deployDirectory = includeXiaohongshu
+  ? findNearestDirectory(process.cwd(), 'deploy')
+  : undefined;
+if (includeXiaohongshu && !deployDirectory) throw new Error('未找到根目录 deploy 资产目录');
+const xiaohongshuMentionSource =
+  includeXiaohongshu && mcpRuntime && deployDirectory
+    ? createXiaohongshuMentionSource({
+        caller: mcpRuntime,
+        serverName: createXiaohongshuMcpServerConfig(process.env).name,
+        deployDirectory,
+        env: process.env,
+      })
+    : undefined;
+const xiaohongshuMentionSubscriber = xiaohongshuMentionSource
+  ? new XiaohongshuMentionEventSubscriber(xiaohongshuMentionSource)
+  : undefined;
+
+// 5. 创建自定义表情目录，NapCat连接建立后刷新缓存。
 const visionAgentConfig = loadCustomFaceVisionAgentConfig();
 const customFaceCatalog = new CustomFaceCatalogService(
   qqRuntime.botClient,
@@ -62,7 +92,7 @@ console.info(
   `✅ [AgentRuntime-CustomFaceBootstrap] 自定义表情目录已注册 visionEnabled=${visionAgentConfig ? 'true' : 'false'}`,
 );
 
-// 5. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
+// 6. 创建 Agent Runtime 订阅器，由上层服务主动订阅 QQ 消息事件。
 const agentConfig = loadQqReplyAgentConfig();
 const conversationHistory = new InMemoryConversationHistory();
 const groupChatCadence = new GroupChatCadenceController({ selfQqId: qqConfig.selfQqId });
@@ -73,7 +103,11 @@ const harnessAdmissionQueue = new InMemoryQqHarnessAdmissionQueue({
 const qqReplySubscriber = new QqReplyEventSubscriber(
   qqRuntime.channel,
   qqRuntime.botClient,
-  createQqReplyAgent(agentConfig, skillRuntime, { conversationHistory, customFaceCatalog }),
+  createQqReplyAgent(agentConfig, skillRuntime, {
+    conversationHistory,
+    customFaceCatalog,
+    runtimeToolProviders: mcpRuntime ? [{ registry: mcpRuntime, executor: mcpRuntime }] : undefined,
+  }),
   skillRuntime,
   { selfQqId: qqConfig.selfQqId },
   conversationHistory,
@@ -81,11 +115,13 @@ const qqReplySubscriber = new QqReplyEventSubscriber(
   harnessAdmissionQueue,
 );
 
-// 6. 先注册 Agent Runtime 订阅，再启动 WebSocket 服务，等待 NapCat 主动连接 Ye-Kitty。
+// 7. 先注册全部 Agent Runtime 订阅，再启动平台信息源。
 console.info(
   `🚧 [QQPlatform-Start] 正在启动QQ实验通道 host=${qqConfig.host} port=${qqConfig.port} path=${qqConfig.path}`,
 );
 await qqReplySubscriber.start();
+await xiaohongshuMentionSubscriber?.start();
+await xiaohongshuMentionSource?.start();
 await qqRuntime.start();
 
 console.info(
@@ -99,7 +135,7 @@ process.once('SIGINT', () => {
   void stopRuntime('SIGINT');
 });
 
-// 7. 进程退出时关闭连接，避免 NapCat 侧残留无效会话。
+// 8. 进程退出时关闭外部工具和WebSocket连接，避免残留无效会话。
 process.once('SIGTERM', () => {
   void stopRuntime('SIGTERM');
 });
@@ -107,74 +143,11 @@ process.once('SIGTERM', () => {
 // 优雅关闭 WebSocket 连接
 async function stopRuntime(signal: string): Promise<void> {
   console.info(`🚧 [QQPlatform-Stop] 正在关闭QQ实验通道 signal=${signal}`);
+  await xiaohongshuMentionSource?.stop();
+  await mcpRuntime?.stop();
   await qqRuntime.stop();
   console.info(`✅ [QQPlatform-Stop] QQ实验通道已关闭 signal=${signal}`);
   process.exit(0);
-}
-
-// 读取最近的 .env 文件
-function loadNearestEnvFile(): void {
-  const envPath = findNearestFile(process.cwd(), '.env');
-  if (!envPath) return;
-
-  const envContent = readFileSync(envPath, 'utf8');
-  for (const line of envContent.split(/\r?\n/)) {
-    const entry = parseEnvLine(line);
-    if (!entry) continue;
-
-    const [key, value] = entry;
-    process.env[key] ??= value;
-  }
-}
-
-// 从启动目录向父级查找文件
-function findNearestFile(startDirectory: string, fileName: string): string | undefined {
-  let currentDirectory = startDirectory;
-  const rootDirectory = parse(startDirectory).root;
-
-  while (true) {
-    const candidate = join(currentDirectory, fileName);
-    if (existsSync(candidate)) return candidate;
-    if (currentDirectory === rootDirectory) return undefined;
-
-    currentDirectory = dirname(currentDirectory);
-  }
-}
-
-// 从启动目录向父级查找目录
-function findNearestDirectory(startDirectory: string, directoryName: string): string | undefined {
-  let currentDirectory = startDirectory;
-  const rootDirectory = parse(startDirectory).root;
-
-  while (true) {
-    const candidate = join(currentDirectory, directoryName);
-    if (existsSync(candidate)) return candidate;
-    if (currentDirectory === rootDirectory) return undefined;
-
-    currentDirectory = dirname(currentDirectory);
-  }
-}
-
-// 解析单行环境变量
-function parseEnvLine(line: string): readonly [string, string] | undefined {
-  const trimmedLine = line.trim();
-  if (trimmedLine.length === 0 || trimmedLine.startsWith('#')) return undefined;
-
-  const separatorIndex = trimmedLine.indexOf('=');
-  if (separatorIndex < 1) return undefined;
-
-  const key = trimmedLine.slice(0, separatorIndex).trim();
-  const rawValue = trimmedLine.slice(separatorIndex + 1).trim();
-  return [key, unwrapEnvValue(rawValue)];
-}
-
-// 去掉包裹引号
-function unwrapEnvValue(rawValue: string): string {
-  const quote = rawValue[0];
-  const shouldUnwrap = (quote === '"' || quote === "'") && rawValue.endsWith(quote);
-  if (!shouldUnwrap) return rawValue;
-
-  return rawValue.slice(1, -1);
 }
 
 // 压缩错误内容

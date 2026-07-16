@@ -1,0 +1,23 @@
+ARG XIAOHONGSHU_MCP_BASE_IMAGE=xpzouying/xiaohongshu-mcp:latest-arm64
+
+FROM golang:1.24-bookworm AS builder
+
+ARG XIAOHONGSHU_MCP_COMMIT=5c5197d6867032130e850f1ae46070004689d6d5
+WORKDIR /src
+
+# 固定上游提交并在构建时验证补丁，避免默默套用到已漂移的源码。
+RUN git clone https://github.com/xpzouying/xiaohongshu-mcp.git . \
+  && git checkout "${XIAOHONGSHU_MCP_COMMIT}"
+RUN go mod download
+COPY patches/list-mentions.patch /tmp/list-mentions.patch
+RUN git apply --check /tmp/list-mentions.patch \
+  && git apply /tmp/list-mentions.patch
+
+# 只运行不启动浏览器的主包测试，然后生成与运行镜像无关的静态二进制。
+RUN go test . \
+  && CGO_ENABLED=0 go build -o /out/app .
+
+FROM ${XIAOHONGSHU_MCP_BASE_IMAGE}
+
+# 运行层继承上游的 cloak-chromium，仅替换已验证的 MCP 二进制。
+COPY --from=builder /out/app /app/app

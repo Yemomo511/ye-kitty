@@ -1,0 +1,31 @@
+services:
+  xiaohongshu-mcp:
+    build:
+      context: .
+      dockerfile: Dockerfile.mentions
+      args:
+        XIAOHONGSHU_MCP_BASE_IMAGE: ${YE_KITTY_XIAOHONGSHU_MCP_BASE_IMAGE:-xpzouying/xiaohongshu-mcp:latest-arm64}
+    image: ${YE_KITTY_XIAOHONGSHU_MCP_IMAGE:-ye-kitty/xiaohongshu-mcp-mentions:local}
+    container_name: ye-kitty-xiaohongshu-mcp
+    restart: unless-stopped
+    init: true
+    tty: true
+    entrypoint:
+      - /bin/sh
+      - -c
+      - |
+        if [ -f /app/data/cookies.json ]; then chmod 600 /app/data/cookies.json; fi
+        umask 077
+        exec ./app
+    volumes:
+      - ./data:/app/data
+      - ./images:/app/images
+    environment:
+      - ROD_BROWSER_BIN=/usr/local/bin/cloak-chromium
+      - COOKIES_PATH=/app/data/cookies.json
+      - HOME=/app/data/home
+      - XDG_CACHE_HOME=/app/data/cache
+      - XDG_CONFIG_HOME=/app/data/config
+      - XHS_PROXY=${XHS_PROXY:-}
+    ports:
+      - '${YE_KITTY_XIAOHONGSHU_MCP_HOST:-127.0.0.1}:${YE_KITTY_XIAOHONGSHU_MCP_PORT:-18060}:18060'

@@ -24,6 +24,15 @@ export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill
 export type { SkillSelectionContext } from './domain/skill-selection-context';
 export type { AgentConversationMessage } from './domain/agent-conversation-message';
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
+export type {
+  McpRemoteServerConfig,
+  McpRemoteTool,
+  McpRuntimeConfig,
+  McpServerBaseConfig,
+  McpServerRuntimeConfig,
+  McpStdioServerConfig,
+  McpTransport,
+} from './domain/mcp';
 export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
   ModelDecisionRequest,
@@ -57,6 +66,11 @@ export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.po
 export type { SkillSelectorPort } from './ports/skill-selector.port';
 export type { RuntimeToolExecutorPort } from './ports/tool-executor.port';
 export type { RuntimeToolRegistryPort } from './ports/tool-registry.port';
+export type {
+  McpClientFactoryPort,
+  McpClientPort,
+  McpToolCallResult,
+} from './ports/mcp-client.port';
 export type { CustomFaceVisionAgentPort } from './ports/custom-face-vision-agent.port';
 export type {
   CustomFaceDescription,
@@ -77,6 +91,7 @@ export {
   type GroupChatCadenceConfig,
 } from './application/group-chat-cadence-controller';
 export { QqReplyEventSubscriber } from './application/qq-reply-event-subscriber';
+export { XiaohongshuMentionEventSubscriber } from './application/xiaohongshu-mention-event-subscriber';
 export {
   DEFAULT_QQ_HARNESS_ADMISSION_QUEUE_CONFIG,
   InMemoryQqHarnessAdmissionQueue,
@@ -94,6 +109,27 @@ export {
   GET_CUSTOM_FACES_TOOL_NAME,
   GET_RECENT_MESSAGES_TOOL_NAME,
 } from './application/runtime-tools';
+export {
+  CompositeRuntimeToolExecutor,
+  CompositeRuntimeToolRegistry,
+  type RuntimeToolProvider,
+} from './application/composite-runtime-tools';
+export {
+  DEFAULT_MCP_TIMEOUT_MS,
+  DEFAULT_MCP_TOOL_RISK_LEVEL,
+  parseMcpRuntimeConfig,
+} from './application/mcp-runtime-config';
+export { MAX_MCP_OBSERVATION_LENGTH, McpRuntimeService } from './application/mcp-runtime.service';
+export {
+  createXiaohongshuMcpServerConfig,
+  withXiaohongshuMcpServer,
+  XIAOHONGSHU_MCP_TOOLS,
+} from './application/xiaohongshu-mcp-config';
+export {
+  XiaohongshuMcpLoginService,
+  type XiaohongshuMcpLoginResult,
+  type XiaohongshuMcpLoginServiceOptions,
+} from './application/xiaohongshu-mcp-login.service';
 export {
   InMemoryModelRequestPool,
   type ModelRequestPoolClock,
@@ -115,6 +151,21 @@ export {
   type OpenAiHarnessAgentRunnerConfig,
 } from './infrastructure/openai-harness-agent-runner';
 export { OpenAiCompatibleModelClient } from './infrastructure/openai-compatible-model.client';
+export {
+  loadMcpRuntimeConfig,
+  type LoadedMcpRuntimeConfig,
+  type McpRuntimeConfigLoadOptions,
+} from './infrastructure/mcp/mcp-config-loader';
+export {
+  OpenAiMcpClientFactory,
+  type McpSdkServerConstructors,
+} from './infrastructure/mcp/openai-mcp-client.factory';
+export { LocalXiaohongshuQrcodePresenter } from './infrastructure/mcp/xiaohongshu-qrcode.presenter';
+export type { McpRawToolCallerPort } from './ports/mcp-raw-tool-caller.port';
+export type {
+  XiaohongshuLoginQrcode,
+  XiaohongshuQrcodePresenterPort,
+} from './ports/xiaohongshu-qrcode-presenter.port';
 export {
   OpenAiCustomFaceVisionAgent,
   loadCustomFaceVisionAgentConfig,

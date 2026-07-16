@@ -7,6 +7,11 @@ import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
 import { InMemoryConversationHistory } from './in-memory-conversation-history';
 import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './runtime-tools';
+import {
+  CompositeRuntimeToolExecutor,
+  CompositeRuntimeToolRegistry,
+  type RuntimeToolProvider,
+} from './composite-runtime-tools';
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
 import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
 import { InMemoryModelRequestPool } from './in-memory-model-request-pool';
@@ -43,6 +48,8 @@ export interface QqReplyAgentRuntimeDependencies {
   readonly conversationHistory?: ConversationHistoryPort;
   /** 自定义表情目录 */
   readonly customFaceCatalog?: CustomFaceCatalogService;
+  /** 外部运行时工具来源 */
+  readonly runtimeToolProviders?: readonly RuntimeToolProvider[];
 }
 
 /**
@@ -61,8 +68,13 @@ export function createQqReplyAgent(
 
   const conversationHistory = dependencies.conversationHistory ?? new InMemoryConversationHistory();
   const toolDependencies = { customFaceCatalog: dependencies.customFaceCatalog };
-  const toolRegistry = new BuiltinRuntimeToolRegistry(toolDependencies);
-  const toolExecutor = new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies);
+  const builtinProvider: RuntimeToolProvider = {
+    registry: new BuiltinRuntimeToolRegistry(toolDependencies),
+    executor: new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies),
+  };
+  const toolProviders = [builtinProvider, ...(dependencies.runtimeToolProviders ?? [])];
+  const toolRegistry = new CompositeRuntimeToolRegistry(toolProviders);
+  const toolExecutor = new CompositeRuntimeToolExecutor(toolProviders);
   const modelPool = new InMemoryModelRequestPool(
     config.modelPoolNodes,
     new OpenAiCompatibleModelClient(),

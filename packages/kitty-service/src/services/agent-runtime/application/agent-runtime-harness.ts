@@ -227,6 +227,23 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
           continue;
         }
 
+        if (tool.riskLevel !== 'low') {
+          const result = {
+            toolName: decision.toolName,
+            success: false,
+            observation: `工具 ${decision.toolName} 的风险等级为 ${tool.riskLevel}，当前不允许自动执行。请转人工确认，或由管理员在可信配置中明确降为 low。`,
+            errorMessage: '工具风险等级不允许自动执行',
+          };
+          toolResults.push(result);
+          conversationMessages.push({ type: 'tool_result', result });
+          phase = 'ready_to_decide';
+          decisionHistory.push(toDecisionHistoryItem(turnIndex, decision, false));
+          console.warn(
+            `⚠️ [AgentRuntime-Harness-tool] 工具风险等级不允许自动执行 traceId=${traceId} tool=${tool.name} riskLevel=${tool.riskLevel}`,
+          );
+          continue;
+        }
+
         toolCallCount += 1;
         console.info(
           `🚧 [AgentRuntime-Harness-tool] 开始执行工具 traceId=${traceId} tool=${tool.name} turn=${turnIndex}`,

@@ -25,6 +25,8 @@ Ye-Kitty 是叶墨沫为虚拟互联网形象“叶猫猫”设计的服务系�
 
 本地 QQ 账号实验通道通过 NapCat + OneBot v11 反向 WebSocket 接入，Docker 部署与端口映射说明见 [NapCat Docker 接入 QQ 服务](docs/qq-napcat-docker.md)。
 
+小红书实验通道通过浏览器驱动 MCP 接入。运行 `pnpm start` 可选择 QQ、小红书或两者同时启动；Docker、扫码登录、风险等级和排障说明见 [小红书 MCP 接入与登录](docs/xiaohongshu-mcp.md)。
+
 暂不优先实现：
 
 - 多平台完整接入。
