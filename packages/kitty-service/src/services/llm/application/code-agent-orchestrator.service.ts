@@ -19,12 +19,12 @@ import type { CodeAgentRunnerPort } from '../ports/code-agent-runner.port';
 import type { CodeAgentEventContract } from '@kitty/contracts/code-agent/code-agent-event.contract';
 import type { CodeAgentTaskContract } from '@kitty/contracts/code-agent/code-agent-task.contract';
 import type { CodeAgentDef } from '../domain/code-agent-definition';
-import type { CodeAgentSession, EventStreamReader, CodeAgentSessionStatus } from '../domain/code-agent-session';
+import type { CodeAgentSession, CodeAgentSessionStatus } from '../domain/code-agent-session';
 import type { CodeAgentFailure } from '../domain/code-agent-failure';
 import { CodeAgentSessionClosedError, CodeAgentPipeBrokenError } from '../domain/code-agent-errors';
 import { getAgentDef } from '../infrastructure/code-agent-registry';
 import { spawnAgent, cancelChild } from '../infrastructure/process/session-lifecycle';
-import { classifyFailure, classifyProtocolMismatch } from '../infrastructure/failure-classifier';
+import { classifyFailure } from '../infrastructure/failure-classifier';
 import { CodeAgentGateService } from './code-agent-gate.service';
 import { codeAgentLogger } from '../infrastructure/code-agent-logger';
 import { randomUUID } from 'node:crypto';
@@ -61,6 +61,8 @@ interface InternalSession {
   queuedAt?: number;
   /** 上次 stdout 输出的时间（epoch ms），用于 inactivity 看门狗 */
   lastOutputTime?: number;
+  /** 排队时保留的原始任务（用于被唤醒时 spawn） */
+  queuedTask?: CodeAgentTaskContract;
 }
 
 /** 每个异步消费者的状态 */
@@ -76,7 +78,7 @@ interface SessionConsumerState {
 export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
   private readonly sessions = new Map<string, InternalSession>();
   private readonly eventCache = new Map<string, CodeAgentEventContract[]>();
-  private readonly queue: string[] = [];           // sessionId FIFO
+  private queue: string[] = [];           // sessionId FIFO
   private readonly gate: CodeAgentGateService;
   private queueTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -117,6 +119,7 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     if (this.canRunConcurrently(def)) {
       this.startSession(session, task);
     } else {
+      session.queuedTask = task;  // 保存任务，供恢复时 spawn
       this.queue.push(id);
       codeAgentLogger.info(`会话入队: ${id} queueDepth=${this.queue.length}`, { sessionId: id });
     }
@@ -190,30 +193,29 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
       }
     }
 
-    // 重置队列
-    while (this.queue.length > 0) {
-      const id = this.queue.shift()!;
-      if (newQueue.includes(id)) {
-        this.queue.push(id);
-      }
-    }
-
-    // 如果有可运行的被跳过，把跳过的放回队首
-    for (const id of newQueue) {
-      this.queue.push(id);
-    }
+    // 重置队列：仅保留仍阻塞的条目（FIFO 顺序不变）
+    this.queue = newQueue;
   }
 
   private startFromQueue(session: InternalSession): void {
-    session.status = 'running';
-    session.startedAt = Date.now();
-    this.emitEvent(session, {
-      type: 'status',
-      sessionId: session.id,
-      label: 'running',
-    });
-    // 注：从队列恢复的 session 缺少原始 task.prompt，这是简化处理。
-    // 完整实现需在 queued 时保留 CodeAgentTaskContract。
+    if (!session.queuedTask) {
+      // 无原始任务 → 标记失败（不应发生，因 submit 时已保存）
+      session.failure = {
+        code: 'spawn_failure',
+        message: '排队任务缺少原始提交信息',
+        retryable: false,
+      };
+      session.status = 'failed';
+      session.endedAt = Date.now();
+      this.emitEvent(session, {
+        type: 'session_end',
+        sessionId: session.id,
+        status: 'failed',
+        exitCode: null,
+      });
+      return;
+    }
+    this.startSession(session, session.queuedTask);
   }
 
   // ---- 职责 3：启动 session ----------------------------------
@@ -344,11 +346,18 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
       throw new CodeAgentSessionClosedError(sessionId, session?.status ?? 'unknown');
     }
 
+    // stream-json 格式：Claude Code 期望 {"type":"user","message":{"role":"user","content":[...tool_result...]}}
     const toolResultPayload = JSON.stringify({
-      type: 'tool_result',
-      tool_use_id: toolUseId,
-      content: result,
-      is_error: Boolean(isError),
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [{
+          type: 'tool_result',
+          tool_use_id: toolUseId,
+          content: result,
+          ...(isError ? { is_error: true } : {}),
+        }],
+      },
     }) + '\n';
 
     try {

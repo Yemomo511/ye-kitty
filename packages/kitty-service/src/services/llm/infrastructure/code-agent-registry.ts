@@ -8,29 +8,12 @@
  */
 
 import type { CodeAgentDef } from '../domain/code-agent-definition';
+import type { CodeAgentCapability } from '../ports/code-agent-registry.port';
 import { claudeCodeDef } from './adapters/claude-code.adapter';
 import { codexDef } from './adapters/codex.adapter';
 import { spawnSync } from 'node:child_process';
 
-/** Code Agent 能力信息（对外开放的只读视图） */
-export interface CodeAgentCapability {
-  /** 与 AgentDef.id 一致 */
-  readonly id: string;
-  /** 人类可读名称 */
-  readonly name: string;
-  /** 探测结果（当前是否可用） */
-  readonly available: boolean;
-  /** 版本号（探测成功时） */
-  readonly version?: string;
-  /** 不可用原因（探测失败时的诊断文本，含可操作建议） */
-  readonly unavailableReason?: string;
-  /** 是否支持指定工作目录 */
-  readonly supportsWorkdir: boolean;
-  /** 是否支持图片输入 */
-  readonly supportsImagePaths: boolean;
-  /** 支持的 resume 模式（MVP 恒为空数组） */
-  readonly resumeModes: readonly string[];
-}
+export type { CodeAgentCapability };
 
 /** 所有已注册的 AgentDef */
 export const AGENT_DEFS: readonly CodeAgentDef[] = [claudeCodeDef, codexDef];
