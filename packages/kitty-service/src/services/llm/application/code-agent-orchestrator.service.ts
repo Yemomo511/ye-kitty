@@ -248,8 +248,35 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     session.status = 'running';
     session.startedAt = Date.now();
 
+    codeAgentLogger.info(`正在启动子进程: ${session.agentDef.bin}`, { sessionId: session.id });
+
     const { child } = spawnAgent(session.agentDef, task);
     session.child = child;
+
+    // spawn 可能不抛同步错，而是通过 'error' 事件报告（例如 Windows 上找不到 .cmd shim）
+    child.on('error', (err) => {
+      const msg = err.message ?? String(err);
+      codeAgentLogger.error(`子进程启动失败(spawn error): ${msg}`, err, { sessionId: session.id });
+      session.failure = {
+        code: 'spawn_failure',
+        message: `子进程启动失败: ${msg}`,
+        retryable: false,
+      };
+      session.status = 'failed';
+      session.endedAt = Date.now();
+      // 通知等待中的 SSE 消费者
+      this.emitEvent(session, {
+        type: 'error',
+        sessionId: session.id,
+        failure: session.failure,
+      });
+      this.emitEvent(session, {
+        type: 'session_end',
+        sessionId: session.id,
+        status: 'failed',
+        exitCode: null,
+      });
+    });
 
     this.emitEvent(session, {
       type: 'status',
