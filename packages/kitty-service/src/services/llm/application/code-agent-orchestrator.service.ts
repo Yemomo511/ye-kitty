@@ -287,31 +287,44 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     // 启动看门狗
     this.startWatchdog(session);
 
-    // 消费 stdout
-    let buffer = '';
-    child.stdout?.on('data', (chunk: Buffer) => {
-      session.lastOutputTime = Date.now();
-      buffer += chunk.toString('utf-8');
-      const lines = buffer.split('\n');
-      buffer = lines.pop() ?? '';
-      for (const line of lines) {
-        if (line.trim()) {
-          try {
-            const parsed = JSON.parse(line);
+    // 消费 stdout — 使用 adapter mapper 将原始事件映射为统一事件
+    const { createClaudeMapper } = require('../infrastructure/adapters/claude-code.adapter');
+    const mapper = createClaudeMapper(session.id, (event: CodeAgentEventContract) => {
+      this.emitEvent(session, event);
+      // result.success 或 error 事件 → Claude Code 端已终止，主动结束流
+      if (event.type === 'raw') {
+        try {
+          const parsed = JSON.parse(event.line);
+          if (parsed.type === 'result' && (parsed.subtype === 'success' || parsed.is_error)) {
+            // Claude Code 正常/异常结束，不等 close 事件
+            session.status = parsed.is_error ? 'failed' : 'succeeded';
+            session.endedAt = Date.now();
+            session.streamClosed = true;
+            // 提取 usage 信息
+            if (parsed.usage) {
+              this.emitEvent(session, {
+                type: 'usage',
+                sessionId: session.id,
+                inputTokens: parsed.usage.input_tokens ?? 0,
+                outputTokens: parsed.usage.output_tokens ?? 0,
+                durationMs: parsed.duration_ms ?? (Date.now() - (session.startedAt ?? Date.now())),
+              });
+            }
             this.emitEvent(session, {
-              type: 'raw',
+              type: 'session_end',
               sessionId: session.id,
-              line,
-            });
-          } catch {
-            this.emitEvent(session, {
-              type: 'raw',
-              sessionId: session.id,
-              line,
+              status: session.status,
+              exitCode: parsed.is_error ? 1 : 0,
             });
           }
+        } catch {
+          // raw 行无法解析，忽略
         }
       }
+    });
+    child.stdout?.on('data', (chunk: Buffer) => {
+      session.lastOutputTime = Date.now();
+      mapper.feed(chunk.toString('utf-8'));
     });
 
     // 消费 stderr（收集尾部用于失败分类）
@@ -327,7 +340,12 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
 
     // 子进程退出
     child.on('close', (exitCode, signal) => {
-      this.handleClose(session, exitCode, signal, stderrLines.join('\n'));
+      // 排空 mapper 中未处理的缓冲
+      mapper.flush();
+      // 只有 mapper 还没设置终态时才走 handleClose（兜底）
+      if (session.status === 'running') {
+        this.handleClose(session, exitCode, signal, stderrLines.join('\n'));
+      }
     });
   }
 
