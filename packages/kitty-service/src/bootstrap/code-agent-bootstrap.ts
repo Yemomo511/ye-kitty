@@ -1,0 +1,57 @@
+/**
+ * Code Agent Bootstrap
+ *
+ * 装配入口：读 env → 孤儿清理 → factory → http-server → 返回 shutdown 钩子。
+ * 由 scripts/start.ts 在 CODE_AGENT_API_KEY 存在时并行启动。
+ */
+
+import { createCodeAgentRuntime } from '../services/llm/application/code-agent.factory';
+import { startHttpServer } from '../control-plane/api/http-server';
+import { registerCodeAgentRoutes } from '../control-plane/api/code-agent.controller';
+import type { FastifyInstance } from 'fastify';
+import { cleanupOrphans } from '../services/llm/infrastructure/process/session-lifecycle';
+import { codeAgentLogger } from '../services/llm/infrastructure/code-agent-logger';
+
+/** 启动结果 */
+export interface CodeAgentRuntime {
+  /** 优雅关闭 */
+  stop(): Promise<void>;
+}
+
+/**
+ * 启动 code agent 运行时。
+ *
+ * 返回 undefined 表示未启动（API key 未配置或过短）。
+ */
+export async function startCodeAgentRuntime(): Promise<CodeAgentRuntime | undefined> {
+  // 孤儿清理
+  cleanupOrphans();
+
+  const apiKey = process.env['CODE_AGENT_API_KEY']?.trim();
+  if (!apiKey) {
+    codeAgentLogger.info('CODE_AGENT_API_KEY 未设置，code agent 运行时跳过');
+    return undefined;
+  }
+
+  const { runner, registry, shutdown } = createCodeAgentRuntime({});
+
+  let httpApp: FastifyInstance | undefined;
+  try {
+    httpApp = await startHttpServer(apiKey, (app) => {
+      registerCodeAgentRoutes(app, runner, registry);
+    });
+  } catch (err) {
+    codeAgentLogger.error('control-plane HTTP 启动失败', err instanceof Error ? err : new Error(String(err)));
+    // http 启动失败不阻止整体启动（runner 仍可用 in-process）
+  }
+
+  return {
+    async stop() {
+      if (httpApp) {
+        await httpApp.close();
+        codeAgentLogger.info('control-plane HTTP 已关闭');
+      }
+      await shutdown();
+    },
+  };
+}

@@ -1,0 +1,112 @@
+/**
+ * Task 7 红灯测试 — control-plane HTTP 路由（6 cases with fastify.inject）
+ *
+ * T7-1: API key 为空 → server 不启动
+ * T7-2: 无 Authorization 头 → 401
+ * T7-3: 正确 Bearer → GET /admin/code-agent/agents 200
+ * T7-4: POST body 缺必填字段 → 400
+ * T7-5: DELETE 缺少 id → 400
+ * T7-6: DELETE 有效 id → 200
+ *
+ * 注：SSE 端到端（T7-3 原）用 fake-agent 真实 spawn，此处仅验证 HTTP 语义。
+ */
+import { describe, it, expect, beforeEach } from 'vitest';
+import Fastify from 'fastify';
+import { execSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
+import { mkdirSync, existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
+import { randomUUID } from 'node:crypto';
+
+/** 创建临时工作目录 */
+function createTempWorkdir(): string {
+  const dir = join(tmpdir(), `kitty-http-test-${randomUUID().slice(0, 8)}`);
+  mkdirSync(dir, { recursive: true });
+  return dir;
+}
+
+const testWorkdir = createTempWorkdir();
+const testKey = 'test-api-key-32-characters-long!!';
+
+describe('control-plane HTTP', () => {
+  it('T7-1: API key 为空 → server 不启动', async () => {
+    const { startHttpServer } = await import(
+      '@kitty/control-plane/api/http-server'
+    );
+    const app = await startHttpServer(undefined, () => {});
+    expect(app).toBeUndefined();
+  });
+
+  describe('with server', () => {
+    let runner: { submit: Function; cancel: Function };
+    let app: any;
+
+    beforeEach(async () => {
+      // 创建最小 fastify app + 注册路由（不需要 CodeAgentOrchestrator，
+      // 使用简化的 mock runner 测试 HTTP 语义）
+      process.env['CODE_AGENT_WORKSPACE_ROOT'] = tmpdir();
+      const { createCodeAgentRuntime } = await import(
+        '@kitty/services/llm/application/code-agent.factory'
+      );
+      const runtime = createCodeAgentRuntime({ workspaceRoot: testWorkdir });
+      runner = runtime.runner;
+
+      const { startHttpServer } = await import(
+        '@kitty/control-plane/api/http-server'
+      );
+      const { registerCodeAgentRoutes } = await import(
+        '@kitty/control-plane/api/code-agent.controller'
+      );
+      app = await startHttpServer(testKey, (a) => {
+        registerCodeAgentRoutes(a, runner as unknown as import('@kitty/services/llm/ports/code-agent-runner.port').CodeAgentRunnerPort, runtime.registry);
+      });
+    });
+
+    it('T7-2: 无 Authorization 头 → 401', async () => {
+      const res = await app!.inject({
+        method: 'GET',
+        url: '/admin/code-agent/agents',
+      });
+      expect(res.statusCode).toBe(401);
+    });
+
+    it('T7-3: 正确 Bearer → GET agents 返回列表', async () => {
+      const res = await app!.inject({
+        method: 'GET',
+        url: '/admin/code-agent/agents',
+        headers: { authorization: `Bearer ${testKey}` },
+      });
+      expect(res.statusCode).toBe(200);
+      const body = JSON.parse(res.body);
+      expect(body.agents).toBeDefined();
+    });
+
+    it('T7-4: POST 缺 agentId → 400', async () => {
+      const res = await app!.inject({
+        method: 'POST',
+        url: '/admin/code-agent/runs',
+        headers: { authorization: `Bearer ${testKey}` },
+        payload: { prompt: 'test', workdir: testWorkdir },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('T7-5: DELETE 缺少 id → 400', async () => {
+      const res = await app!.inject({
+        method: 'DELETE',
+        url: '/admin/code-agent/runs/',
+        headers: { authorization: `Bearer ${testKey}` },
+      });
+      expect(res.statusCode).toBe(400);
+    });
+
+    it('T7-6: DELETE 有效 id → 200', async () => {
+      const res = await app!.inject({
+        method: 'DELETE',
+        url: '/admin/code-agent/runs/fake-id-123',
+        headers: { authorization: `Bearer ${testKey}` },
+      });
+      expect(res.statusCode).toBe(200);
+    });
+  });
+});
