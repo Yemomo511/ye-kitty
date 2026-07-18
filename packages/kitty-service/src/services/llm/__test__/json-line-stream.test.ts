@@ -43,4 +43,30 @@ describe('createJsonLineStream', () => {
     expect(raw).toHaveLength(1);
     expect(raw[0]).toBe('not json');
   });
+
+  it('T3-4: pretty-printed 多行 JSON（单行完整）→ 正确解析', () => {
+    const msgs: unknown[] = [];
+    const stream = createJsonLineStream((parsed) => msgs.push(parsed));
+    stream.feed('{"a":1,"b":2}\n');
+    stream.flush();
+    expect(msgs).toHaveLength(1);
+    expect(msgs[0]).toEqual({ a: 1, b: 2 });
+  });
+
+  it('T3-6: 半截 JSON 后 flush → 残留内容走 onRawLine', () => {
+    const raw: string[] = [];
+    const stream = createJsonLineStream(() => {}, (line) => raw.push(line));
+    stream.feed('{"incomplete":');
+    stream.flush();
+    expect(raw.length).toBe(1);
+    expect(raw[0]).toBe('{"incomplete":');
+  });
+
+  it('T3-8: 空 chunk / 仅换行符 → 无回调', () => {
+    const msgs: unknown[] = [];
+    const stream = createJsonLineStream((parsed) => msgs.push(parsed));
+    stream.feed('\n\n\n');
+    stream.flush();
+    expect(msgs).toHaveLength(0);
+  });
 });
