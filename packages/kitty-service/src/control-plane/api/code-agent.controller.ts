@@ -29,7 +29,7 @@ export function registerCodeAgentRoutes(
     const task: CodeAgentTaskContract = {
       agentId: String(body['agentId'] ?? ''),
       prompt: String(body['prompt'] ?? ''),
-      workdir: String(body['workdir'] ?? ''),
+      workdir: body['workdir'] ? String(body['workdir']) : '',  // 空 = gate 自动创建
       model: body['model'] ? String(body['model']) : undefined,
       extraInstructions: body['extraInstructions'] ? String(body['extraInstructions']) : undefined,
       timeoutOverrides: body['timeoutOverrides']
@@ -41,8 +41,8 @@ export function registerCodeAgentRoutes(
       source: 'control-plane',
     };
 
-    if (!task.agentId || !task.prompt || !task.workdir) {
-      reply.status(400).send({ error: 'agentId/prompt/workdir 为必填字段' });
+    if (!task.agentId || !task.prompt) {
+      reply.status(400).send({ error: 'agentId 和 prompt 为必填字段' });
       return;
     }
 

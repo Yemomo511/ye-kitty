@@ -39,35 +39,40 @@ describe('CodeAgentGateService', () => {
     if (existsSync(testDir)) rmSync(testDir, { recursive: true, force: true });
   });
 
-  it('T6-1: workdir 存在且在 whiteRoot 白名单下 → 通过', async () => {
+  it('T6-1: 不指定 workdir → 自动分配 task-{uuid}，通过', async () => {
     const { CodeAgentGateService } = await import(
       '@kitty/services/llm/application/code-agent-gate.service'
     );
-    // whiteRoot 是独立的 tmp 目录，其直接子目录必然在其 realpath 下
-    const subDir = join(whiteRoot, 'agent-workspace');
-    mkdirSync(subDir, { recursive: true });
     const gate = new CodeAgentGateService(whiteRoot);
-    const result = gate.check({
+    const task = {
       agentId: 'claude-code',
       prompt: 'test',
-      workdir: subDir,
-      source: 'control-plane',
-    });
-    await expect(result).resolves.toBeUndefined();
+      workdir: '',  // 未指定
+      source: 'control-plane' as const,
+    };
+    await gate.check(task);
+    // 验证自动分配了 workdir
+    expect(task.workdir).not.toBe('');
+    expect(task.workdir).toContain('task-');
   });
 
-  it('T6-2: workdir 不存在 → 抛 GateRejectedError', async () => {
+  it('T6-2: 不指定 workdir → 自动分配，目录在 whiteRoot 下', async () => {
     const { CodeAgentGateService } = await import(
       '@kitty/services/llm/application/code-agent-gate.service'
     );
     const gate = new CodeAgentGateService(whiteRoot);
-    const result = gate.check({
+    const task = {
       agentId: 'claude-code',
       prompt: 'test',
-      workdir: join(whiteRoot, 'nonexistent-dir'),
-      source: 'control-plane',
-    });
-    await expect(result).rejects.toThrow('工作目录不存在');
+      workdir: '',
+      source: 'control-plane' as const,
+    };
+    await gate.check(task);
+    // 自动分配的目录在 whiteRoot 下
+    const { realpathSync } = await import('node:fs');
+    const resolved = realpathSync(task.workdir).replace(/\\/g, '/') + '/';
+    const rootNormalized = whiteRoot.replace(/\\/g, '/') + '/';
+    expect(resolved.startsWith(rootNormalized)).toBe(true);
   });
 
   it('T6-3: workdir 在白名单外 → 抛 GateRejectedError', async () => {

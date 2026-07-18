@@ -7,8 +7,9 @@
 
 import type { CodeAgentTaskContract } from '@kitty/contracts/code-agent/code-agent-task.contract';
 import { CodeAgentGateRejectedError } from '../domain/code-agent-errors';
-import { existsSync, realpathSync } from 'node:fs';
+import { existsSync, realpathSync, mkdirSync } from 'node:fs';
 import { join, normalize } from 'node:path';
+import { randomUUID } from 'node:crypto';
 
 /** 门禁 Hook 接口 */
 export interface CodeAgentGateHook {
@@ -17,21 +18,30 @@ export interface CodeAgentGateHook {
 }
 
 /**
- * 内置 workdir 安全校验 Hook。
+ * 内置 workdir 初始化 + 安全校验 Hook。
  *
- * - 目录必须存在
- * - 规范化后必须位于 CODE_AGENT_WORKSPACE_ROOT 下（防 .. 逃逸）
+ * 每个任务自动分配 `<workspaceRoot>/task-{uuid}` 作为独立工作目录。
+ * 用户可显式指定 workdir 覆盖自动分配（需位于 workspaceRoot 下）。
  */
 function createWorkdirHook(workspaceRoot: string): CodeAgentGateHook {
-  // normalize + realpath 均将 \\ 替换为 /，确保 Windows 上 startsWith 不因分隔符失配
   const normalizedRoot = normalize(workspaceRoot).replace(/\\/g, '/') + '/';
+
+  // 启动时确保工作区根目录存在
+  if (!existsSync(workspaceRoot)) {
+    mkdirSync(workspaceRoot, { recursive: true });
+  }
 
   return {
     check(task) {
-      if (!task.workdir || !existsSync(task.workdir)) {
-        return `工作目录不存在: ${task.workdir}`;
+      // 用户未显式指定 → 自动分配 task-{uuid} 子目录
+      if (!task.workdir) {
+        const autoDir = join(workspaceRoot, `task-${randomUUID().slice(0, 8)}`);
+        mkdirSync(autoDir, { recursive: true });
+        (task as { workdir: string }).workdir = autoDir;
+        return null; // 自动分配，无需校验
       }
 
+      // 用户显式指定 → 校验合法性
       let resolved: string;
       try {
         resolved = `${realpathSync(task.workdir)}`.replace(/\\/g, '/') + '/';
@@ -53,7 +63,7 @@ export class CodeAgentGateService {
   private readonly hooks: CodeAgentGateHook[] = [];
 
   constructor(workspaceRoot: string) {
-    // 内置 hook：workdir 安全校验
+    // 内置 hook：workdir 初始化 + 安全校验
     this.hooks.push(createWorkdirHook(workspaceRoot));
   }
 

@@ -5,6 +5,7 @@
  * 由 scripts/start.ts 在 CODE_AGENT_API_KEY 存在时并行启动。
  */
 
+import { loadNearestEnvFile } from './runtime-environment';
 import { createCodeAgentRuntime } from '../services/llm/application/code-agent.factory';
 import { startHttpServer } from '../control-plane/api/http-server';
 import { registerCodeAgentRoutes } from '../control-plane/api/code-agent.controller';
@@ -24,6 +25,9 @@ export interface CodeAgentRuntime {
  * 返回 undefined 表示未启动（API key 未配置或过短）。
  */
 export async function startCodeAgentRuntime(): Promise<CodeAgentRuntime | undefined> {
+  // 加载 .env（start.ts 中 code-agent 在平台脚本之前启动，.env 尚未加载）
+  loadNearestEnvFile(process.cwd(), process.env);
+
   // 孤儿清理
   cleanupOrphans();
 

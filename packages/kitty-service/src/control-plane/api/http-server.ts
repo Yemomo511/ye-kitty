@@ -39,7 +39,8 @@ export async function startHttpServer(
 
   // 仅监听 127.0.0.1
   await app.listen({ port: 0, host: '127.0.0.1' });
-  codeAgentLogger.info(`control-plane HTTP 已启动: ${app.server.address()}`);
+  const port = (app.server.address() as { port: number }).port;
+  codeAgentLogger.info(`control-plane HTTP 已启动 http://127.0.0.1:${port}`);
 
   return app;
 }
