@@ -134,7 +134,10 @@ export function createClaudeMapper(
 
     switch (raw.type) {
       case 'system':
-        // 系统初始化事件，忽略
+        // 系统初始化事件：捕获 agent 内部 session_id
+        if (raw.session_id) {
+          state.sessionId = raw.session_id;
+        }
         break;
 
       case 'message_start':
