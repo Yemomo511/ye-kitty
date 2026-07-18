@@ -118,7 +118,7 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     // 并发检查
     if (this.canRunConcurrently(def)) {
       try {
-        this.startSession(session, task);
+        await this.startSession(session, task);
       } catch (err) {
         // spawn 失败 → 立刻标记失败并发射事件，不卡在 running
         const msg = err instanceof Error ? err.message : String(err);
@@ -221,7 +221,7 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     this.queue = newQueue;
   }
 
-  private startFromQueue(session: InternalSession): void {
+  private async startFromQueue(session: InternalSession): Promise<void> {
     if (!session.queuedTask) {
       // 无原始任务 → 标记失败（不应发生，因 submit 时已保存）
       session.failure = {
@@ -239,12 +239,12 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
       });
       return;
     }
-    this.startSession(session, session.queuedTask);
+    await this.startSession(session, session.queuedTask);
   }
 
   // ---- 职责 3：启动 session ----------------------------------
 
-  private startSession(session: InternalSession, task: CodeAgentTaskContract): void {
+  private async startSession(session: InternalSession, task: CodeAgentTaskContract): Promise<void> {
     session.status = 'running';
     session.startedAt = Date.now();
 
@@ -288,7 +288,7 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
     this.startWatchdog(session);
 
     // 消费 stdout — 使用 adapter mapper 将原始事件映射为统一事件
-    const { createClaudeMapper } = require('../infrastructure/adapters/claude-code.adapter');
+    const { createClaudeMapper } = await import('../infrastructure/adapters/claude-code.adapter');
     const mapper = createClaudeMapper(session.id, (event: CodeAgentEventContract) => {
       this.emitEvent(session, event);
       // result.success 或 error 事件 → Claude Code 端已终止，主动结束流
