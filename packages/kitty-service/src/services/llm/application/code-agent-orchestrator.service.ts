@@ -117,9 +117,33 @@ export class CodeAgentOrchestrator implements CodeAgentRunnerPort {
 
     // 并发检查
     if (this.canRunConcurrently(def)) {
-      this.startSession(session, task);
+      try {
+        this.startSession(session, task);
+      } catch (err) {
+        // spawn 失败 → 立刻标记失败并发射事件，不卡在 running
+        const msg = err instanceof Error ? err.message : String(err);
+        session.failure = {
+          code: 'spawn_failure',
+          message: `子进程启动失败: ${msg}`,
+          retryable: false,
+        };
+        session.status = 'failed';
+        session.endedAt = Date.now();
+        this.emitEvent(session, {
+          type: 'error',
+          sessionId: id,
+          failure: session.failure,
+        });
+        this.emitEvent(session, {
+          type: 'session_end',
+          sessionId: id,
+          status: 'failed',
+          exitCode: null,
+        });
+        codeAgentLogger.error(`会话启动失败: ${id} reason=${msg}`, err instanceof Error ? err : new Error(msg), { sessionId: id });
+      }
     } else {
-      session.queuedTask = task;  // 保存任务，供恢复时 spawn
+      session.queuedTask = task;
       this.queue.push(id);
       codeAgentLogger.info(`会话入队: ${id} queueDepth=${this.queue.length}`, { sessionId: id });
     }

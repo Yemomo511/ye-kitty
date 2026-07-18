@@ -12,12 +12,68 @@ import type { CodeAgentTaskContract } from '@kitty/contracts/code-agent/code-age
 import { CodeAgentGateRejectedError } from '../../services/llm/domain/code-agent-errors';
 import { codeAgentLogger } from '../../services/llm/infrastructure/code-agent-logger';
 
+/** SSE 断连后等待重连的超时（毫秒） */
+const SSE_RECONNECT_GRACE_MS = 60_000;
+
 /** 注册 code-agent /admin 路由 */
 export function registerCodeAgentRoutes(
   app: FastifyInstance,
   runner: CodeAgentRunnerPort,
   registry: CodeAgentRegistryPort,
 ): void {
+  // 断连后等待 cancel 的定时器，key = sessionId
+  const pendingCancelTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+  /** 发送 SSE 事件流 */
+  async function streamEvents(sessionId: string, req: any, reply: any): Promise<void> {
+    const session = runner.getSession(sessionId);
+    if (!session) {
+      reply.status(404).send({ error: '会话不存在' });
+      return;
+    }
+
+    // 如果当前 sessionId 有一个待执行的 cancel 定时器 → 取消它（说明有客户端重连来了）
+    const pendingTimer = pendingCancelTimers.get(sessionId);
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingCancelTimers.delete(sessionId);
+      codeAgentLogger.info(`SSE 重连: ${sessionId}，已取消自动清理`, { sessionId });
+    }
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      'Connection': 'keep-alive',
+    });
+
+    // SSE 断连处理：宽限 60 秒，超时无人重连则 cancel session
+    req.raw.on('close', () => {
+      codeAgentLogger.info(`SSE 客户端断连: ${sessionId}`, { sessionId });
+      const timer = setTimeout(() => {
+        pendingCancelTimers.delete(sessionId);
+        codeAgentLogger.info(`SSE 断连超时（无人重连），取消会话: ${sessionId}`, { sessionId });
+        runner.cancel(sessionId).catch(() => {});
+      }, SSE_RECONNECT_GRACE_MS);
+      pendingCancelTimers.set(sessionId, timer);
+    });
+
+    for await (const event of session.events()) {
+      const line = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
+      if (!reply.raw.write(line)) {
+        await new Promise<void>((resolve) => reply.raw.once('drain', resolve));
+      }
+
+      if (event.type === 'session_end') {
+        // 一次性清除该 session 所有待执行定时器
+        const t = pendingCancelTimers.get(sessionId);
+        if (t) { clearTimeout(t); pendingCancelTimers.delete(sessionId); }
+        break;
+      }
+    }
+
+    reply.raw.end();
+  }
+
   // POST /admin/code-agent/runs
   app.post('/admin/code-agent/runs', { bodyLimit: 1048576 }, async (request, reply) => {
     const body = request.body as Record<string, unknown>;
@@ -29,7 +85,7 @@ export function registerCodeAgentRoutes(
     const task: CodeAgentTaskContract = {
       agentId: String(body['agentId'] ?? ''),
       prompt: String(body['prompt'] ?? ''),
-      workdir: body['workdir'] ? String(body['workdir']) : '',  // 空 = gate 自动创建
+      workdir: body['workdir'] ? String(body['workdir']) : '',
       model: body['model'] ? String(body['model']) : undefined,
       extraInstructions: body['extraInstructions'] ? String(body['extraInstructions']) : undefined,
       timeoutOverrides: body['timeoutOverrides']
@@ -50,39 +106,31 @@ export function registerCodeAgentRoutes(
       const session = await runner.submit(task);
       codeAgentLogger.info(`HTTP 提交: ${session.id} agent=${task.agentId}`, { sessionId: session.id });
 
-      // SSE 响应
-      reply.raw.writeHead(200, {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
-        'Connection': 'keep-alive',
-      });
-
-      // 客户端断连时不取消 session（T7-7）
-      request.raw.on('close', () => {
-        codeAgentLogger.info(`SSE 客户端断连: ${session.id}`, { sessionId: session.id });
-      });
-
-      for await (const event of session.events()) {
-        const line = `event: ${event.type}\ndata: ${JSON.stringify(event)}\n\n`;
-        if (!reply.raw.write(line)) {
-          // 背压：等待 drain
-          await new Promise<void>((resolve) => reply.raw.once('drain', resolve));
-        }
-
-        if (event.type === 'session_end') {
-          break;
-        }
+      // 校验 spawn 是否成功（可能门禁通过但实际进程启动失败）
+      if (session.status === 'running' && !session.startedAt) {
+        codeAgentLogger.warn(`会话 ${session.id} 创建成功但进程可能未启动，等待事件`, { sessionId: session.id });
       }
 
-      reply.raw.end();
+      await streamEvents(session.id, request, reply);
     } catch (err) {
       if (err instanceof CodeAgentGateRejectedError) {
         reply.status(403).send({ error: err.message, reason: err.cause });
       } else {
         codeAgentLogger.error('HTTP 提交失败', err instanceof Error ? err : new Error(String(err)));
-        reply.status(500).send({ error: '内部错误' });
+        const msg = err instanceof Error ? err.message : '内部错误';
+        reply.status(500).send({ error: msg });
       }
     }
+  });
+
+  // GET /admin/code-agent/runs/:id/events — 重连已存在的 session
+  app.get('/admin/code-agent/runs/:id/events', async (request, reply) => {
+    const { id } = request.params as Record<string, string>;
+    if (!id) {
+      reply.status(400).send({ error: '缺少 session id' });
+      return;
+    }
+    await streamEvents(id, request, reply);
   });
 
   // GET /admin/code-agent/agents
@@ -99,6 +147,9 @@ export function registerCodeAgentRoutes(
       return;
     }
 
+    // 清除待清理定时器
+    const t = pendingCancelTimers.get(id);
+    if (t) { clearTimeout(t); pendingCancelTimers.delete(id); }
     await runner.cancel(id);
     reply.send({ canceled: id });
   });
