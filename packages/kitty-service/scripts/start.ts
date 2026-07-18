@@ -5,26 +5,6 @@ import {
   type StartupPlatformSelection,
 } from '../src/bootstrap/startup-platform-selection';
 
-// Code Agent 运行时（CODE_AGENT_API_KEY 存在时并行启动）
-type CodeAgentShutdown = () => Promise<void>;
-let stopCodeAgent: CodeAgentShutdown | undefined;
-try {
-  const { startCodeAgentRuntime } = await import('../src/bootstrap/code-agent-bootstrap');
-  const runtime = await startCodeAgentRuntime();
-  if (runtime) {
-    stopCodeAgent = () => runtime.stop();
-    // 注册进程退出时的优雅关闭
-    const shutdown = async () => {
-      try { await runtime.stop(); } catch { /* ignore */ }
-      process.exit(0);
-    };
-    process.on('SIGINT', shutdown);
-    process.on('SIGTERM', shutdown);
-  }
-} catch {
-  // code agent 启动失败不影响平台主流程
-}
-
 const terminal = createInterface({ input: stdin, output: stdout });
 let selection: StartupPlatformSelection;
 try {

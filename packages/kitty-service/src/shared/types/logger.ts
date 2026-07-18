@@ -2,8 +2,6 @@ export interface LogContext {
   readonly requestId?: string;
   readonly eventId?: string;
   readonly conversationId?: string;
-  readonly sessionId?: string;
-  readonly traceId?: string;
   readonly [key: string]: unknown;
 }
 
