@@ -66,8 +66,24 @@ export function spawnAgent(
     // 不使用 shell: true（resolveSpawnCommand 已处理 .cmd/.ps1 包裹）
   });
 
-  // 5. 通过 stdin 发送 prompt（stdin 保持打开，中间人模式需要后续 injectToolResult 写入）
-  const promptPayload = JSON.stringify({ prompt: task.prompt }) + '\n';
+  // 5. 通过 stdin 发送 prompt（Claude Code stream-json 协议格式）
+  const promptPayload = JSON.stringify({
+    type: 'user',
+    message: {
+      role: 'user',
+      content: [{ type: 'text', text: task.prompt }],
+    },
+  }) + '\n';
+  if (task.extraInstructions) {
+    const extraPayload = JSON.stringify({
+      type: 'user',
+      message: {
+        role: 'user',
+        content: [{ type: 'text', text: task.extraInstructions }],
+      },
+    }) + '\n';
+    child.stdin?.write(extraPayload);
+  }
   child.stdin?.write(promptPayload);
   // 注意：stdin 不在此处 .end() —— injectToolResult 需要在子进程存活期间持续写入工具结果。
   // stdin 的关闭由 cancelChild 在阶梯取消第一步负责，或子进程自然退出时 OS 自动关闭。
