@@ -25,6 +25,12 @@ function needsShellWrap(bin: string): boolean {
   return lower.endsWith('.cmd') || lower.endsWith('.bat') || lower.endsWith('.ps1');
 }
 
+/** 判断是否无已知可执行扩展名 */
+function hasNoExtension(bin: string): boolean {
+  const lower = bin.toLowerCase();
+  return !lower.endsWith('.exe') && !lower.endsWith('.cmd') && !lower.endsWith('.bat') && !lower.endsWith('.ps1');
+}
+
 /** 转义 cmd.exe 命令行中的 % 字符（防环境变量展开） */
 function escapeCmdPercents(s: string): string {
   return s.replace(/%/g, '%%');
@@ -48,12 +54,11 @@ export function resolveSpawnCommand(bin: string, args: readonly string[]): Resol
     return { command: 'cmd.exe', args: fullArgs };
   }
 
-  // 原生可执行文件（.exe），直接 spawn
-  // 注意 Node 对扩展名 .exe 的自动补全行为
-  if (!bin.toLowerCase().endsWith('.exe')) {
-    const exeBin = `${bin}.exe`;
-    // 返回 .exe 变体（Node 在 win32 上会自动尝试 .exe 扩展名）
-    return { command: bin, args };
+  // 无扩展名 → Windows 上可能是 npm shim（.cmd），需 shell 包裹才能 spawn
+  // Node 20+ 禁用了直接 spawn .cmd 文件（CVE-2024-27980），必须经 cmd.exe
+  if (hasNoExtension(bin)) {
+    const cmdBin = `${bin}.cmd`;
+    return resolveSpawnCommand(cmdBin, args);
   }
 
   return { command: bin, args };
