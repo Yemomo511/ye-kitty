@@ -9,6 +9,7 @@
 QQ 群消息 → agent-runtime harness 判断 → 自动委托 code agent 执行任务 → 结果返回 QQ。
 
 核心链路：
+
 ```
 QQ 群消息 → harness.LlmProviderPort.decide()
   → AgentDecision { type: "delegate_code_agent", prompt: "..." }
@@ -63,11 +64,11 @@ Code Agent 支持的内置工具及风险级别：
 
 ### risk 门禁三层
 
-| 层级 | 检查点 | 策略（保守起步） |
-|---|---|---|
-| 准入层 | 触发者身份 | 仅 QQ 群管理员 + 群主。`senderId` 匹配白名单。私聊暂不开放。 |
+| 层级   | 检查点                           | 策略（保守起步）                                                                                  |
+| ------ | -------------------------------- | ------------------------------------------------------------------------------------------------- |
+| 准入层 | 触发者身份                       | 仅 QQ 群管理员 + 群主。`senderId` 匹配白名单。私聊暂不开放。                                      |
 | 执行层 | code agent 发出的每个 `tool_use` | 高风险操作（Bash/Write/Edit/rm 命令）→ harness 暂停，等待 review。低风险（Read/Grep）→ 自动批准。 |
-| 产出层 | code agent 完成后的工作区产物 | 沙箱复制到 review 目录，harness 或管理员检查后放行到实际工作区。 |
+| 产出层 | code agent 完成后的工作区产物    | 沙箱复制到 review 目录，harness 或管理员检查后放行到实际工作区。                                  |
 
 ## 文件清单
 
@@ -149,14 +150,15 @@ Task 2.9 ─── 联调验证（QQ 群消息 → code agent → 实际干活 �
 ### Task 2.1：AgentDecision + 事件契约扩展（2 个修改文件）
 
 `domain/agent-decision.ts`：
+
 ```typescript
 // 新增分支
 export interface DelegateCodeAgentDecision {
   type: 'delegate_code_agent';
-  agentId: string;           // "claude-code"
-  prompt: string;            // 任务描述
-  workdirTemplate?: 'temp' | 'git-clone' | 'sandbox';  // 默认 sandbox
-  reason: string;            // harness 为何选择委托
+  agentId: string; // "claude-code"
+  prompt: string; // 任务描述
+  workdirTemplate?: 'temp' | 'git-clone' | 'sandbox'; // 默认 sandbox
+  reason: string; // harness 为何选择委托
 }
 
 // AgentDecision union 加项
@@ -167,10 +169,11 @@ export type AgentDecision =
   | ReplyDecision
   | IgnoreDecision
   | HumanReviewDecision
-  | DelegateCodeAgentDecision;  // ← 新增
+  | DelegateCodeAgentDecision; // ← 新增
 ```
 
 `contracts/code-agent/code-agent-event.contract.ts`：
+
 ```typescript
 // tool_use 事件增加审批状态
 export interface CodeAgentToolUseEvent {
@@ -186,6 +189,7 @@ export interface CodeAgentToolUseEvent {
 ### Task 2.3：risk 门禁实现（1 个新增文件）
 
 `risk/infrastructure/code-agent-risk-gate.ts`：
+
 - 实现 `CodeAgentGateHook` 接口
 - 准入层：读取 `YE_KITTY_CODE_AGENT_ADMIN_QQ` 环境变量配置的白名单 QQ 号列表，检查 `senderId`
 - 执行层：`classifyToolRisk(toolName)` 函数返回工具风险级别（high/medium/low）。高风险 → `check()` 返回拒绝原因（待 review），低风险 → null（自动通过）
@@ -209,13 +213,13 @@ Code agent 执行
   reject 后或超时未审核（24h）→ 自动清理 review 区
 ```
 
-| 层面 | 实现位置 | 逻辑 |
-|---|---|---|
-| 隔离 | gate service（已有） | workdir = `task-{uuid}` 独立目录，天然隔离 |
-| 保留 | orchestrator | `session_end(succeeded)` 时**不删** workdir，复制到 `review/` |
-| 审核 | control-plane API（新增） | `POST /admin/code-agent/review/:id/approve` / `reject` |
-| 放行 | executor | approve 后 `cp -r` 到目标路径 |
-| 清理 | orchestrator | reject 或 24h 超时 → `rm -rf` review 区 |
+| 层面 | 实现位置                  | 逻辑                                                          |
+| ---- | ------------------------- | ------------------------------------------------------------- |
+| 隔离 | gate service（已有）      | workdir = `task-{uuid}` 独立目录，天然隔离                    |
+| 保留 | orchestrator              | `session_end(succeeded)` 时**不删** workdir，复制到 `review/` |
+| 审核 | control-plane API（新增） | `POST /admin/code-agent/review/:id/approve` / `reject`        |
+| 放行 | executor                  | approve 后 `cp -r` 到目标路径                                 |
+| 清理 | orchestrator              | reject 或 24h 超时 → `rm -rf` review 区                       |
 
 > **[待审计]** 当前方案仅用目录隔离，未用 Docker/虚拟机。如 code agent 被诱导执行 `rm -rf /` 或读取敏感文件（`.env`、`~/.ssh`），目录隔离无法防御。后续 Phase 3 安全加固需评估容器隔离方案。
 
@@ -228,6 +232,7 @@ Code agent 执行
 `application/code-agent-executor.ts`：
 
 职责：
+
 1. 接收 `DelegateCodeAgentDecision` → 构建 `CodeAgentTask` → 调用 `CodeAgentRunnerPort.submit()`
 2. 消费 session.events() 流
 3. 遇到 `tool_use` 事件 → 调 risk gate check → approved（批准，stdin 写 tool_result 确认）或 rejected（拒绝 → cancel session → 结果入 AgentObservation）
@@ -238,15 +243,16 @@ Code agent 执行
 
 这是 B3 的 5 个硬编码点：
 
-| # | 文件 | 函数 | 改动 |
-|---|---|---|---|
-| 1 | `openai-harness-agent-runner.ts` | `toAgentDecision()` | +`delegate_code_agent` 解析分支 |
-| 2 | `agent-decision.ts` | `isFinalAgentDecision()` | `delegate_code_agent` 标记为 final（harness 不再自己回复，等 code agent 结果） |
-| 3 | `agent-runtime-harness.ts` | `toRunResult()` | 新增 `code_agent_run` 结果类型，防止静默降级 human_review |
-| 4 | `agent-runtime-harness.ts` | `getDecisionTarget()` | 新增 code-agent 目标 |
-| 5 | `agent-runtime-harness.ts` | harness 主循环 | `decision.type` 分发 → `delegate_code_agent` → 调 code-agent-executor |
+| #   | 文件                             | 函数                     | 改动                                                                           |
+| --- | -------------------------------- | ------------------------ | ------------------------------------------------------------------------------ |
+| 1   | `openai-harness-agent-runner.ts` | `toAgentDecision()`      | +`delegate_code_agent` 解析分支                                                |
+| 2   | `agent-decision.ts`              | `isFinalAgentDecision()` | `delegate_code_agent` 标记为 final（harness 不再自己回复，等 code agent 结果） |
+| 3   | `agent-runtime-harness.ts`       | `toRunResult()`          | 新增 `code_agent_run` 结果类型，防止静默降级 human_review                      |
+| 4   | `agent-runtime-harness.ts`       | `getDecisionTarget()`    | 新增 code-agent 目标                                                           |
+| 5   | `agent-runtime-harness.ts`       | harness 主循环           | `decision.type` 分发 → `delegate_code_agent` → 调 code-agent-executor          |
 
 `ports/agent-runtime-harness.port.ts`：
+
 ```typescript
 // AgentRuntimeRunResult union 加项
 export type AgentRuntimeRunResult =
@@ -259,6 +265,7 @@ export type AgentRuntimeRunResult =
 `bootstrap/code-agent-bootstrap.ts`：factory 调用时传入 risk hook：`createCodeAgentRuntime({ extraHooks: [createCodeAgentRiskGate(config)] })`
 
 `.env.template`：
+
 ```env
 # Phase 2 - Code Agent 准入
 YE_KITTY_CODE_AGENT_ADMIN_QQ=1274997936
@@ -269,6 +276,7 @@ YE_KITTY_CODE_AGENT_AUTO_APPROVE_HIGH_RISK=false
 ### Task 2.8：测试（2 个新增测试文件）
 
 `code-agent-executor.test.ts`（10 cases）：
+
 - 正常流程：delegate → submit → tool_use → approve → 继续 → succeeded
 - 拒绝流程：delegate → submit → tool_use → reject → cancel → failed
 - 终止流程：delegate → cancel mid-task → canceled
@@ -277,6 +285,7 @@ YE_KITTY_CODE_AGENT_AUTO_APPROVE_HIGH_RISK=false
 - 产出 review：succeeded 后产出入 sandbox/review/
 
 `agent-decision-delegate.test.ts`（5 cases）：
+
 - delegate 不被 isFinalAgentDecision 误判
 - delegate 不被 toRunResult 静默降级
 - delegate 不被 getDecisionTarget 漏掉
@@ -292,31 +301,32 @@ YE_KITTY_CODE_AGENT_AUTO_APPROVE_HIGH_RISK=false
 ## 与 Phase 1 的联动
 
 Phase 1 已实现并在 Phase 2 中复用的：
-| 组件 | Phase 1 状态 | Phase 2 用法 |
-|---|---|---|
-| `CodeAgentRunnerPort` | ✅ submit/events/cancel/injectToolResult | code-agent-executor 直接调用 |
-| `CodeAgentGateHook` | ✅ 接口 + workdir 内置 hook | risk 实现此接口注入 |
-| `CodeAgentGateRejectedError` | ✅ | risk 拒绝时抛出 |
-| `CodeAgentSession.events()` | ✅ SSE + ring buffer | gatekeeper 消费事件流 |
-| `runner.cancel(sessionId)` | ✅ 阶梯取消 | 拒绝时优雅终止 |
-| fake-agent fixture | ✅ 7 场景 | code-agent-executor 测试替身 |
+
+| 组件                         | Phase 1 状态                             | Phase 2 用法                 |
+| ---------------------------- | ---------------------------------------- | ---------------------------- |
+| `CodeAgentRunnerPort`        | ✅ submit/events/cancel/injectToolResult | code-agent-executor 直接调用 |
+| `CodeAgentGateHook`          | ✅ 接口 + workdir 内置 hook              | risk 实现此接口注入          |
+| `CodeAgentGateRejectedError` | ✅                                       | risk 拒绝时抛出              |
+| `CodeAgentSession.events()`  | ✅ SSE + ring buffer                     | gatekeeper 消费事件流        |
+| `runner.cancel(sessionId)`   | ✅ 阶梯取消                              | 拒绝时优雅终止               |
+| fake-agent fixture           | ✅ 7 场景                                | code-agent-executor 测试替身 |
 
 ## 与 Phase 1 的设计差异
 
-| 设计点 | Phase 1（旧理解） | Phase 2（正确理解） |
-|---|---|---|
-| 工具执行权 | harness 替 code agent 执行 | code agent 自己执行，harness 审批 |
-| `--tools ""` | 禁用全部工具 | **不加**此参数，让 code agent 拥有完整工具集 |
-| `injectToolResult` 用途 | harness 执行完写入结果 | harness 写审批确认（同意/拒绝） |
-| harness 职责 | 实现 code agent 的工具 | 只需知道工具清单 + 风险级别，不实现 |
+| 设计点                  | Phase 1（旧理解）          | Phase 2（正确理解）                          |
+| ----------------------- | -------------------------- | -------------------------------------------- |
+| 工具执行权              | harness 替 code agent 执行 | code agent 自己执行，harness 审批            |
+| `--tools ""`            | 禁用全部工具               | **不加**此参数，让 code agent 拥有完整工具集 |
+| `injectToolResult` 用途 | harness 执行完写入结果     | harness 写审批确认（同意/拒绝）              |
+| harness 职责            | 实现 code agent 的工具     | 只需知道工具清单 + 风险级别，不实现          |
 
 ## 校验门
 
-| 门 | 要求 |
-|---|---|
-| 5 个硬编码点 | 逐一核验，不能遗漏 |
-| pnpm check | 全绿 |
-| 测试 | 新文件覆盖率 perFile ≥ 80% |
-| 中文 | 注释/错误消息/日志 全中文 |
-| 架构 | agent-runtime 不直接 import llm/infrastructure，通过 port 调用 |
-| 安全 | 非管理员 QQ 消息不可触发 code agent |
+| 门           | 要求                                                           |
+| ------------ | -------------------------------------------------------------- |
+| 5 个硬编码点 | 逐一核验，不能遗漏                                             |
+| pnpm check   | 全绿                                                           |
+| 测试         | 新文件覆盖率 perFile ≥ 80%                                     |
+| 中文         | 注释/错误消息/日志 全中文                                      |
+| 架构         | agent-runtime 不直接 import llm/infrastructure，通过 port 调用 |
+| 安全         | 非管理员 QQ 消息不可触发 code agent                            |

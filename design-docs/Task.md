@@ -11,7 +11,7 @@
 
 ## 当前状态
 
-- 状态：开发中
+- 状态：待验收
 - 负责人：Codex
 - 最近更新：2026-07-21
 - 唯一入口：`design-docs/Architecture/platform-agent-shared-refactor.md`
@@ -20,7 +20,7 @@
 
 | 模块                         | 设计文档                                                        | 状态   | 进度说明                                                                                                                                                                                                                                                                                                                                                               |
 | ---------------------------- | --------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kitty Service 三层模块化重构 | `design-docs/Architecture/platform-agent-shared-refactor.md`    | 开发中 | Agent Runtime 核心与 LM 已迁入目标结构。LM 持有 Model Pool；Code Agent 的契约、编排、门禁、进程协议与本地服务已收进 `lm/code-agent`，并以 `code` Tool 接入 Schedule；下一步迁移 Platforms、订阅和 Bootstrap。                                                                                                                                                          |
+| Kitty Service 三层模块化重构 | `design-docs/Architecture/platform-agent-shared-refactor.md`    | 待验收 | Platforms、Agent Runtime、Shared 与 Bootstrap 已完成迁移；Prompt、Skills、Tools、Schedule、LM、Model Pool 和 Code Agent 均已归入新 owner。旧 `services/contracts/control-plane`、四层目录、兼容入口及旧文件命名全部删除。`pnpm check` 全量通过：52 个测试文件、338 项测试和 8 项真实模型评估均通过，等待产品行为验收。                                                 |
 | Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md`                    | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、`get_custom_faces`、Prompt 三章治理、Prompt 宪法分层、第二章 instruction 化、显式 `HarnessPromptState` 状态机、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call`、`references/` 按需读取、文字类 `send_msg` 自动引用触发消息并 @ 发送者，以及自定义表情单独发送。 |
 | QQ 群聊低负载节奏控制        | `design-docs/QQ/chat-time.md`                                   | 待验收 | 将回复后门槛延长为 10-60 分钟与 10-50 条消息；随机片段改为每群每小时一个且只消费一次；冷却期屏蔽随机入口；所有群的未 @ 主动触发共享 2 分钟全局预算，节奏触发后仍强制读取最近 100 条群消息并回复；定向 12 项测试、Lint、类型与架构检查已通过。                                                                                                                          |
 | 模型请求池第一版             | `design-docs/Agent/model-request-pool-v1.md`                    | 待验收 | 已从单个 OpenAI 兼容模型配置演进为模型请求池，由统一调度层负责模型路由、单节点并发、请求间隔、429 退避、队列 TTL 和失败降级；定向模型池单元测试已通过。                                                                                                                                                                                                                |
@@ -80,6 +80,7 @@
 
 | 日期       | 变更                                        | 原因                                                                                                          |
 | ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| 2026-07-21 | 完成三层架构迁移并启用严格校验              | Platforms、Agent Runtime、Shared 和 Bootstrap 全部就位，旧目录、兼容入口与冗余文件命名清零。                  |
 | 2026-07-21 | 迁移 LM、Model Pool 与 Code Agent           | Agent 只依赖 LM；Code Agent 收进 LM 子模块，并作为统一 code Tool 接入 Schedule。                              |
 | 2026-07-21 | 迁移 Agent 并统一 Action 调度循环           | Agent 主循环只消费 AgentAction，所有 Skill 与普通工具调用均通过 Schedule 执行。                               |
 | 2026-07-21 | 迁移 Skills 并接入统一 Tool                 | 删除 Skill 的 application/domain/infrastructure/ports 文件，以目录、正文、引用三级渐进读取能力接入 Schedule。 |

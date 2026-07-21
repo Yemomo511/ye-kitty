@@ -65,7 +65,7 @@
 | Experiment Channel           | `platforms/qq/channel.ts`        | QQ 消息订阅实现。                  |
 | QQ Factory                   | `platforms/qq/runtime.ts`        | 只在确有多个协作者时保留聚合对象。 |
 | Group Cadence                | `platforms/qq/cadence.ts`        | 去掉 Service/Port。                |
-| Admission Queue              | `platforms/qq/queue.ts`          | 去掉 Service/Port。                |
+| Admission Queue              | `agent-runtime/queue.ts`         | Agent 运行前的并发与会话调度。     |
 | Custom Face Catalog          | `platforms/qq/faces.ts`          | 平台数据与 `tools/faces.ts` 分开。 |
 | Visual Agent Interface       | `platforms/qq/vision.ts`         | 视觉消息适配留在平台。             |
 | Reply Executor、Reply Action | `platforms/qq/reply.ts`          | 合并同一回复流程。                 |

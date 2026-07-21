@@ -75,7 +75,6 @@ packages/kitty-service/src/
 │   │   ├── faces.ts
 │   │   ├── vision.ts
 │   │   ├── cadence.ts
-│   │   ├── queue.ts
 │   │   └── onebot/
 │   │       ├── schema.ts
 │   │       ├── server.ts
@@ -101,6 +100,7 @@ packages/kitty-service/src/
 │   ├── message.ts
 │   ├── state.ts
 │   ├── history.ts
+│   ├── queue.ts
 │   ├── subscriber.ts
 │   ├── prompt/
 │   ├── skills/
@@ -112,14 +112,13 @@ packages/kitty-service/src/
 │   ├── ids.ts
 │   ├── logger.ts
 │   ├── logging.ts
-│   └── error.ts
+│   └── mcp.ts
 ├── bootstrap/                       # 进程装配，不是业务层
-│   ├── start.ts
 │   ├── environment.ts
 │   ├── platform.ts
 │   ├── agent.ts
 │   ├── tools.ts
-│   └── lm.ts
+│   └── code.ts
 ├── ARCHITECTURE.md
 └── index.ts
 ```
@@ -496,7 +495,7 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 - 唯一方案入口：本文档。
 - 文件迁移入口：[`file-name-map.md`](./file-name-map.md)。
 - 执行进度与验收入口：[`../Task.md`](../Task.md)。
-- 当前状态：开发中，Agent Runtime 核心与 LM 已迁入目标结构。
-- 已完成：LM 持有 Model Pool；旧 AgentDecision 与 Runner Port 已删除；Code Agent 的协议、门禁、进程和本地服务已收进 `lm/code-agent`，并以 `code` Tool 接入 Schedule。
-- 兼容状态：旧 Runtime Tool 仍通过 `tools/runtime.ts` 适配，随 Platforms 与 MCP 迁移删除。
-- 下一步：迁移 Platforms、订阅与 Bootstrap 装配，消除 Platform → Agent Runtime 反向依赖。
+- 当前状态：已完成，等待产品行为验收。
+- 已完成：Platforms、Agent Runtime、Shared 和 Bootstrap 已全部迁入目标结构；Prompt、Skills、Tools、Schedule、LM、Model Pool 与 Code Agent 均由新 owner 管理。
+- 清理结果：`services`、`contracts`、`control-plane` 以及任意深度的 `application`、`domain`、`infrastructure`、`ports` 已全部删除；旧命名兼容入口为零。
+- 校验结果：严格架构校验和 TypeScript 类型检查通过；最终全量 `pnpm check` 结果记录在 `Task.md`。
