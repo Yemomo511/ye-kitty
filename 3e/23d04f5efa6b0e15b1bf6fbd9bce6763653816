@@ -1,0 +1,31 @@
+design-docs/Architecture/file-name-map.md
+  s_89cafc4f309476::t_1b3b857eb3281d 68
+design-docs/Architecture/platform-agent-shared-refactor.md
+  s_89cafc4f309476::t_c02fb5331a4380 103,115,121,498-501
+design-docs/Task.md
+  s_89cafc4f309476::t_c065dc098f2fc1 14,23,83
+design-docs/code-agent-integration-execution-plan.md
+  s_89cafc4f309476::t_d94aaa8bedc9eb 93-103,108-132,136,140-146,151-169,171-175,179-182,184-188,232,245-246,297,348-355,366-370
+design-docs/code-agent-integration-phase2-plan.md
+  s_89cafc4f309476::t_6d13d0ed8bd577 12,67-69,71,153,158-161,172,176,192,216-222,235,246-252,255,268,279,288,304-312,316-321,325-332
+design-docs/code-agent-integration.md
+  s_89cafc4f309476::t_5c7a8efd0b3f35 43-47,51-63,95,162-167,174,181,183,186,194,205,215-221,235-249,251-258,265-275,285,287,291-293,295-299,302-304,318,324,343-357,370,377,382-391,395-404,454-464,476-479
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "3e23d04f5efa6b0e15b1bf6fbd9bce6763653816",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
