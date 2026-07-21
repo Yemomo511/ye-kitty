@@ -1,0 +1,23 @@
+design-docs/Architecture/layered-modular-refactor.md
+  s_89cafc4f309476::t_effd9fd0487a02 1-445
+design-docs/Task.md
+  s_89cafc4f309476::t_55bd43f4cb6bd8 1,10,16-17,23,33-34,51,69,77,83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "00e746aa11f697e4b3dc054a067c725f39df3c9d",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
