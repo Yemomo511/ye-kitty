@@ -1,0 +1,45 @@
+packages/kitty-service/eval/runner.ts
+  s_89cafc4f309476::t_aead410f516403 5-8,26,31,37,46,50
+packages/kitty-service/src/agent-runtime/agent.test.ts
+  s_89cafc4f309476::t_96d52ed7bf2473 3,10,23-27,35-36,46,76,78,90,104-105,115,146,148,166,181-182,196,215,217,238,303,305,317,352,354,374,404,406,426,443,445,469,498,500,518,552,554,581,621,623,644,670,672,694,716-717,735,750-751,761,783-784,801,825-826,832-833,915-916,922,937,940,955-956,962,977-985
+packages/kitty-service/src/agent-runtime/index.ts
+  s_89cafc4f309476::t_4eaec1fe0415ab 14
+packages/kitty-service/src/agent-runtime/lm/config.ts
+  s_89cafc4f309476::t_e0a172de32baec 1
+packages/kitty-service/src/agent-runtime/lm/lm.ts
+  s_89cafc4f309476::t_32f98d871a4427 1-6,9,13,20-25,27,29,31,33-34,39,42,50
+packages/kitty-service/src/agent-runtime/lm/model.ts
+  s_89cafc4f309476::t_54d01222bc5f12 80-81
+packages/kitty-service/src/agent-runtime/lm/openai.ts
+  s_89cafc4f309476::t_4552044a2a8a63 2-4,11
+packages/kitty-service/src/agent-runtime/lm/pool.test.ts
+  s_89cafc4f309476::t_2603cba3a140c9 2-3,11-12,103,110,134,162,192,223,261,285,305
+packages/kitty-service/src/agent-runtime/message.ts
+  s_89cafc4f309476::t_fa2a9600e8e13a 8
+packages/kitty-service/src/agent-runtime/state.ts
+  s_89cafc4f309476::t_3b00ce3e49c1d7 11,26
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_89cafc4f309476::t_4b821bc943e2d3 2
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-agent.test.ts
+  s_89cafc4f309476::t_2a14e2f448ce8a 5,135
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_89cafc4f309476::t_6380f68b48a54f 46,49,127-135,139
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "0150fd6e6ddd129ff00ff997f4031325313f0a17",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
