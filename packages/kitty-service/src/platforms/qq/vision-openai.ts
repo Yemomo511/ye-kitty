@@ -1,0 +1,393 @@
+import type { QqCustomFaceResource } from '@kitty/platforms/qq/api';
+import type { CustomFaceDescription, CustomFaceSelection, DescribedCustomFace } from './face';
+import type { CustomFaceVisionAgentPort } from './vision';
+
+/**
+ * OpenAI自定义表情视觉Agent配置
+ *
+ * 独立于聊天Agent配置，避免聊天模型不支持图像时影响表情理解能力。
+ */
+export interface OpenAiCustomFaceVisionAgentConfig {
+  /** OpenAI API Key */
+  readonly apiKey: string;
+  /** OpenAI兼容服务地址 */
+  readonly baseURL?: string;
+  /** 视觉模型名称 */
+  readonly model: string;
+  /** 单张表情理解超时毫秒 */
+  readonly timeoutMs: number;
+}
+
+type ResponsesInputContent =
+  | {
+      readonly type: 'input_text';
+      readonly text: string;
+    }
+  | {
+      readonly type: 'input_image';
+      readonly image_url: string;
+      readonly detail: 'low' | 'auto' | 'high';
+    };
+
+interface ResponsesInputMessage {
+  readonly role: 'user';
+  readonly content: readonly ResponsesInputContent[];
+}
+
+/**
+ * OpenAI自定义表情视觉Agent
+ *
+ * 使用多模态输入理解QQ自定义表情，输出聊天Agent可读取的中文结构化描述。
+ */
+export class OpenAiCustomFaceVisionAgent implements CustomFaceVisionAgentPort {
+  constructor(private readonly config: OpenAiCustomFaceVisionAgentConfig) {}
+
+  /**
+   * 理解自定义表情
+   * @param face 自定义表情资源
+   * @returns 中文描述
+   */
+  async describeFace(face: QqCustomFaceResource): Promise<CustomFaceDescription> {
+    const result = await withTimeout(
+      createResponseText(this.config, buildVisionInstructions(), [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: [
+                '请理解这张QQ自定义表情，输出严格JSON。',
+                `平台摘要：${face.summary ?? '无'}`,
+                `表情名称：${face.name ?? '无'}`,
+              ].join('\n'),
+            },
+            { type: 'input_image', image_url: face.file, detail: 'low' },
+          ],
+        },
+      ]),
+      this.config.timeoutMs,
+    );
+
+    return parseCustomFaceDescription(result);
+  }
+
+  /**
+   * 选择自定义表情
+   * @param demand 聊天Agent的表情需求
+   * @param faces 已理解表情目录
+   * @param limit 返回上限
+   * @returns 推荐结果
+   */
+  async selectFaces(
+    demand: string,
+    faces: readonly DescribedCustomFace[],
+    limit: number,
+  ): Promise<readonly CustomFaceSelection[]> {
+    const result = await withTimeout(
+      createResponseText(this.config, buildSelectionInstructions(), [
+        {
+          role: 'user',
+          content: [
+            {
+              type: 'input_text',
+              text: [
+                '请根据聊天Agent的需求，从已理解的QQ自定义表情目录中选择最合适的表情。',
+                `需求：${demand}`,
+                `最多返回：${limit}`,
+                `表情目录：${JSON.stringify(faces.map(toSelectionCandidate))}`,
+              ].join('\n'),
+            },
+          ],
+        },
+      ]),
+      this.config.timeoutMs,
+    );
+
+    return parseCustomFaceSelections(result, limit);
+  }
+}
+
+/**
+ * 读取视觉Agent配置
+ * @param env 环境变量
+ * @returns 视觉Agent配置
+ */
+export function loadCustomFaceVisionAgentConfig(
+  env: NodeJS.ProcessEnv = process.env,
+): OpenAiCustomFaceVisionAgentConfig | undefined {
+  const model = normalizeOptionalValue(env.YE_KITTY_VISION_AGENT_MODEL);
+  if (!model) return undefined;
+
+  const apiKey =
+    normalizeOptionalValue(env.YE_KITTY_VISION_AGENT_API_KEY) ??
+    normalizeOptionalValue(env.OPENAI_API_KEY);
+  if (!apiKey) return undefined;
+
+  return {
+    apiKey,
+    baseURL:
+      normalizeOptionalValue(env.YE_KITTY_VISION_AGENT_BASE_URL) ??
+      normalizeOptionalValue(env.OPENAI_BASE_URL),
+    model,
+    timeoutMs: readPositiveInteger(
+      normalizeOptionalValue(env.YE_KITTY_VISION_AGENT_TIMEOUT_MS),
+      30000,
+    ),
+  };
+}
+
+// 构建视觉理解约束。
+function buildVisionInstructions(): string {
+  return [
+    '你是叶猫猫的QQ自定义表情理解Agent。',
+    '你只负责理解图片，不负责聊天，不调用任何工具。',
+    '请用中文描述表情内容、情绪和适合使用的聊天场景。',
+    '只能输出单个JSON对象，不能输出Markdown或解释文字。',
+    'JSON字段：content, emotion, suitableScenes, avoidScenes, tags, confidence。',
+    'suitableScenes、avoidScenes、tags 必须是中文字符串数组。',
+    'confidence 是0到1之间的数字。',
+  ].join('\n');
+}
+
+// 构建表情选择约束。
+function buildSelectionInstructions(): string {
+  return [
+    '你是叶猫猫的QQ自定义表情选择Agent。',
+    '你只能根据聊天Agent需求和已理解表情描述选择表情，不负责聊天，不调用任何工具。',
+    '优先选择情绪、适用场景、标签和聊天需求最贴合的表情。',
+    '如果没有完美匹配，也要返回相对最合适的候选，并在reason里说明差距。',
+    '只能输出单个JSON对象，不能输出Markdown或解释文字。',
+    'JSON字段：selections。',
+    'selections 是数组，每项字段为 id, reason, score。',
+    'id 必须来自输入表情目录；reason 用中文简述推荐理由；score 是0到1之间的数字。',
+  ].join('\n');
+}
+
+/**
+ * 提取Responses文本
+ * @param response Responses返回体
+ * @returns 模型文本
+ */
+export function extractResponsesText(response: unknown): string {
+  if (typeof response === 'string') return response.trim();
+  if (!isRecord(response)) return '';
+
+  const outputText = normalizeText(response.output_text);
+  if (outputText) return outputText;
+
+  if (!Array.isArray(response.output)) return '';
+
+  const textParts: string[] = [];
+  for (const outputItem of response.output) {
+    if (!isRecord(outputItem) || !Array.isArray(outputItem.content)) continue;
+
+    for (const contentItem of outputItem.content) {
+      if (!isRecord(contentItem) || contentItem.type !== 'output_text') continue;
+
+      const text = normalizeText(contentItem.text);
+      if (text) textParts.push(text);
+    }
+  }
+
+  return textParts.join('').trim();
+}
+
+// 解析视觉Agent输出。
+export function parseCustomFaceDescription(rawOutput: string): CustomFaceDescription {
+  if (!rawOutput) throw new Error('视觉Agent返回空描述');
+
+  const parsed = JSON.parse(stripCodeFence(rawOutput)) as unknown;
+  if (!isRecord(parsed)) throw new Error('视觉Agent描述不是对象');
+
+  const content = normalizeText(parsed.content);
+  const emotion = normalizeText(parsed.emotion);
+  const suitableScenes = normalizeStringArray(parsed.suitableScenes);
+  const avoidScenes = normalizeStringArray(parsed.avoidScenes);
+  const tags = normalizeStringArray(parsed.tags);
+  const confidence = normalizeConfidence(parsed.confidence);
+
+  if (!content || !emotion || suitableScenes.length === 0 || tags.length === 0) {
+    throw new Error('视觉Agent描述字段不完整');
+  }
+
+  return {
+    content,
+    emotion,
+    suitableScenes,
+    avoidScenes,
+    tags,
+    confidence,
+  };
+}
+
+/**
+ * 解析视觉Agent推荐输出
+ * @param rawOutput 模型原始输出
+ * @param limit 返回上限
+ * @returns 推荐结果
+ */
+export function parseCustomFaceSelections(
+  rawOutput: string,
+  limit = 30,
+): readonly CustomFaceSelection[] {
+  if (!rawOutput) throw new Error('视觉Agent返回空推荐');
+
+  const parsed = JSON.parse(stripCodeFence(rawOutput)) as unknown;
+  if (!isRecord(parsed)) throw new Error('视觉Agent推荐不是对象');
+
+  const selections = Array.isArray(parsed.selections) ? parsed.selections : [];
+  return selections
+    .map(normalizeSelection)
+    .filter((selection): selection is CustomFaceSelection => Boolean(selection))
+    .slice(0, limit);
+}
+
+// 压缩表情描述，只交给选择Agent必要语义。
+function toSelectionCandidate(face: DescribedCustomFace): Record<string, unknown> {
+  return {
+    id: face.id,
+    content: face.content,
+    emotion: face.emotion,
+    suitableScenes: face.suitableScenes,
+    avoidScenes: face.avoidScenes,
+    tags: face.tags,
+    confidence: face.confidence,
+  };
+}
+
+// 读取单条推荐。
+function normalizeSelection(input: unknown): CustomFaceSelection | undefined {
+  if (!isRecord(input)) return undefined;
+
+  const id = normalizeText(input.id);
+  const reason = normalizeText(input.reason);
+  if (!id || !reason) return undefined;
+
+  return {
+    id,
+    reason,
+    score: normalizeConfidence(input.score),
+  };
+}
+
+// 兼容模型偶尔包裹的代码块。
+function stripCodeFence(rawOutput: string): string {
+  const trimmed = rawOutput.trim();
+  if (!trimmed.startsWith('```')) return trimmed;
+  return trimmed
+    .replace(/^```(?:json)?\s*/i, '')
+    .replace(/\s*```$/, '')
+    .trim();
+}
+
+// 读取普通文本字段。
+function normalizeText(value: unknown): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const text = value.trim();
+  return text.length > 0 ? text : undefined;
+}
+
+// 读取字符串数组。
+function normalizeStringArray(value: unknown): readonly string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map(normalizeText)
+    .filter((item): item is string => Boolean(item))
+    .slice(0, 8);
+}
+
+// 读取置信度。
+function normalizeConfidence(value: unknown): number {
+  const numberValue = typeof value === 'string' ? Number(value.trim()) : value;
+  if (typeof numberValue !== 'number' || Number.isNaN(numberValue)) return 0.5;
+  return Math.max(0, Math.min(1, numberValue));
+}
+
+// 空字符串按未配置处理。
+function normalizeOptionalValue(value: string | undefined): string | undefined {
+  const normalizedValue = value?.trim();
+  return normalizedValue && normalizedValue.length > 0 ? normalizedValue : undefined;
+}
+
+// 读取正整数配置。
+function readPositiveInteger(rawValue: string | undefined, defaultValue: number): number {
+  const value = Number(rawValue ?? defaultValue);
+  if (!Number.isInteger(value) || value <= 0) {
+    throw new Error('YE_KITTY_VISION_AGENT_TIMEOUT_MS 必须是正整数');
+  }
+
+  return value;
+}
+
+// 直接调用Responses，避免通用Runner对极简视觉任务的响应结构做二次转换。
+async function createResponseText(
+  config: OpenAiCustomFaceVisionAgentConfig,
+  instructions: string,
+  input: readonly ResponsesInputMessage[],
+): Promise<string> {
+  const response = await fetch(buildResponsesUrl(config.baseURL), {
+    method: 'POST',
+    headers: {
+      authorization: `Bearer ${config.apiKey}`,
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: config.model,
+      instructions,
+      input,
+      tools: [],
+      store: false,
+      text: { format: { type: 'text' }, verbosity: 'low' },
+    }),
+  });
+  const responseText = await response.text();
+  if (!response.ok) {
+    throw new Error(
+      `视觉Agent请求失败 status=${response.status} body=${sanitizeApiError(
+        responseText,
+        config.apiKey,
+      )}`,
+    );
+  }
+
+  const parsed = JSON.parse(responseText) as unknown;
+  const outputText = extractResponsesText(parsed);
+  if (!outputText) throw new Error('视觉Agent返回空描述');
+
+  return outputText;
+}
+
+// 兼容传入根地址或完整 /v1 地址。
+function buildResponsesUrl(baseURL: string | undefined): string {
+  const normalizedBaseUrl = (baseURL ?? 'https://api.openai.com/v1').replace(/\/+$/, '');
+  return `${normalizedBaseUrl}/responses`;
+}
+
+// 错误内容可能携带密钥片段，写入日志前必须收敛。
+function sanitizeApiError(rawText: string, apiKey: string): string {
+  const text = rawText.trim().slice(0, 500);
+  if (!text) return '空响应';
+
+  return text.split(apiKey).join('****');
+}
+
+// 判断普通对象。
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === 'object' && input !== null;
+}
+
+// 为单张表情理解增加超时。
+async function withTimeout<T>(task: Promise<T>, timeoutMs: number): Promise<T> {
+  let timeout: NodeJS.Timeout | undefined;
+  const timeoutTask = new Promise<never>((_, reject) => {
+    timeout = setTimeout(() => {
+      reject(new Error(`视觉Agent理解表情超过 ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([task, timeoutTask]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}

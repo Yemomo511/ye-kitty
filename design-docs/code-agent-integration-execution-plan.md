@@ -90,102 +90,102 @@ design-docs/code-agent-integration.md       ← [修改] 状态回写
 
 ### T3 process 基建（10 例：json-line-stream 8 + windows-command 2）
 
-| # | 用例 | 类型 |
-|---|---|---|
-| T3-1 | 单 chunk 单行完整 JSON → onMessage 一次 | 正常 |
-| T3-2 | 单 chunk 多行 JSON → onMessage 多次、顺序保持 | 正常 |
-| T3-3 | 一条 JSON 跨两个 chunk 切断 → 还原后 onMessage 一次 | 边界 |
-| T3-4 | pretty-printed 多行 JSON（对象跨行）→ 正确聚合 | 边界 |
-| T3-5 | 非 JSON 行（纯文本）→ onRawLine 回调、不抛错 | 异常 |
-| T3-6 | 半截 JSON 后进程结束（流 end）→ 残留内容走 onRawLine | 异常 |
-| T3-7 | 超长行（>128KB）→ 按上限截断走 onRawLine、不 OOM | 边界 |
-| T3-8 | 空 chunk / 仅换行符 chunk → 无回调、无异常 | 边界 |
-| T3-9 | windows-command: bin 路径含空格 → 包裹后引号正确、可解析 | 边界 |
+| #     | 用例                                                                          | 类型 |
+| ----- | ----------------------------------------------------------------------------- | ---- |
+| T3-1  | 单 chunk 单行完整 JSON → onMessage 一次                                       | 正常 |
+| T3-2  | 单 chunk 多行 JSON → onMessage 多次、顺序保持                                 | 正常 |
+| T3-3  | 一条 JSON 跨两个 chunk 切断 → 还原后 onMessage 一次                           | 边界 |
+| T3-4  | pretty-printed 多行 JSON（对象跨行）→ 正确聚合                                | 边界 |
+| T3-5  | 非 JSON 行（纯文本）→ onRawLine 回调、不抛错                                  | 异常 |
+| T3-6  | 半截 JSON 后进程结束（流 end）→ 残留内容走 onRawLine                          | 异常 |
+| T3-7  | 超长行（>128KB）→ 按上限截断走 onRawLine、不 OOM                              | 边界 |
+| T3-8  | 空 chunk / 仅换行符 chunk → 无回调、无异常                                    | 边界 |
+| T3-9  | windows-command: bin 路径含空格 → 包裹后引号正确、可解析                      | 边界 |
 | T3-10 | windows-command: bin/workdir 路径含中文 + `%` 字符 → 转义正确、无环境变量展开 | 边界 |
 
 ### T4 adapters + failure-classifier（23 例）
 
-| # | 用例 | 类型 |
-|---|---|---|
-| T4-1 | claude: `text_delta` 流事件 → 统一 `text_delta` | 正常 |
-| T4-2 | claude: `content_block_start(tool_use)` + `input_json_delta` → `tool_use` + `tool_input_delta` | 正常 |
-| T4-3 | claude: `message_stop` + usage 字段 → `usage` 事件 | 正常 |
-| T4-4 | claude: 流中 `session_id` 字段 → 捕获入 handle | 正常 |
-| T4-5 | claude: 未识别事件类型 → `raw` 兜底 | 异常 |
-| T4-6 | claude: buildArgs 不含 prompt 内容（类型 + 运行时断言） | 安全 |
-| T4-7 | codex: `thread.started` → `status` + 捕获 thread_id | 正常 |
-| T4-8 | codex: `item.started(command_execution)` → `tool_use(name:'Bash')` | 正常 |
-| T4-9 | codex: `item.completed(agent_message)` → `text_delta` | 正常 |
-| T4-10 | codex: `turn.completed` → `usage` | 正常 |
-| T4-11 | codex: `error` 事件 → 统一 `error` | 异常 |
-| T4-12 | codex: 未识别事件 → `raw` 兜底 | 异常 |
-| T4-13 | classifier: 二进制不存在（ENOENT）→ `spawn_failure` / retryable=false | 异常 |
-| T4-14 | classifier: stderr 含 auth 正则命中 → `auth_failure` | 异常 |
-| T4-15 | classifier: inactivity 定时器触发 → `inactivity_timeout` / retryable=true | 异常 |
-| T4-16 | classifier: session 总时长触发 → `session_timeout` | 异常 |
-| T4-17 | classifier: exit 非零 + 普通 stderr → `process_exit`（尾 20 行入 detail） | 异常 |
-| T4-18 | classifier: 连续 N 行解析失败 → `protocol_mismatch` | 异常 |
-| T4-19 | classifier: workdir 不存在 → `workspace_failure` | 异常 |
-| T4-20 | classifier: stdin EPIPE → `pipe_broken` | 异常 |
-| T4-21 | classifier: 队列超时 → `queue_timeout` / retryable=true | 异常 |
-| T4-22 | claude: `thinking` 内容块事件 → `thinking_start` + `thinking_delta` | 正常 |
-| T4-23 | codex: `item.completed(command_execution)` → `tool_result`（含 isError 分支） | 正常 |
+| #     | 用例                                                                                           | 类型 |
+| ----- | ---------------------------------------------------------------------------------------------- | ---- |
+| T4-1  | claude: `text_delta` 流事件 → 统一 `text_delta`                                                | 正常 |
+| T4-2  | claude: `content_block_start(tool_use)` + `input_json_delta` → `tool_use` + `tool_input_delta` | 正常 |
+| T4-3  | claude: `message_stop` + usage 字段 → `usage` 事件                                             | 正常 |
+| T4-4  | claude: 流中 `session_id` 字段 → 捕获入 handle                                                 | 正常 |
+| T4-5  | claude: 未识别事件类型 → `raw` 兜底                                                            | 异常 |
+| T4-6  | claude: buildArgs 不含 prompt 内容（类型 + 运行时断言）                                        | 安全 |
+| T4-7  | codex: `thread.started` → `status` + 捕获 thread_id                                            | 正常 |
+| T4-8  | codex: `item.started(command_execution)` → `tool_use(name:'Bash')`                             | 正常 |
+| T4-9  | codex: `item.completed(agent_message)` → `text_delta`                                          | 正常 |
+| T4-10 | codex: `turn.completed` → `usage`                                                              | 正常 |
+| T4-11 | codex: `error` 事件 → 统一 `error`                                                             | 异常 |
+| T4-12 | codex: 未识别事件 → `raw` 兜底                                                                 | 异常 |
+| T4-13 | classifier: 二进制不存在（ENOENT）→ `spawn_failure` / retryable=false                          | 异常 |
+| T4-14 | classifier: stderr 含 auth 正则命中 → `auth_failure`                                           | 异常 |
+| T4-15 | classifier: inactivity 定时器触发 → `inactivity_timeout` / retryable=true                      | 异常 |
+| T4-16 | classifier: session 总时长触发 → `session_timeout`                                             | 异常 |
+| T4-17 | classifier: exit 非零 + 普通 stderr → `process_exit`（尾 20 行入 detail）                      | 异常 |
+| T4-18 | classifier: 连续 N 行解析失败 → `protocol_mismatch`                                            | 异常 |
+| T4-19 | classifier: workdir 不存在 → `workspace_failure`                                               | 异常 |
+| T4-20 | classifier: stdin EPIPE → `pipe_broken`                                                        | 异常 |
+| T4-21 | classifier: 队列超时 → `queue_timeout` / retryable=true                                        | 异常 |
+| T4-22 | claude: `thinking` 内容块事件 → `thinking_start` + `thinking_delta`                            | 正常 |
+| T4-23 | codex: `item.completed(command_execution)` → `tool_result`（含 isError 分支）                  | 正常 |
 
 ### T4 说明
 
-T4 共 23 例：claude 映射 7（T4-1~6、T4-22）、codex 映射 7（T4-7~12、T4-23）、classifier 9（T4-13~21）。
+T4 共 23 例：claude 映射 7（T4-1 至 T4-6、T4-22）、codex 映射 7（T4-7 至 T4-12、T4-23）、classifier 9（T4-13 至 T4-21）。
 
 ### T5 registry + lifecycle（6 例）
 
-| # | 用例 | 类型 |
-|---|---|---|
-| T5-1 | 两个 def，一个探测成功一个 bin 不存在 → available 分别 true/false，互不影响（fault isolation） | 异常 |
-| T5-2 | 探测函数抛异常 → 该 agent unavailable + 诊断文本，refresh 不 reject | 异常 |
-| T5-3 | version 探测输出解析 → `CodeAgentCapability.version` 正确 | 正常 |
-| T5-4 | argv 超预算 → spawn 前抛错（→ spawn_failure） | 安全 |
-| T5-5 | envAllowList 生效：白名单外变量不透传、Windows 必需变量保留、印章注入 | 安全 |
+| #    | 用例                                                                                                               | 类型 |
+| ---- | ------------------------------------------------------------------------------------------------------------------ | ---- |
+| T5-1 | 两个 def，一个探测成功一个 bin 不存在 → available 分别 true/false，互不影响（fault isolation）                     | 异常 |
+| T5-2 | 探测函数抛异常 → 该 agent unavailable + 诊断文本，refresh 不 reject                                                | 异常 |
+| T5-3 | version 探测输出解析 → `CodeAgentCapability.version` 正确                                                          | 正常 |
+| T5-4 | argv 超预算 → spawn 前抛错（→ spawn_failure）                                                                      | 安全 |
+| T5-5 | envAllowList 生效：白名单外变量不透传、Windows 必需变量保留、印章注入                                              | 安全 |
 | T5-6 | envAllowList 大小写不敏感（Windows `Path` vs `PATH` 同一变量）→ 系统必需变量任一大小写均保留、白名单匹配忽略大小写 | 边界 |
 
 ### T6 orchestrator（23 例）
 
-| # | 用例 | 类型 |
-|---|---|---|
-| T6-1 | happy path：submit → running → 事件流 → exit 0 → succeeded + session_end | 正常 |
-| T6-2 | gate hook 返回拒绝原因 → submit 抛 GateRejectedError、不 spawn | 安全 |
-| T6-3 | 全局并发满 → 第 N+1 个 submit 进 queued | 正常 |
-| T6-4 | per-agent 满、全局未满 → 同 agent 第二个 queued，异 agent 可运行 | 正常 |
-| T6-5 | 队首因 per-agent 受限被跳过 → 队列后位可运行者先执行（防头阻塞） | 边界 |
-| T6-6 | queued 超时 → failed(queue_timeout) + session_end | 异常 |
-| T6-7 | queued 状态 cancel → canceled、不 spawn | 边界 |
-| T6-8 | running 中 cancel → 阶梯取消、session_end(canceled)；取消后到达事件仍入 buffer | 竞态 |
-| T6-9 | cancel 不存在/已结束的 session → 静默幂等 | 边界 |
-| T6-10 | inactivity 超时（fake-agent hang 场景）→ failed(inactivity_timeout) | 异常 |
-| T6-11 | 子进程 crash（exit 1）→ failed(process_exit) + failure.detail 含 stderr | 异常 |
-| T6-12 | events() 在 queued 时订阅 → 收到后续全部事件直到 session_end | 边界 |
-| T6-13 | events() 迟订阅 → 回放 buffer + 续接；溢出 2000 时首发 replay_truncated | 边界 |
-| T6-14 | injectToolResult 于 running → stdin 收到正确 JSON | 正常 |
-| T6-15 | injectToolResult 于已结束 session → 抛 SessionClosedError；stdin 已断 → 抛 PipeBrokenError | 竞态 |
-| T6-16 | shutdown() → 全部 running 被 cancel、注册表清空 | 正常 |
-| T6-17 | session 总时长超限（fake-agent busy-loop 持续输出场景）→ failed(session_timeout)，证明双看门狗独立 | 异常 |
+| #     | 用例                                                                                                     | 类型 |
+| ----- | -------------------------------------------------------------------------------------------------------- | ---- |
+| T6-1  | happy path：submit → running → 事件流 → exit 0 → succeeded + session_end                                 | 正常 |
+| T6-2  | gate hook 返回拒绝原因 → submit 抛 GateRejectedError、不 spawn                                           | 安全 |
+| T6-3  | 全局并发满 → 第 N+1 个 submit 进 queued                                                                  | 正常 |
+| T6-4  | per-agent 满、全局未满 → 同 agent 第二个 queued，异 agent 可运行                                         | 正常 |
+| T6-5  | 队首因 per-agent 受限被跳过 → 队列后位可运行者先执行（防头阻塞）                                         | 边界 |
+| T6-6  | queued 超时 → failed(queue_timeout) + session_end                                                        | 异常 |
+| T6-7  | queued 状态 cancel → canceled、不 spawn                                                                  | 边界 |
+| T6-8  | running 中 cancel → 阶梯取消、session_end(canceled)；取消后到达事件仍入 buffer                           | 竞态 |
+| T6-9  | cancel 不存在/已结束的 session → 静默幂等                                                                | 边界 |
+| T6-10 | inactivity 超时（fake-agent hang 场景）→ failed(inactivity_timeout)                                      | 异常 |
+| T6-11 | 子进程 crash（exit 1）→ failed(process_exit) + failure.detail 含 stderr                                  | 异常 |
+| T6-12 | events() 在 queued 时订阅 → 收到后续全部事件直到 session_end                                             | 边界 |
+| T6-13 | events() 迟订阅 → 回放 buffer + 续接；溢出 2000 时首发 replay_truncated                                  | 边界 |
+| T6-14 | injectToolResult 于 running → stdin 收到正确 JSON                                                        | 正常 |
+| T6-15 | injectToolResult 于已结束 session → 抛 SessionClosedError；stdin 已断 → 抛 PipeBrokenError               | 竞态 |
+| T6-16 | shutdown() → 全部 running 被 cancel、注册表清空                                                          | 正常 |
+| T6-17 | session 总时长超限（fake-agent busy-loop 持续输出场景）→ failed(session_timeout)，证明双看门狗独立       | 异常 |
 | T6-18 | 连续解析失败（fake-agent garbage 场景）→ failed(protocol_mismatch) + session_end 正常发出，消费者不 hang | 异常 |
-| T6-19 | cancel 一个 running → slot 释放 → queued 任务被推进执行 | 竞态 |
-| T6-20 | queue timeout 与 slot 释放同 tick 到达 → 状态不翻转（failed 后不得再变 running，反之亦然） | 竞态 |
-| T6-21 | events() 两个消费者同时订阅 → 各自独立游标，事件不被瓜分、两边序列完整 | 边界 |
-| T6-22 | stdout 有效事件与 stderr 噪音交错 → 事件正常发出、classifier 不误判 | 边界 |
-| T6-23 | ring buffer 达 2000 上限 → 旧事件被释放（buffer 长度恒 ≤2000）、迟订阅收到 replay_truncated | 边界 |
+| T6-19 | cancel 一个 running → slot 释放 → queued 任务被推进执行                                                  | 竞态 |
+| T6-20 | queue timeout 与 slot 释放同 tick 到达 → 状态不翻转（failed 后不得再变 running，反之亦然）               | 竞态 |
+| T6-21 | events() 两个消费者同时订阅 → 各自独立游标，事件不被瓜分、两边序列完整                                   | 边界 |
+| T6-22 | stdout 有效事件与 stderr 噪音交错 → 事件正常发出、classifier 不误判                                      | 边界 |
+| T6-23 | ring buffer 达 2000 上限 → 旧事件被释放（buffer 长度恒 ≤2000）、迟订阅收到 replay_truncated              | 边界 |
 
 ### T7 control-plane HTTP（8 例）
 
-| # | 用例 | 类型 |
-|---|---|---|
-| T7-1 | 无 API key 配置 → server 不启动 | 安全 |
-| T7-2 | 错误 Bearer → 401 | 安全 |
+| #    | 用例                                                                                     | 类型 |
+| ---- | ---------------------------------------------------------------------------------------- | ---- |
+| T7-1 | 无 API key 配置 → server 不启动                                                          | 安全 |
+| T7-2 | 错误 Bearer → 401                                                                        | 安全 |
 | T7-3 | POST /admin/code-agent/runs（fake-agent happy）→ SSE 全事件序列 + session_end 后连接关闭 | 正常 |
-| T7-4 | body 缺 agentId/workdir → 400 | 异常 |
-| T7-5 | GET /admin/code-agent/agents → capability 列表 | 正常 |
-| T7-6 | DELETE /admin/code-agent/runs/:id → session canceled | 正常 |
-| T7-7 | SSE 客户端断连 → session 不被取消、继续跑完 | 边界 |
-| T7-8 | SSE 断连与 DELETE cancel 同时发生 → 无 handle-after-free、无重复关闭异常 | 竞态 |
+| T7-4 | body 缺 agentId/workdir → 400                                                            | 异常 |
+| T7-5 | GET /admin/code-agent/agents → capability 列表                                           | 正常 |
+| T7-6 | DELETE /admin/code-agent/runs/:id → session canceled                                     | 正常 |
+| T7-7 | SSE 客户端断连 → session 不被取消、继续跑完                                              | 边界 |
+| T7-8 | SSE 断连与 DELETE cancel 同时发生 → 无 handle-after-free、无重复关闭异常                 | 竞态 |
 
 ---
 
@@ -229,6 +229,7 @@ fake-agent fixture（`__test__/fixtures/fake-agent.mjs`）在 Task 6 红灯前�
 #### `contracts/code-agent/code-agent-event.contract.ts` [新增]
 
 设计文档"统一事件契约"的 11 种事件 union 原样落地。要点：
+
 - `CodeAgentEventContract` discriminated union，判别字段 `type`
 - `session_end`：`{ type: 'session_end'; sessionId; status: 'succeeded'|'failed'|'canceled'; exitCode: number | null }`
 - `error` 携带 `failure: CodeAgentFailureContract`
@@ -241,8 +242,8 @@ export type CodeAgentTaskSource = 'control-plane' | 'harness';
 
 export interface CodeAgentTaskContract {
   readonly agentId: string;
-  readonly prompt: string;              // 恒经 stdin 传递
-  readonly workdir: string;             // 调用方创建和清理，llm 校验存在性
+  readonly prompt: string; // 恒经 stdin 传递
+  readonly workdir: string; // 调用方创建和清理，llm 校验存在性
   readonly model?: string;
   readonly extraInstructions?: string;
   readonly timeoutOverrides?: { readonly sessionMs?: number; readonly inactivityMs?: number };
@@ -293,6 +294,7 @@ export interface CodeAgentTaskContract {
 #### `application/code-agent-orchestrator.service.ts` [新增] —— 核心
 
 实现 `CodeAgentRunnerPort`，8 项职责（与设计文档逐条对应）：
+
 1. `submit`：gate.check → 建 session(queued) → 并发检查（先全局后 per-agent）→ 可运行则 spawn，否则入全局 FIFO
 2. 排队：slot 释放时队首扫描、跳过 per-agent 受限任务；queue timeout 置 `failed(queue_timeout)`
 3. ring buffer：每 session 2000 条；`events()` 回放 + 续接；溢出首发 `replay_truncated`；全量落 JSONL
@@ -343,14 +345,14 @@ export interface CodeAgentTaskContract {
 
 ## 校验门（每 Task 通过后方可 commit）
 
-| 门 | 命令 | 要求 |
-|---|---|---|
-| TDD 顺序 | 人工检查 | 该 Task 用例先红灯（commit 历史可见测试先行） |
-| Lint + 格式 + 测试 | `pnpm check` | 全绿 |
-| 定向测试 | `pnpm vitest run src/services/llm/__test__/<本Task>` | 全绿 |
-| 覆盖率 | `pnpm test:coverage:code-agent`（Task 9 起） | perFile 四指标 ≥ 80% |
-| 架构约束 | `pnpm validate:architecture` + 人工 | domain 不依赖 infrastructure；contracts 零依赖；llm 不 import risk/agent-runtime；依赖方向符合 ARCHITECTURE.md |
-| 中文约束 | 人工检查 | 注释/日志/错误消息全中文 |
+| 门                 | 命令                                                 | 要求                                                                                                           |
+| ------------------ | ---------------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| TDD 顺序           | 人工检查                                             | 该 Task 用例先红灯（commit 历史可见测试先行）                                                                  |
+| Lint + 格式 + 测试 | `pnpm check`                                         | 全绿                                                                                                           |
+| 定向测试           | `pnpm vitest run src/services/llm/__test__/<本Task>` | 全绿                                                                                                           |
+| 覆盖率             | `pnpm test:coverage:code-agent`（Task 9 起）         | perFile 四指标 ≥ 80%                                                                                           |
+| 架构约束           | `pnpm validate:architecture` + 人工                  | domain 不依赖 infrastructure；contracts 零依赖；llm 不 import risk/agent-runtime；依赖方向符合 ARCHITECTURE.md |
+| 中文约束           | 人工检查                                             | 注释/日志/错误消息全中文                                                                                       |
 
 ## 明确不在本计划内（阶段二/三，另立计划）
 
@@ -361,8 +363,8 @@ export interface CodeAgentTaskContract {
 
 ## 变更记录
 
-| 日期 | 变更 | 原因 |
-|---|---|---|
-| 2026-07-16 | 初版执行计划 | 设计定稿转化为可执行任务 |
-| 2026-07-16 | v2：仓库规范审查修订 | TDD 前置测试用例总表（57 例）并调整每 Task 顺序为红灯先行；路由改 `/admin/code-agent/*` 对齐 control-plane README；补 `src/ARCHITECTURE.md`、`src/index.ts`、`package.json` coverage 脚本、`scripts/start.ts` 统一入口集成、control-plane README 修改项；fake-agent 移至 `__test__/fixtures/` |
-| 2026-07-16 | v3：六维度复审修订 | 测试用例 57→70（补 session_timeout/protocol_mismatch 编排器层、thinking/tool_result 映射、cancel→队列推进、queue_timeout×slot 竞态、events() 多消费者、stdout/stderr 交错、windows-command 空格/中文路径、env 大小写、buffer 上限内存、SSE 断连×cancel 竞态）；文件计数修正（25 源 + 8 测试 + 1 fixture / 修改 9）；claude buildArgs 补 `--verbose` 并明确禁工具参数候选（`--tools ""`，实测锁定）；注明 json-line-stream 的 onRawLine 为 ye-kitty 增强；fake-agent 增 busy-loop 场景（7 场景）；start.ts 估行修正 ±25 |
+| 日期       | 变更                 | 原因                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| ---------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-07-16 | 初版执行计划         | 设计定稿转化为可执行任务                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
+| 2026-07-16 | v2：仓库规范审查修订 | TDD 前置测试用例总表（57 例）并调整每 Task 顺序为红灯先行；路由改 `/admin/code-agent/*` 对齐 control-plane README；补 `src/ARCHITECTURE.md`、`src/index.ts`、`package.json` coverage 脚本、`scripts/start.ts` 统一入口集成、control-plane README 修改项；fake-agent 移至 `__test__/fixtures/`                                                                                                                                                                                                                          |
+| 2026-07-16 | v3：六维度复审修订   | 测试用例 57→70（补 session_timeout/protocol_mismatch 编排器层、thinking/tool_result 映射、cancel→队列推进、queue_timeout×slot 竞态、events() 多消费者、stdout/stderr 交错、windows-command 空格/中文路径、env 大小写、buffer 上限内存、SSE 断连×cancel 竞态）；文件计数修正（25 源 + 8 测试 + 1 fixture / 修改 9）；claude buildArgs 补 `--verbose` 并明确禁工具参数候选（`--tools ""`，实测锁定）；注明 json-line-stream 的 onRawLine 为 ye-kitty 增强；fake-agent 增 busy-loop 场景（7 场景）；start.ts 估行修正 ±25 |
