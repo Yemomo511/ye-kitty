@@ -15,7 +15,7 @@ describe('claude', () => {
       agentId: 'claude-code',
       workdir: '/tmp/test',
       model: 'sonnet',
-      source: 'control-plane',
+      source: 'api',
     } as Parameters<typeof claude.buildArgs>[0]);
     expect(args).toContain('--print');
     expect(args).toContain('--input-format');

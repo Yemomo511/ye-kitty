@@ -9,18 +9,18 @@ import Fastify from 'fastify';
 import type { FastifyInstance } from 'fastify';
 import { log } from './log';
 
-/** 启动 control-plane HTTP 服务 */
+/** 启动 Code Agent API 服务 */
 export async function startServer(
   apiKey: string | undefined,
   registerRoutes: (app: FastifyInstance) => void,
 ): Promise<FastifyInstance | undefined> {
   if (!apiKey) {
-    log.info('CODE_AGENT_API_KEY 未设置，control-plane HTTP 不启动');
+    log.info('CODE_AGENT_API_KEY 未设置，Code Agent API 不启动');
     return undefined;
   }
 
   if (apiKey.length < 32) {
-    log.warn('CODE_AGENT_API_KEY 过短（建议 ≥32 字符），control-plane 拒绝启动');
+    log.warn('CODE_AGENT_API_KEY 过短（建议 ≥32 字符），Code Agent API 拒绝启动');
     return undefined;
   }
 
@@ -40,7 +40,7 @@ export async function startServer(
   // 仅监听 127.0.0.1
   await app.listen({ port: 0, host: '127.0.0.1' });
   const port = (app.server.address() as { port: number }).port;
-  log.info(`control-plane HTTP 已启动 http://127.0.0.1:${port}`);
+  log.info(`Code Agent API 已启动 http://127.0.0.1:${port}`);
 
   return app;
 }

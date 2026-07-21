@@ -6,7 +6,7 @@
  * 恒带 sessionId 与 ISO 时间戳以支持审计。
  */
 
-import type { LoggerPort, LogContext } from '@kitty/shared/types/logger';
+import type { LoggerPort, LogContext } from '@kitty/shared/logger';
 import { appendFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 

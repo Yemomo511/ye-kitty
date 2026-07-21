@@ -1,9 +1,9 @@
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessage } from '@kitty/platforms/message';
 import type { AgentMessage } from './message';
 import type { PromptState } from './prompt/state';
 import type { SkillContent, SkillMetadata } from './skills';
 import type { Tool } from './tools';
-import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool';
+import type { ToolExecutionResult } from './tools/legacy';
 
 /**
  * Agent观察上下文
@@ -12,7 +12,7 @@ import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool'
  */
 export interface AgentContext {
   /** QQ标准消息 */
-  readonly event: ChatEventContract;
+  readonly event: PlatformMessage;
   /** 本轮可请求的Skill目录 */
   readonly availableSkills: readonly SkillMetadata[];
   /** 已注入正文的Skill */

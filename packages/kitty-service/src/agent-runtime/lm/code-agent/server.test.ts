@@ -1,5 +1,5 @@
 /**
- * Task 7 红灯测试 — control-plane HTTP 路由（6 cases with fastify.inject）
+ * Task 7 红灯测试 — Code Agent API 路由（6 cases with fastify.inject）
  *
  * T7-1: API key 为空 → server 不启动
  * T7-2: 无 Authorization 头 → 401
@@ -28,7 +28,7 @@ function createTempWorkdir(): string {
 const testWorkdir = createTempWorkdir();
 const testKey = 'test-api-key-32-characters-long!!';
 
-describe('control-plane HTTP', () => {
+describe('Code Agent API', () => {
   it('T7-1: API key 为空 → server 不启动', async () => {
     const { startServer } = await import('@kitty/agent-runtime/lm/code-agent/server');
     const app = await startServer(undefined, () => {});

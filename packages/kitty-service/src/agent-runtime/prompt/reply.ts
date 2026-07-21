@@ -1,4 +1,4 @@
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessage } from '@kitty/platforms/message';
 import type { SkillContent } from '../skills';
 import { buildBaseAgentPrompt } from './system';
 import { buildQqReplyPrompt } from './turn';
@@ -23,7 +23,7 @@ export interface QqReplyPrompt {
  */
 export function composeQqReplyPrompt(input: {
   readonly agentName: string;
-  readonly event: ChatEventContract;
+  readonly event: PlatformMessage;
   readonly skills?: readonly SkillContent[];
 }): QqReplyPrompt {
   const skillPrompt = buildEnabledSkillPrompt(input.skills ?? []);

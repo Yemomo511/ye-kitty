@@ -1,6 +1,6 @@
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessage } from '@kitty/platforms/message';
 import type { SkillContent, SkillMetadata, SkillReferenceContent } from './skills';
-import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool';
+import type { ToolExecutionResult } from './tools/legacy';
 
 /**
  * Agent对话消息
@@ -12,7 +12,7 @@ export type AgentMessage =
       /** 消息类型 */
       readonly type: 'user_event';
       /** 标准事件 */
-      readonly event: ChatEventContract;
+      readonly event: PlatformMessage;
     }
   | {
       /** 消息类型 */

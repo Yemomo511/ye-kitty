@@ -14,21 +14,10 @@ const IMPORT_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g;
  * 额度只允许随迁移下降，确保旧结构可以分提交删除，
  * 同时阻止新代码继续进入待废弃目录和命名体系。
  */
-export const CURRENT_LEGACY_BUDGETS = Object.freeze({
-  topLevelFiles: Object.freeze({ contracts: 3, 'control-plane': 0, services: 81 }),
-  forbiddenDirectories: Object.freeze({
-    application: 30,
-    domain: 15,
-    infrastructure: 22,
-    ports: 20,
-  }),
-  forbiddenFileNames: 57,
-});
-
 /**
  * 检查 Kitty Service 三层架构
  * @param {string} packageRoot kitty-service 包目录
- * @param {{ legacyBudgets?: typeof CURRENT_LEGACY_BUDGETS }} [options] 迁移债务额度
+ * @param {{ legacyBudgets?: { topLevelFiles?: Record<string, number>, forbiddenDirectories?: Record<string, number>, forbiddenFileNames?: number } }} [options] 迁移债务额度
  * @returns {Promise<string[]>} 可直接展示的违规列表
  */
 export async function findArchitectureViolations(packageRoot, options = {}) {

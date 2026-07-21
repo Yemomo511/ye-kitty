@@ -7,15 +7,15 @@
   "main": "src/index.ts",
   "scripts": {
     "start": "tsx scripts/start.ts",
-    "start-platform:qq": "tsx scripts/start-platform-qq.ts",
-    "start-platform:xiaohongshu": "tsx scripts/start-platform-xiaohongshu.ts",
+    "start-platform:qq": "tsx scripts/start-qq.ts",
+    "start-platform:xiaohongshu": "tsx scripts/start-xiaohongshu.ts",
     "lint": "eslint .",
     "validate:architecture": "node scripts/validate-architecture.mjs",
     "eval:agent": "node --import tsx eval/index.ts",
     "eval:agent:warn": "node --import tsx eval/run-agent-eval-warn.ts",
     "typecheck": "tsc --noEmit",
     "test": "pnpm run validate:architecture && pnpm run typecheck && vitest run",
-    "test:coverage:qq-harness": "vitest run src/services/agent-runtime/__test__/qq-harness-admission-queue.test.ts src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/services/agent-runtime/application/in-memory-qq-harness-admission-queue.ts --coverage.include=src/services/agent-runtime/application/qq-reply-event-subscriber.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80",
+    "test:coverage:agent": "vitest run src/agent-runtime/queue.test.ts src/agent-runtime/subscriber.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/agent-runtime/queue.ts --coverage.include=src/agent-runtime/subscriber.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80",
     "test:coverage:code-agent": "vitest run src/agent-runtime/lm/code-agent/**/*.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/agent-runtime/lm/code-agent/ --coverage.exclude=src/agent-runtime/lm/code-agent/**/*.test.ts --coverage.exclude=src/agent-runtime/lm/code-agent/fixtures/ --coverage.exclude=src/agent-runtime/lm/code-agent/definition.ts --coverage.exclude=src/agent-runtime/lm/code-agent/event.ts --coverage.exclude=src/agent-runtime/lm/code-agent/session.ts --coverage.exclude=src/agent-runtime/lm/code-agent/failure.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80"
   },
   "keywords": [

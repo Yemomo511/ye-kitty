@@ -1,6 +1,6 @@
 import type { AgentAction, ToolAction } from '../action';
 import type { Observation } from '../observation';
-import { writeDebugLog } from '../../shared/infrastructure/logging';
+import { writeDebugLog } from '../../shared/logging';
 import type { ToolExecutor } from '../tools/executor';
 import type { ToolPermission } from '../tools/permission';
 import type { ToolRegistry } from '../tools/registry';

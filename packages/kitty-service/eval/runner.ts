@@ -2,7 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import { agentEvalCases } from './cases';
 import { assertAgentAction, type AgentEvalCaseResult } from './assertions';
-import { loadQqReplyAgentConfig } from '../src/services/agent-runtime';
+import { loadQqReplyAgentConfig } from '../src/bootstrap/agent';
 import { LM } from '../src/agent-runtime/lm/lm';
 import { ModelPool } from '../src/agent-runtime/lm/pool';
 import { OpenAIModel } from '../src/agent-runtime/lm/openai';

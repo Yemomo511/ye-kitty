@@ -1,16 +1,11 @@
-import type { ChatEventContract } from '../src/contracts/events/chat-event.contract';
-import type {
-  ChatEventId,
-  ConversationId,
-  MessageId,
-  ParticipantId,
-} from '../src/shared/types/ids';
+import type { PlatformMessage } from '../src/platforms/message';
+import type { ChatEventId, ConversationId, MessageId, ParticipantId } from '../src/shared/ids';
 import type { AgentContext } from '../src/agent-runtime';
 import type { SkillContent, SkillMetadata } from '../src/agent-runtime/skills';
 import {
   BuiltinRuntimeToolRegistry,
   GET_CUSTOM_FACES_TOOL_NAME,
-} from '../src/services/agent-runtime';
+} from '../src/agent-runtime/tools/messages';
 import type { Tool } from '../src/agent-runtime/tools';
 
 /** 评估断言目标 */
@@ -72,7 +67,7 @@ const enabledChatStyleSkill: SkillContent = {
   ),
 };
 
-/** Agent Harness真实模型评估用例 */
+/** Agent真实模型评估用例 */
 export const agentEvalCases: readonly AgentEvalCase[] = [
   {
     name: 'QQ聊天Skill已自动启用时直接回复',
@@ -178,7 +173,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
 
 // 构造与真实QQ入口一致的首轮观察，默认预启用qq-chat和最近消息结果。
 function createQqObservation(input: {
-  readonly event: ChatEventContract;
+  readonly event: PlatformMessage;
   readonly availableSkills: readonly SkillMetadata[];
   readonly enabledSkills?: readonly SkillContent[];
   readonly tools: AgentContext['tools'];
@@ -263,10 +258,10 @@ function toPromptTool(tool: ReturnType<BuiltinRuntimeToolRegistry['listTools']>[
 
 function createChatEvent(
   text: string,
-  conversationType: ChatEventContract['conversationType'],
+  conversationType: PlatformMessage['conversationType'],
   idSuffix: string,
   mentions: readonly string[] = [],
-): ChatEventContract {
+): PlatformMessage {
   return {
     id: `eval-chat-event-${idSuffix}` as ChatEventId,
     platform: 'qq',

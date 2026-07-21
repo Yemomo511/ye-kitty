@@ -1,10 +1,10 @@
 import { describe, expect, test, vi } from 'vitest';
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessage } from '@kitty/platforms/message';
 import { createRuntimeTools } from './runtime';
 
 describe('旧运行时工具桥接', () => {
   test('把工具定义和执行结果转换为统一Tool', async () => {
-    const event = { platform: 'qq' } as ChatEventContract;
+    const event = { platform: 'qq' } as PlatformMessage;
     const execute = vi.fn(async () => ({
       toolName: 'echo',
       success: true,

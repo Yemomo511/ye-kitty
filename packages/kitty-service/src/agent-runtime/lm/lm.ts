@@ -1,6 +1,6 @@
 import type { AgentContext } from '../state';
-import type { QqReplyAction } from '../../services/agent-runtime/ports/qq-reply-agent.port';
-import { parseQqReplyAction } from '../../services/agent-runtime/domain/qq-reply-action';
+import type { QqReplyAction } from '../runtime';
+import { parseQqReplyAction } from '../../platforms/qq/reply-action';
 import type { ModelPoolRunner, ModelRequestPriority } from './model';
 import { composeAgentPrompt } from '../prompt/composer';
 import { normalizeAgentAction, type AgentAction, type FinishAction } from '../action';

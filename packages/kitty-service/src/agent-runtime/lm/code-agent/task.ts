@@ -1,12 +1,12 @@
 /**
  * Code Agent 任务提交契约
  *
- * 调用方（control-plane / agent-runtime）通过此结构向 LM 提交 Code Agent 任务。
+ * 调用方（API 或 Agent Runtime）通过此结构向 LM 提交 Code Agent 任务。
  * prompt 恒经子进程 stdin 传递，不进入 argv（规避 Windows 32KB 预算限制）。
  */
 
 /** 任务来源（门禁 Hook 的准入判断依据） */
-export type CodeAgentTaskSource = 'control-plane' | 'agent-runtime';
+export type CodeAgentTaskSource = 'api' | 'agent-runtime';
 
 /** 超时覆盖（优先级：task > AgentDef > env） */
 export interface CodeAgentTimeoutOverrides {

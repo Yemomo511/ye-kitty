@@ -1,24 +1,16 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { Agent, AgentAdapter } from './agent';
 import { normalizeAgentAction } from './action';
-import { InMemoryConversationHistory } from '../services/agent-runtime/application/in-memory-conversation-history';
-import {
-  BuiltinRuntimeToolExecutor,
-  BuiltinRuntimeToolRegistry,
-} from '../services/agent-runtime/application/runtime-tools';
+import { InMemoryConversationHistory } from './history';
+import { BuiltinRuntimeToolExecutor, BuiltinRuntimeToolRegistry } from './tools/messages';
 import type { AgentContext } from './state';
 import type { LMRunner } from './lm/lm';
-import type { QqReplyAgentPort } from '../services/agent-runtime/ports/qq-reply-agent.port';
+import type { QqReplyAgentPort } from './runtime';
 import type { SkillContentReader, SkillReferenceReader } from './skills';
-import type { RuntimeToolExecutorPort } from '../services/agent-runtime/ports/tool-executor.port';
-import type { RuntimeToolRegistryPort } from '../services/agent-runtime/ports/tool-registry.port';
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type {
-  ChatEventId,
-  ConversationId,
-  MessageId,
-  ParticipantId,
-} from '@kitty/shared/types/ids';
+import type { RuntimeToolExecutorPort } from './tools/runtime-executor';
+import type { RuntimeToolRegistryPort } from './tools/runtime-registry';
+import type { PlatformMessage } from '@kitty/platforms/message';
+import type { ChatEventId, ConversationId, MessageId, ParticipantId } from '@kitty/shared/ids';
 
 /** 旧夹具只用于验证 Action 兼容解析，不进入生产 LM 边界。 */
 interface TestLM {
@@ -1022,8 +1014,8 @@ function createFallbackAgent(): QqReplyAgentPort {
 function createChatEvent(
   text: string,
   conversationId: string = 'qq:conversation:123456',
-  conversationType: ChatEventContract['conversationType'] = 'group',
-): ChatEventContract {
+  conversationType: PlatformMessage['conversationType'] = 'group',
+): PlatformMessage {
   return {
     id: `chat-event-${text}` as ChatEventId,
     platform: 'qq',
@@ -1044,9 +1036,9 @@ function createChatEvent(
 
 function createSequentialChatEvents(
   conversationId: string,
-  conversationType: ChatEventContract['conversationType'],
+  conversationType: PlatformMessage['conversationType'],
   count: number,
-): ChatEventContract[] {
+): PlatformMessage[] {
   return Array.from({ length: count }, (_, index) =>
     createChatEvent(`消息${index + 1}`, conversationId, conversationType),
   );

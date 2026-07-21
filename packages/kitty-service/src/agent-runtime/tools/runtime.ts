@@ -1,6 +1,6 @@
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { RuntimeToolExecutorPort } from '../../services/agent-runtime/ports/tool-executor.port';
-import type { RuntimeToolRegistryPort } from '../../services/agent-runtime/ports/tool-registry.port';
+import type { PlatformMessage } from '@kitty/platforms/message';
+import type { RuntimeToolExecutorPort } from './runtime-executor';
+import type { RuntimeToolRegistryPort } from './runtime-registry';
 import type { Tool } from './tool';
 
 /**
@@ -12,7 +12,7 @@ import type { Tool } from './tool';
 export function createRuntimeTools(
   registry: RuntimeToolRegistryPort,
   executor: RuntimeToolExecutorPort,
-  event: ChatEventContract,
+  event: PlatformMessage,
 ): Tool[] {
   return registry.listTools().map((definition) => ({
     name: definition.name,

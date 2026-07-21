@@ -1,11 +1,11 @@
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessage } from '@kitty/platforms/message';
 
 /**
  * 构建QQ回复输入
  * @param event QQ标准消息
  * @returns 模型输入文本
  */
-export function buildQqReplyPrompt(event: ChatEventContract): string {
+export function buildQqReplyPrompt(event: PlatformMessage): string {
   return [
     '请根据下面的 QQ 消息生成一条回复。',
     '你可以直接返回一段自然语言文本，也可以返回 JSON：{"text":"文字回复","actions":[...]}。',
@@ -27,6 +27,6 @@ export function buildQqReplyPrompt(event: ChatEventContract): string {
 }
 
 // 转换成提示词中的中文会话类型。
-function formatConversationType(conversationType: ChatEventContract['conversationType']): string {
+function formatConversationType(conversationType: PlatformMessage['conversationType']): string {
   return conversationType === 'group' ? '群聊' : '私聊';
 }

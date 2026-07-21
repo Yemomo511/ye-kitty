@@ -8,18 +8,18 @@ import type {
   SkillReferenceContent,
   SkillReferenceReader,
 } from './skills';
-import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool';
+import type { ToolExecutionResult } from './tools/legacy';
 import type { LMRunner } from './lm/lm';
-import type { ConversationHistoryPort } from '../services/agent-runtime/ports/conversation-history.port';
-import type { RuntimeToolExecutorPort } from '../services/agent-runtime/ports/tool-executor.port';
-import type { RuntimeToolRegistryPort } from '../services/agent-runtime/ports/tool-registry.port';
-import { GET_RECENT_MESSAGES_TOOL_NAME } from '../services/agent-runtime/application/runtime-tools';
+import type { ConversationHistoryPort } from './history-type';
+import type { RuntimeToolExecutorPort } from './tools/runtime-executor';
+import type { RuntimeToolRegistryPort } from './tools/runtime-registry';
+import { GET_RECENT_MESSAGES_TOOL_NAME } from './tools/messages';
 import type {
   QqReplyAgentInput,
   QqReplyAgentPort,
   QqReplyAgentResult,
   QqReplyAction,
-} from '../services/agent-runtime/ports/qq-reply-agent.port';
+} from './runtime';
 import { normalizeAgentAction, type AgentAction, type FinishAction } from './action';
 import type { Observation } from './observation';
 import { Schedule } from './schedule';
@@ -31,12 +31,12 @@ import {
   ToolRegistry,
   type Tool,
 } from './tools';
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
+import type { PlatformMessage } from '@kitty/platforms/message';
 
 /** Agent单次运行输入。 */
 export interface AgentInput {
   /** 标准聊天事件。 */
-  readonly event: ChatEventContract;
+  readonly event: PlatformMessage;
   /** 本轮可请求的Skill目录。 */
   readonly availableSkills?: readonly SkillMetadata[];
   /** 平台边界预启用的Skill正文。 */

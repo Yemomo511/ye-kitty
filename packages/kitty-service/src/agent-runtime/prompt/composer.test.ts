@@ -9,13 +9,8 @@ import {
   buildEnabledSkillPrompt,
   createSkillPromptDocument,
 } from './skills';
-import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type {
-  ChatEventId,
-  ConversationId,
-  MessageId,
-  ParticipantId,
-} from '@kitty/shared/types/ids';
+import type { PlatformMessage } from '@kitty/platforms/message';
+import type { ChatEventId, ConversationId, MessageId, ParticipantId } from '@kitty/shared/ids';
 
 describe('Agent Runtime Prompt组织', () => {
   test('Skill提示词包含名称、描述和正文', () => {
@@ -401,7 +396,7 @@ describe('Agent Runtime Prompt组织', () => {
   });
 });
 
-function createChatEvent(): ChatEventContract {
+function createChatEvent(): PlatformMessage {
   return {
     id: 'chat-event-1' as ChatEventId,
     platform: 'qq',

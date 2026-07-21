@@ -103,7 +103,7 @@ export function registerRoutes(
               number | undefined,
           }
         : undefined,
-      source: 'control-plane',
+      source: 'api',
     };
 
     if (!task.agentId || !task.prompt) {

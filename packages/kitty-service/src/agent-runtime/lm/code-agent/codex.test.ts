@@ -14,7 +14,7 @@ describe('codex', () => {
     const args = codex.buildArgs({
       agentId: 'codex',
       workdir: '/tmp/test',
-      source: 'control-plane',
+      source: 'api',
     } as Parameters<typeof codex.buildArgs>[0]);
     expect(args).toContain('exec');
     expect(args).toContain('--json');

@@ -46,7 +46,7 @@ describe('Gate', () => {
       agentId: 'claude-code',
       prompt: 'test',
       workdir: '', // 未指定
-      source: 'control-plane' as const,
+      source: 'api' as const,
     };
     await gate.check(task);
     // 验证自动分配了 workdir
@@ -61,7 +61,7 @@ describe('Gate', () => {
       agentId: 'claude-code',
       prompt: 'test',
       workdir: '',
-      source: 'control-plane' as const,
+      source: 'api' as const,
     };
     await gate.check(task);
     // 自动分配的目录在 whiteRoot 下
@@ -79,7 +79,7 @@ describe('Gate', () => {
       agentId: 'claude-code',
       prompt: 'test',
       workdir: testDir,
-      source: 'control-plane',
+      source: 'api',
     });
     await expect(result).rejects.toThrow();
   });
