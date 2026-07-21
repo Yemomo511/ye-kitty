@@ -28,7 +28,8 @@
 | Agent Runtime 通用 MCP 接入  | `design-docs/Agent/mcp-runtime.md`                              | 待验收 | 已完成 `.mcp.json` 加载、stdio、Streamable HTTP、SSE、多 Server 故障隔离、工具过滤与前缀、Harness 风险治理、QQ 启动装配和优雅关闭；59 项 MCP、Harness 与 QQ Agent 定向测试通过，新增 MCP 核心文件每文件覆盖率均高于 80%。                                                                                                                                              |
 | 小红书 MCP 启动与登录        | `design-docs/Agent/xiaohongshu-mcp-bootstrap.md`                | 已完成 | 已完成 QQ/小红书/组合启动、宿主架构镜像选择、Docker 健康检查、13 个工具默认配置、二维码展示、登录轮询和风险分级；60 项定向测试及每文件 80% 覆盖率门槛通过；真实扫码、容器重建、Cookie `0600`、重启登录检查和无环境覆盖启动均验收成功。                                                                                                                                 |
 | 小红书被提及信息源           | `design-docs/Agent/xiaohongshu-mention-event-source.md`         | 待验收 | 已完成固定上游补丁镜像、`list_mentions` 内部工具隔离、平台轮询信息源、持久化检查点和 Agent Runtime 暂不处理订阅。真实登录态已读取 20 条建立基线，30 秒后第二轮约 1.45 秒成功且无重复广播；待人工产生新 `@` 做产品验收。                                                                                                                                                |
-| Code Agent 通用接入          | `design-docs/code-agent-integration.md`                         | 待验收 | 实现完成：25 源文件 + 8 测试文件 + 1 fixture，21 commits (TDD 红绿对)，63 tests 全绿。Claude Code 2.1.162 stream-json 实测：JSON 事件流正常含 session_id，`--tools ""` 需实测锁定正确禁工具 flag。orchestrator 和 session-lifecycle 因依赖真实 spawn 未达 perFile 80% 覆盖率，记录为技术债务。 |
+| Code Agent 通用接入          | `design-docs/code-agent-integration.md`                         | 待验收 | Phase 1 完成：25 源文件 + 8 测试文件 + 1 fixture，63 tests 全绿。Claude Code 2.1.162 + DeepSeek 实测通过（spawn/stdin/SSE/session_end 全链路）。orchestrator 和 session-lifecycle perFile 覆盖率未达 80%，记录为技术债务。                                                                                                                                       |
+| Code Agent Phase 2 (Harness)  | `design-docs/code-agent-integration-phase2-plan.md`              | 设计中 | Gateway 审批模型：harness 新增 `delegate_code_agent` 决策分支 + risk 三层门禁（准入/执行/产出）+ code-agent-executor 消费事件流做审批循环；harness prompt 扩展 code agent 能力描述；5 个硬编码点改造。9 个 Task 逐步实施。 |
 
 ## 开发顺序
 
@@ -43,7 +44,8 @@
 9. 按通用 `.mcp.json` 配置接入多 MCP Server，并把发现和执行统一收敛到 Harness 工具边界。
 10. 在项目启动入口增加小红书选项，启动上游 MCP、完成扫码登录检查，并把工具交给同一 Harness 治理。
 11. 扩展上游 `list_mentions`，把被提及提醒转换为小红书平台信息源并接入 Agent Runtime 暂不处理边界。
-12. 在 `services/llm/` 下构建通用 code agent 接入基建：contracts → domain → infrastructure（json-line-stream + Claude Code/Codex adapter + 探测 + 失败分类）→ application（orchestrator + gate）→ control-plane API；第一消费者交付后验证，第二消费者（harness AgentDecision 集成）独立 PR 跟进。
+12. 在 `services/llm/` 下构建通用 code agent 接入基建：contracts → domain → infrastructure（json-line-stream + Claude Code/Codex adapter + 探测 + 失败分类）→ application（orchestrator + gate）→ control-plane API；第一消费者交付后验证，第二消费者（harness AgentDecision 集成）独立 PR 跟进。（Phase 1 ✅）
+13. 在 `agent-runtime` 中新增 `delegate_code_agent` 决策分支 + Gatekeeper 审批模型：harness prompt 扩展 → risk 三层门禁 → code-agent-executor 审批循环 → harness 管线 5 个硬编码点改造 → QQ 端到端联调。（Phase 2 设计中）
 
 ## 阻塞与风险
 
