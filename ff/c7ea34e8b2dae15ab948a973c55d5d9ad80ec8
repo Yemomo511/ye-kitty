@@ -1,0 +1,89 @@
+design-docs/Architecture/platform-agent-shared-refactor.md
+  s_89cafc4f309476::t_0e992ddedc64b1 499,502
+design-docs/Task.md
+  s_89cafc4f309476::t_2c2d7aa69586d2 23,81-123
+packages/kitty-service/eval/cases.ts
+  s_89cafc4f309476::t_c1bc478521026c 8-9
+packages/kitty-service/scripts/architecture-rules.mjs
+  s_89cafc4f309476::t_aadc8aa440b647 18,20-23,25
+packages/kitty-service/scripts/start-platform-qq.ts
+  s_89cafc4f309476::t_9dc59df6b77f0f 8-14,39-41,43-45
+packages/kitty-service/src/agent-runtime/index.ts
+  s_89cafc4f309476::t_b3498050f013de 13
+packages/kitty-service/src/agent-runtime/prompt/index.ts
+  s_89cafc4f309476::t_8c9217014dd07f 2-7
+packages/kitty-service/src/agent-runtime/prompt/reply.ts
+  s_89cafc4f309476::t_b5205155ce6da2 2
+packages/kitty-service/src/agent-runtime/prompt/skills.ts
+  s_89cafc4f309476::t_c68b1ff2924a20 9,13-14
+packages/kitty-service/src/agent-runtime/schedule/schedule.test.ts
+  s_89cafc4f309476::t_98a54a89eae29b 56-80
+packages/kitty-service/src/agent-runtime/schedule/schedule.ts
+  s_89cafc4f309476::t_5c4cb4df3e1a3b 7,31,36,43,47-50,62
+packages/kitty-service/src/agent-runtime/skills/catalog.ts
+  s_89cafc4f309476::t_fe7ca31a9a5393 3-4,6-12,15,24
+packages/kitty-service/src/agent-runtime/skills/index.ts
+  s_89cafc4f309476::t_db9a59c4823c82 1-6
+packages/kitty-service/src/agent-runtime/skills/loader.ts
+  s_89cafc4f309476::t_681d8b46d5707a 3-4,6-12,15,21,23
+packages/kitty-service/src/agent-runtime/skills/parser.ts
+  s_89cafc4f309476::t_c6ba78d4f44ab8 1,11,13,22,28,31,35,47-50,79,84,93,96
+packages/kitty-service/src/agent-runtime/skills/reference.ts
+  s_89cafc4f309476::t_117be1e2f1f73a 3-22,26,32-33,36,56,76
+packages/kitty-service/src/agent-runtime/skills/runtime.ts
+  s_89cafc4f309476::t_0c2c9029439853 1-4,6-7,10-12,15-16,20-22,25-28
+packages/kitty-service/src/agent-runtime/skills/selector.ts
+  s_89cafc4f309476::t_48239fe2575abd 1,3-17,20-21,24
+packages/kitty-service/src/agent-runtime/skills/skill.ts
+  s_89cafc4f309476::t_3c386452ffeec9 1,3,5,7,9,11,15,17,19
+packages/kitty-service/src/agent-runtime/skills/skills.test.ts
+  s_89cafc4f309476::t_34d8bc0fa51cea 5,28,56-57,86-87,92,100,113,126,132,172-173,175,182,199-201,228-229,231-233,235,242-272
+packages/kitty-service/src/agent-runtime/tools/index.ts
+  s_89cafc4f309476::t_e1091f6da08f2d 4-5
+packages/kitty-service/src/agent-runtime/tools/skill.test.ts
+  s_89cafc4f309476::t_aa416c6f6cd39b 1-105
+packages/kitty-service/src/agent-runtime/tools/skill.ts
+  s_89cafc4f309476::t_ef5b15db69e7d7 1-99
+packages/kitty-service/src/agent-runtime/tools/tool.ts
+  s_89cafc4f309476::t_48ebb51b957f1d 1-2,12-15,18-20
+packages/kitty-service/src/services/agent-runtime/__test__/agent-runtime-harness.test.ts
+  s_89cafc4f309476::t_b6721b0d6f84f5 14,917-918,980,995
+packages/kitty-service/src/services/agent-runtime/__test__/qq-chat-skill.test.ts
+  s_89cafc4f309476::t_7c7337d50a632f 4,33
+packages/kitty-service/src/services/agent-runtime/__test__/qq-reply-event-subscriber.test.ts
+  s_89cafc4f309476::t_11f115271f4add 6,19,46,155,450
+packages/kitty-service/src/services/agent-runtime/application/agent-runtime-harness.ts
+  s_89cafc4f309476::t_216a1673a6b3fc 10-16,61-62
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_89cafc4f309476::t_f93f45c72cf919 3,57,62,93-98
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-event-subscriber.ts
+  s_89cafc4f309476::t_6b89168cf3e7e1 12,39,118,153
+packages/kitty-service/src/services/agent-runtime/domain/agent-conversation-message.ts
+  s_89cafc4f309476::t_164446cd0f8e40 2-6
+packages/kitty-service/src/services/agent-runtime/domain/agent-observation.ts
+  s_89cafc4f309476::t_4e9432e7463729 4
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_89cafc4f309476::t_61dc4744530d86 21-31,181,183-188
+packages/kitty-service/src/services/agent-runtime/ports/agent-runtime-harness.port.ts
+  s_89cafc4f309476::t_9b0a460506ad64 3
+packages/kitty-service/src/services/agent-runtime/ports/qq-reply-agent.port.ts
+  s_89cafc4f309476::t_d9408c8f220d7f 2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "ffc7ea34e8b2dae15ab948a973c55d5d9ad80ec8",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
