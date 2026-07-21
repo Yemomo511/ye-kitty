@@ -62,6 +62,6 @@ Bootstrap 只创建实例和管理生命周期，不沉淀平台协议、Prompt�
 - 目录提供上下文，文件只表达最小元素，例如 `prompt/composer.ts`、`tools/runtime.ts`、`lm/pool.ts`。
 - 文件名禁止包含 `harness` 以及 `.service`、`.factory`、`.adapter`、`.port`、`.contract`、`.controller` 等角色后缀。
 - 平台目录内不重复平台名，`lm/code-agent` 内不重复 `code-agent`。
-- 测试与被测文件同目录并使用同名 `.test.ts`。
+- 测试统一放入其直接所属模块的 `__test__/` 目录，文件名与被测元素对应并使用 `.test.ts`。
 
 完整设计与迁移记录见 `design-docs/Architecture/platform-agent-shared-refactor.md`。

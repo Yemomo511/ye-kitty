@@ -10,7 +10,7 @@
 - 删除 `harness`、`service`、`factory`、`adapter`、`port`、`contract`、`controller` 等架构角色后缀。
 - 删除平台目录内的 `qq`、`xiaohongshu`、`onebot` 重复前缀。
 - 删除 `lm/code-agent` 内的 `code-agent` 重复前缀。
-- 测试与被测源文件同名并使用 `.test.ts`。
+- 测试统一放入其直接所属模块的 `__test__/` 目录，文件名与被测元素对应并使用 `.test.ts`。
 - 多个旧文件可以合并到同一个新文件；空骨架和无调用方抽象直接删除。
 
 ## Bootstrap
@@ -210,14 +210,14 @@
 
 ## 测试改名示例
 
-| 当前测试名                        | 目标测试名                                  |
-| --------------------------------- | ------------------------------------------- |
-| `agent-runtime-harness.test.ts`   | `agent-runtime/agent.test.ts`               |
-| `prompt-composer.test.ts`         | `agent-runtime/prompt/composer.test.ts`     |
-| `mcp-runtime.test.ts`             | `agent-runtime/tools/mcp/runtime.test.ts`   |
-| `model-pool.test.ts`              | `agent-runtime/lm/pool.test.ts`             |
-| `code-agent-orchestrator.test.ts` | `agent-runtime/lm/code-agent/agent.test.ts` |
-| `qq-reply-subscriber.test.ts`     | `agent-runtime/subscriber.test.ts`          |
+| 当前测试名                        | 目标测试名                                           |
+| --------------------------------- | ---------------------------------------------------- |
+| `agent-runtime-harness.test.ts`   | `agent-runtime/__test__/agent.test.ts`               |
+| `prompt-composer.test.ts`         | `agent-runtime/prompt/__test__/composer.test.ts`     |
+| `mcp-runtime.test.ts`             | `agent-runtime/tools/mcp/__test__/runtime.test.ts`   |
+| `model-pool.test.ts`              | `agent-runtime/lm/__test__/pool.test.ts`             |
+| `code-agent-orchestrator.test.ts` | `agent-runtime/lm/code-agent/__test__/agent.test.ts` |
+| `qq-reply-subscriber.test.ts`     | `agent-runtime/__test__/subscriber.test.ts`          |
 
 ## 迁移核对
 

@@ -402,7 +402,7 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 2. 删除文件名中的 `harness`、`.service`、`.factory`、`.adapter`、`.port`、`.contract`、`.controller`。
 3. 平台目录内删除平台前缀：`qq/message.ts`，不是 `qq/qq-message.ts`。
 4. `lm/code-agent` 内删除 `code-agent` 前缀：`session.ts`，不是 `code-agent-session.ts`。
-5. 测试名与源文件同名：`agent.test.ts`、`prompt/composer.test.ts`。
+5. 测试集中在直接所属模块的 `__test__/` 中：`agent-runtime/__test__/agent.test.ts`、`prompt/__test__/composer.test.ts`。
 6. 对外核心类型只使用 Agent、AgentAction、Observation、Tool、LM、Model。
 7. 只有同一目录发生真实重名时才增加语义修饰词，不能用架构后缀消除重名。
 
@@ -463,6 +463,7 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 - 所有执行能力只能通过 Tools Registry 暴露；Schedule 不导入具体 Tool 实现。
 - LM 不导入 Tools；Code Agent 的 Agent 入口只能位于 `tools/code.ts`。
 - 文件名不含 `harness`、架构角色后缀、目录上下文中重复的平台前缀。
+- `.test.*` 与 `.spec.*` 测试文件必须位于直接所属模块的 `__test__/` 目录。
 - 不存在跨模块依赖环和遗留路径别名。
 
 ## 测试与验收
@@ -498,4 +499,5 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 - 当前状态：已完成，等待产品行为验收。
 - 已完成：Platforms、Agent Runtime、Shared 和 Bootstrap 已全部迁入目标结构；Prompt、Skills、Tools、Schedule、LM、Model Pool 与 Code Agent 均由新 owner 管理。
 - 清理结果：`services`、`contracts`、`control-plane` 以及任意深度的 `application`、`domain`、`infrastructure`、`ports` 已全部删除；旧命名兼容入口为零。
+- 测试治理：52 个测试文件已集中至直接所属模块的 `__test__` 目录，架构校验会拒绝目录外的 `.test.*` 与 `.spec.*` 文件。
 - 校验结果：严格架构校验和 TypeScript 类型检查通过；最终全量 `pnpm check` 结果记录在 `Task.md`。

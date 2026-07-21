@@ -31,9 +31,19 @@ export async function findArchitectureViolations(packageRoot, options = {}) {
   validateRootEntries(files, directories, legacyBudgets, violations);
   validateForbiddenDirectories(files, directories, legacyBudgets, violations);
   validateFileNames(files, legacyBudgets, violations);
+  validateTestLocations(files, violations);
   await validateDependencies(sourceRoot, files, violations);
 
   return violations.toSorted();
+}
+
+// 测试集中到直接所属模块的__test__目录，避免源码目录重新散落测试文件。
+function validateTestLocations(files, violations) {
+  for (const file of files) {
+    if (!/\.(?:test|spec)\.[^/]+$/i.test(file.path)) continue;
+    if (file.path.split('/').at(-2) === '__test__') continue;
+    violations.push(`测试文件必须位于__test__目录: ${file.path}`);
+  }
 }
 
 // 收集目录和文件，统一使用 POSIX 风格相对路径。
