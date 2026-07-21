@@ -7,20 +7,20 @@
 - 通过 `xpzouying/xiaohongshu-mcp` 完成项目级小红书启动、扫码登录、登录状态检查和 Harness 工具接入。
 - 通过上游 `list_mentions`、小红书平台信息源和 Agent Runtime 暂不处理订阅，建立被 `@` 提醒的近实时输入链路。
 - 让产品、开发、设计和 Agent 对第二版 Agent Runtime 的边界、分阶段实现、验收口径和唯一入口达成一致。
-- 将当前按微服务模板重复四层的目录重构为层优先、模块次之的模块化单体，降低空骨架和跨层耦合。
+- 摧毁当前微服务模块内重复的 application、domain、infrastructure、ports，改成顶层能力模块 + Shared。
 
 ## 当前状态
 
 - 状态：开发中
 - 负责人：Codex
 - 最近更新：2026-07-21
-- 唯一入口：`design-docs/Architecture/layered-modular-refactor.md`
+- 唯一入口：`design-docs/Architecture/flat-modular-refactor.md`
 
 ## 设计拆分
 
 | 模块                         | 设计文档                                                        | 状态   | 进度说明                                                                                                                                                                                                                                                                                                                                                               |
 | ---------------------------- | --------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Kitty Service 分层模块化重构 | `design-docs/Architecture/layered-modular-refactor.md`          | 设计中 | 已审计当前 8 个服务目录及跨层依赖，并参考 OpenClaude 的 entrypoints、services、tools、tasks、integrations 与类型组织，确定采用 Core、Application、Adapters、Entrypoints、Bootstrap、Shared 六层结构；待评审后进入基线冻结与架构校验阶段。                                                                                                                              |
+| Kitty Service 扁平模块化重构 | `design-docs/Architecture/flat-modular-refactor.md`             | 设计中 | 用户已否决六层方案，明确要求删除 application、domain、infrastructure、ports；当前方案改为 agent-runtime、chat、skills、tools、model-pool、mcp、code-agent、qq、xiaohongshu、bootstrap 十个完整能力模块 + Shared。                                                                                                                                                      |
 | Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md`                    | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、`get_custom_faces`、Prompt 三章治理、Prompt 宪法分层、第二章 instruction 化、显式 `HarnessPromptState` 状态机、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call`、`references/` 按需读取、文字类 `send_msg` 自动引用触发消息并 @ 发送者，以及自定义表情单独发送。 |
 | QQ 群聊低负载节奏控制        | `design-docs/QQ/chat-time.md`                                   | 待验收 | 将回复后门槛延长为 10-60 分钟与 10-50 条消息；随机片段改为每群每小时一个且只消费一次；冷却期屏蔽随机入口；所有群的未 @ 主动触发共享 2 分钟全局预算，节奏触发后仍强制读取最近 100 条群消息并回复；定向 12 项测试、Lint、类型与架构检查已通过。                                                                                                                          |
 | 模型请求池第一版             | `design-docs/Agent/model-request-pool-v1.md`                    | 待验收 | 已从单个 OpenAI 兼容模型配置演进为模型请求池，由统一调度层负责模型路由、单节点并发、请求间隔、429 退避、队列 TTL 和失败降级；定向模型池单元测试已通过。                                                                                                                                                                                                                |
@@ -48,7 +48,7 @@
 11. 扩展上游 `list_mentions`，把被提及提醒转换为小红书平台信息源并接入 Agent Runtime 暂不处理边界。
 12. 在 `services/llm/` 下构建通用 code agent 接入基建：contracts → domain → infrastructure（json-line-stream + Claude Code/Codex adapter + 探测 + 失败分类）→ application（orchestrator + gate）→ control-plane API；第一消费者交付后验证，第二消费者（harness AgentDecision 集成）独立 PR 跟进。（Phase 1 ✅）
 13. 在 `agent-runtime` 中新增 `delegate_code_agent` 决策分支 + Gatekeeper 审批模型：harness prompt 扩展 → risk 三层门禁 → code-agent-executor 审批循环 → harness 管线 5 个硬编码点改造 → QQ 端到端联调。（Phase 2 设计中）
-14. 评审分层模块化重构方案，按 Code Agent、平台与入口、Agent Runtime、旧骨架清理四个切片迁移，迁移期间保持每个提交可运行和可回滚。
+14. 评审扁平模块化重构方案，按 Code Agent、Agent Runtime 独立能力、平台模块、旧骨架清理四个切片迁移，彻底删除四层目录并保持每个提交可运行和可回滚。
 
 ## 阻塞与风险
 
@@ -66,7 +66,7 @@
 | 小红书 Cookie 文件权限          | 上游默认写出 `0644` 时，同机其他系统用户可能读取登录凭据                              | 容器入口将已有 Cookie 收紧到 `0600`，并设置 `umask 077` 保护后续文件。                                                                       |
 | 小红书通知接口属于网页内部能力  | 页面路径、响应结构或签名链路变化会导致 `list_mentions` 失效                           | 固定上游提交，通过页面自身请求读取并做结构校验；失败时退避且不发布不完整事件。                                                               |
 | 被提及内容包含提示注入          | 外部用户可以在 @内容中编写针对 Agent 的恶意指令                                       | 本期事件只到 Agent Runtime 订阅边界并明确跳过，不进入 Harness Prompt。                                                                       |
-| 架构迁移与 Phase 2 开发冲突     | Code Agent Harness 接入若继续修改旧路径，会制造重复迁移和合并冲突                     | 先评审并迁移 Code Agent 分层切片，后续 Phase 2 只在新路径开发；迁移提交不得顺带改业务算法。                                                  |
+| 架构迁移与 Phase 2 开发冲突     | Code Agent Harness 接入若继续修改旧路径，会制造重复迁移和合并冲突                     | 先迁移完整 Code Agent 模块，后续 Phase 2 只在新路径开发；迁移提交不得顺带改业务算法。                                                        |
 
 ## 验收总览
 
@@ -74,12 +74,13 @@
 - 开发验收：`agent-runtime` 内存在可测试的 Harness 主循环、工具注册、权限判断、工具执行和运行记录端口。
 - 设计验收：Skill、工具、权限、日志和最终动作边界在设计文档中有清晰信息结构，能支撑后续控制面展示。
 - Agent 验收：`design-docs/Task.md` 和 `design-docs/Agent/agent-runtime-harness.md` 状态一致，后续代码实现、测试和进度必须同步回写。
-- 架构验收：目录改为层优先、模块次之，Core/Application 不依赖具体平台或 SDK，旧微服务骨架与兼容 alias 全部删除，`pnpm check` 通过。
+- 架构验收：目录只按完整能力模块 + Shared 组织，application、domain、infrastructure、ports 目录为零，跨模块深层 import 和模块依赖环为零，`pnpm check` 通过。
 
 ## 变更记录
 
 | 日期       | 变更                                        | 原因                                                                                                         |
 | ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------ |
+| 2026-07-21 | 废弃六层方案并改为扁平能力模块              | 用户明确要求彻底删除 application、domain、infrastructure、ports，而不是把服务内分层翻转成全局分层。          |
 | 2026-07-21 | 新增 Kitty Service 分层模块化重构方案       | 当前微服务四层骨架与真实单体运行方式不匹配，需要按运行职责分层并收紧跨层依赖。                               |
 | 2026-07-06 | 新增 Harness Agent 第二版任务入口和进度拆分 | 将循环观察、工具调用和市场 Skill 协议对齐方案同步为团队进度。                                                |
 | 2026-07-06 | 完成 Harness Agent MVP 实现                 | 新增 Harness 循环、OpenAI Harness Runner、进程内最近消息工具、Prompt 分层治理和 Skill 扩展字段。             |
