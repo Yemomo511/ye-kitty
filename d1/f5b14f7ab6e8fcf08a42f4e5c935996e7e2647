@@ -1,0 +1,37 @@
+design-docs/Architecture/platform-agent-shared-refactor.md
+  s_89cafc4f309476::t_d1f2db593e5cde 499-501
+design-docs/Task.md
+  s_89cafc4f309476::t_1f63e9d78036d6 23,83
+packages/kitty-service/scripts/architecture-rules.d.mts
+  s_89cafc4f309476::t_b80e2958892863 1-12
+packages/kitty-service/scripts/architecture-rules.mjs
+  s_89cafc4f309476::t_3e93eb71fc13ed 1-204
+packages/kitty-service/scripts/validate-architecture.mjs
+  s_89cafc4f309476::t_d541fee7fb72fd 1,3-6,8-10,14-18
+packages/kitty-service/src/agent-runtime/index.ts
+  s_89cafc4f309476::t_c2f8a06e832fb5 1-8
+packages/kitty-service/src/bootstrap/__test__/architecture-rules.test.ts
+  s_89cafc4f309476::t_397b97595835b6 1-142
+packages/kitty-service/src/platforms/index.ts
+  s_89cafc4f309476::t_b74ae2251d673c 1-8
+packages/kitty-service/src/shared/index.ts
+  s_89cafc4f309476::t_a2fda45c3ebf88 1-8
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "d1f5b14f7ab6e8fcf08a42f4e5c935996e7e2647",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
