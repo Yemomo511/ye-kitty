@@ -1,8 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, test } from 'vitest';
-import { FilesystemSkillReferenceLoader } from '../infrastructure/skill-market/filesystem-skill-reference-loader';
-import type { SkillContent } from '../domain/skill';
+import { SkillReferenceLoader, type SkillContent } from '../../../agent-runtime/skills';
 
 const qqChatSkillRoot = join(process.cwd(), '..', '..', 'skills', 'qq-chat');
 
@@ -31,7 +30,7 @@ describe('qq-chat Skill动作协议', () => {
       },
       body: 'QQ聊天正文',
     };
-    const loader = new FilesystemSkillReferenceLoader();
+    const loader = new SkillReferenceLoader();
 
     expect(existsSync(join(qqChatSkillRoot, 'references', 'qq-action-json.md'))).toBe(true);
     expect(existsSync(join(qqChatSkillRoot, 'references', 'qq-action-style.md'))).toBe(true);

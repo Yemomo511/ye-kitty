@@ -1,5 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent } from '../../services/agent-runtime/domain/skill';
+import type { SkillContent } from '../skills';
 import { buildBaseAgentPrompt } from './system';
 import { buildQqReplyPrompt } from './turn';
 import { buildEnabledSkillPrompt } from './skills';

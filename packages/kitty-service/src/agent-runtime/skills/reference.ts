@@ -1,31 +1,39 @@
 import { lstat, readFile, realpath, stat } from 'node:fs/promises';
 import { extname, isAbsolute, join, relative } from 'node:path';
-import type { SkillContent } from '../../domain/skill';
-import type { SkillReferenceContent, SkillReferenceLimits } from '../../domain/skill-reference';
-import type { SkillReferenceLoaderPort } from '../../ports/skill-reference-loader.port';
+import type { SkillContent, SkillMetadata } from './skill';
+
+/** Skill引用读取限制。 */
+export interface SkillReferenceLimits {
+  readonly maxChars: number;
+  readonly maxReferencesPerRun: number;
+}
+
+/** 已启用Skill的引用内容。 */
+export interface SkillReferenceContent {
+  readonly skill: SkillMetadata;
+  readonly referencePath: string;
+  readonly absolutePath: string;
+  readonly content: string;
+}
+
+/** 读取已启用Skill引用文件的能力。 */
+export interface SkillReferenceReader {
+  loadSkillReference(skill: SkillContent, referencePath: string): Promise<SkillReferenceContent>;
+}
 
 const allowedReferenceExtensions = new Set(['.md', '.txt', '.json']);
 
-/** 默认引用读取限制 */
+/** 默认引用读取限制。 */
 export const DEFAULT_SKILL_REFERENCE_LIMITS: SkillReferenceLimits = {
   maxChars: 20 * 1024,
   maxReferencesPerRun: 3,
 };
 
-/**
- * 文件系统Skill引用加载器
- *
- * 只读取已启用 Skill 的 references 目录，避免 Skill 引用能力退化为任意文件读取。
- */
-export class FilesystemSkillReferenceLoader implements SkillReferenceLoaderPort {
+/** 受限读取已启用Skill的references目录。 */
+export class SkillReferenceLoader implements SkillReferenceReader {
   constructor(private readonly limits: SkillReferenceLimits = DEFAULT_SKILL_REFERENCE_LIMITS) {}
 
-  /**
-   * 加载Skill引用文件
-   * @param skill 已启用Skill
-   * @param referencePath 引用路径
-   * @returns 引用正文
-   */
+  /** 校验路径边界并读取引用正文。 */
   async loadSkillReference(
     skill: SkillContent,
     referencePath: string,
@@ -45,8 +53,7 @@ export class FilesystemSkillReferenceLoader implements SkillReferenceLoaderPort 
     const referencesRoot = join(skill.metadata.rootPath, 'references');
     const rootRealPath = await realpath(referencesRoot);
     const candidatePath = join(referencesRoot, normalizedPath);
-    const candidateLinkStat = await lstat(candidatePath);
-    if (candidateLinkStat.isSymbolicLink()) throw new Error('Skill引用文件不能是软链接');
+    if ((await lstat(candidatePath)).isSymbolicLink()) throw new Error('Skill引用文件不能是软链接');
 
     const candidateRealPath = await realpath(candidatePath);
     const relativePath = relative(rootRealPath, candidateRealPath);
@@ -66,7 +73,7 @@ export class FilesystemSkillReferenceLoader implements SkillReferenceLoaderPort 
     }
 
     console.info(
-      `✅ [AgentRuntime-SkillReferenceLoader] 已读取Skill引用 skill=${skill.metadata.name} reference=${normalizedPath} length=${content.length}`,
+      `✅ [AgentRuntime-Skill] 已读取Skill引用 skill=${skill.metadata.name} reference=${normalizedPath} length=${content.length}`,
     );
     return {
       skill: skill.metadata,

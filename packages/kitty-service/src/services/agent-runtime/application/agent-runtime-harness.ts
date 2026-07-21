@@ -7,8 +7,13 @@ import type {
   HarnessPromptPhase,
   HarnessPromptState,
 } from '../domain/harness-prompt-state';
-import type { SkillContent, SkillMetadata } from '../domain/skill';
-import type { SkillReferenceContent } from '../domain/skill-reference';
+import type {
+  SkillContent,
+  SkillContentReader,
+  SkillMetadata,
+  SkillReferenceContent,
+  SkillReferenceReader,
+} from '../../../agent-runtime/skills';
 import type { ToolExecutionResult } from '../domain/tool';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type {
@@ -17,8 +22,6 @@ import type {
   AgentRuntimeRunResult,
 } from '../ports/agent-runtime-harness.port';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
-import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
-import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
 import { GET_RECENT_MESSAGES_TOOL_NAME } from './runtime-tools';
@@ -55,8 +58,8 @@ export class AgentRuntimeHarness implements AgentRuntimeHarnessPort {
     private readonly toolRegistry: RuntimeToolRegistryPort,
     private readonly toolExecutor: RuntimeToolExecutorPort,
     private readonly conversationHistory: ConversationHistoryPort,
-    private readonly skillContentLoader: SkillContentLoaderPort | undefined,
-    private readonly skillReferenceLoader: SkillReferenceLoaderPort | undefined,
+    private readonly skillContentLoader: SkillContentReader | undefined,
+    private readonly skillReferenceLoader: SkillReferenceReader | undefined,
     private readonly fallbackAgent: QqReplyAgentPort,
     private readonly config: AgentRuntimeHarnessConfig,
   ) {}

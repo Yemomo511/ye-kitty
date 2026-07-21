@@ -53,6 +53,31 @@ describe('Agent Action 调度', () => {
     });
   });
 
+  test('把Agent运行上下文传递给工具', async () => {
+    const execute = vi.fn(async () => ({ success: true, summary: '完成' }));
+    const tool: Tool = { ...echoTool, name: 'context', execute };
+    const schedule = new Schedule(new ToolRegistry([tool]), new ToolExecutor(), allowAllTools());
+    const availableSkills = [
+      { name: 'chat-style', description: '聊天风格', rootPath: '/tmp/skills/chat-style' },
+    ];
+
+    await schedule.dispatch(
+      {
+        type: 'tool',
+        callId: 'call-context',
+        name: 'context',
+        input: {},
+        reason: '测试上下文',
+      },
+      { availableSkills },
+    );
+
+    expect(execute).toHaveBeenCalledWith(
+      {},
+      expect.objectContaining({ callId: 'call-context', availableSkills }),
+    );
+  });
+
   test('未知工具返回错误 Observation', async () => {
     const schedule = createSchedule();
 

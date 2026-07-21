@@ -9,10 +9,9 @@ import type {
 } from '../ports/group-chat-cadence.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { QqHarnessAdmissionQueuePort } from '../ports/qq-harness-admission-queue.port';
-import type { SkillContent } from '../domain/skill';
+import type { SkillContent, SkillRuntime } from '../../../agent-runtime/skills';
 import { InMemoryQqHarnessAdmissionQueue } from './in-memory-qq-harness-admission-queue';
 import { QqReplyActionExecutor } from './qq-reply-action-executor';
-import type { SkillRuntimeService } from './skill-runtime.service';
 
 const QQ_CHAT_SKILL_NAME = 'qq-chat';
 
@@ -37,7 +36,7 @@ export class QqReplyEventSubscriber {
     private readonly qqMessageService: PlatformMessageService<ChatEventContract>,
     botClient: QqBotClientPort,
     private readonly replyAgent: QqReplyAgentPort,
-    private readonly skillRuntime?: SkillRuntimeService,
+    private readonly skillRuntime?: SkillRuntime,
     private readonly config?: QqReplyEventSubscriberConfig,
     private readonly conversationHistory?: ConversationHistoryPort,
     private readonly groupChatCadence?: GroupChatCadencePort,
@@ -116,7 +115,7 @@ export class QqReplyEventSubscriber {
         message.message.id,
       )} textLength=${message.message.text.length}`,
     );
-    const availableSkills = await this.skillRuntime?.selectSkillsForRun({
+    const availableSkills = await this.skillRuntime?.selectSkills({
       platform: message.platform,
       conversationType: message.conversationType,
       messageText: message.message.text,
@@ -151,7 +150,7 @@ export class QqReplyEventSubscriber {
     if (!this.skillRuntime) return undefined;
 
     try {
-      const skill = await this.skillRuntime.loadSkillContent(QQ_CHAT_SKILL_NAME);
+      const skill = await this.skillRuntime.load(QQ_CHAT_SKILL_NAME);
       writeDebugLog(
         `✅ [AgentRuntime-QQReplySubscriber-loadQqChatSkill] 已为QQ消息预启用Skill skill=${QQ_CHAT_SKILL_NAME} conversationType=${message.conversationType} messageId=${maskId(
           message.message.id,

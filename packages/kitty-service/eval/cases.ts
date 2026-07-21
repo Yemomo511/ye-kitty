@@ -5,12 +5,8 @@ import type {
   MessageId,
   ParticipantId,
 } from '../src/shared/types/ids';
-import type {
-  AgentDecision,
-  AgentObservation,
-  SkillContent,
-  SkillMetadata,
-} from '../src/services/agent-runtime';
+import type { AgentDecision, AgentObservation } from '../src/services/agent-runtime';
+import type { SkillContent, SkillMetadata } from '../src/agent-runtime/skills';
 import {
   BuiltinRuntimeToolRegistry,
   GET_CUSTOM_FACES_TOOL_NAME,

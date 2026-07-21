@@ -1,6 +1,9 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent, SkillMetadata } from './skill';
-import type { SkillReferenceContent } from './skill-reference';
+import type {
+  SkillContent,
+  SkillMetadata,
+  SkillReferenceContent,
+} from '../../../agent-runtime/skills';
 import type { ToolExecutionResult } from './tool';
 
 /**

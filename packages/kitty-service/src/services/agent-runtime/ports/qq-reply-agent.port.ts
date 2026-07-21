@@ -1,5 +1,5 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent, SkillMetadata } from '../domain/skill';
+import type { SkillContent, SkillMetadata } from '../../../agent-runtime/skills';
 import type { QqReplyAction } from '../domain/qq-reply-action';
 
 export type { QqReplyAction } from '../domain/qq-reply-action';

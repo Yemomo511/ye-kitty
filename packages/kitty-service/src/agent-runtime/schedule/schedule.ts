@@ -4,6 +4,7 @@ import { writeDebugLog } from '../../shared/infrastructure/logging';
 import type { ToolExecutor } from '../tools/executor';
 import type { ToolPermission } from '../tools/permission';
 import type { ToolRegistry } from '../tools/registry';
+import type { AgentToolContext, ToolContext } from '../tools/tool';
 import type { ScheduleResult } from './result';
 import { ToolDispatcher } from './dispatcher';
 
@@ -27,23 +28,26 @@ export class Schedule {
   /**
    * 调度 Agent Action
    * @param action Agent 单轮动作
-   * @param signal 取消信号
+   * @param agentContext 本轮Agent运行上下文
    * @returns 最终结果或工具观察
    */
   async dispatch<TOutput>(
     action: AgentAction<TOutput>,
-    signal?: AbortSignal,
+    agentContext: AgentToolContext = {},
   ): Promise<ScheduleResult<TOutput>> {
     if (action.type === 'finish') return { type: 'finished', action };
 
     writeDebugLog(
       `🔍 [AgentRuntime-Schedule-dispatch] 开始调度工具 action=${action.name} callId=${action.callId}`,
     );
-    return { type: 'observed', observation: await this.dispatchTool(action, signal) };
+    return { type: 'observed', observation: await this.dispatchTool(action, agentContext) };
   }
 
   // 调度单次工具调用并归一化结果。
-  private async dispatchTool(action: ToolAction, signal?: AbortSignal): Promise<Observation> {
+  private async dispatchTool(
+    action: ToolAction,
+    agentContext: AgentToolContext,
+  ): Promise<Observation> {
     const tool = this.dispatcher.find(action.name);
     if (!tool) {
       return {
@@ -55,7 +59,7 @@ export class Schedule {
       };
     }
 
-    const context = { callId: action.callId, signal };
+    const context: ToolContext = { ...agentContext, callId: action.callId };
     const permission = await this.permission.check(tool, context);
     if (permission.status !== 'allowed') {
       return {

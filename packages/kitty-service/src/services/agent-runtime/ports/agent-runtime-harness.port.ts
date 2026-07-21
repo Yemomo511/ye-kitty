@@ -1,6 +1,6 @@
 import type { QqReplyAction } from './qq-reply-agent.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent, SkillMetadata } from '../domain/skill';
+import type { SkillContent, SkillMetadata } from '../../../agent-runtime/skills';
 
 /**
  * Harness运行输入

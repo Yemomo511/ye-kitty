@@ -1,7 +1,7 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { AgentConversationMessage } from './agent-conversation-message';
 import type { HarnessPromptState } from './harness-prompt-state';
-import type { SkillContent, SkillMetadata } from './skill';
+import type { SkillContent, SkillMetadata } from '../../../agent-runtime/skills';
 import type { RuntimeTool, ToolExecutionResult } from './tool';
 
 /**

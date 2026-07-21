@@ -3,7 +3,7 @@ import { QqReplyEventSubscriber } from '../application/qq-reply-event-subscriber
 import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
 import { InMemoryConversationHistory } from '../application/in-memory-conversation-history';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
-import { SkillRuntimeService } from '../application/skill-runtime.service';
+import { SkillRuntime } from '../../../agent-runtime/skills';
 import type { GroupChatCadencePort } from '../ports/group-chat-cadence.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type { QqOutboundMessageSegment } from '@kitty/platforms/qq/infrastructure/api';
@@ -16,7 +16,7 @@ import type {
 } from '@kitty/shared/types/ids';
 import type { QqBotClientPort } from '@kitty/platforms/qq/ports/qq-bot-client.port';
 import type { QqReplyAgentInput, QqReplyAgentPort } from '../ports/qq-reply-agent.port';
-import type { SkillMetadata } from '../domain/skill';
+import type { SkillMetadata } from '../../../agent-runtime/skills';
 import type { QqHarnessAdmissionQueuePort } from '../ports/qq-harness-admission-queue.port';
 
 describe('QqReplyEventSubscriber', () => {
@@ -43,7 +43,7 @@ describe('QqReplyEventSubscriber', () => {
           return { text: 'Agent回复：你好' };
         },
       },
-      new SkillRuntimeService(
+      new SkillRuntime(
         [skillMetadata],
         {
           async selectSkills() {
@@ -152,7 +152,7 @@ describe('QqReplyEventSubscriber', () => {
           return { text: 'Skill失败也能回复' };
         },
       },
-      new SkillRuntimeService(
+      new SkillRuntime(
         [skillMetadata],
         {
           async selectSkills() {
@@ -447,7 +447,7 @@ describe('QqReplyEventSubscriber', () => {
     const conversationHistory = new InMemoryConversationHistory();
     const queuedMentions: boolean[] = [];
     const selectSkills = vi.fn(async () => []);
-    const skillRuntime = new SkillRuntimeService(
+    const skillRuntime = new SkillRuntime(
       [],
       { selectSkills },
       {

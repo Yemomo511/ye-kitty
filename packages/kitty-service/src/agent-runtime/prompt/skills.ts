@@ -6,13 +6,12 @@ import type {
   SkillPromptSection,
   SkillReferenceIndex,
   SkillReferencePromptDocument,
-} from '../../services/agent-runtime/domain/skill-prompt-document';
+} from './document';
 import {
   SKILL_PROMPT_DOCUMENT_SCHEMA_VERSION,
   SKILL_REFERENCE_PROMPT_DOCUMENT_SCHEMA_VERSION,
-} from '../../services/agent-runtime/domain/skill-prompt-document';
-import type { SkillContent, SkillMetadata } from '../../services/agent-runtime/domain/skill';
-import type { SkillReferenceContent } from '../../services/agent-runtime/domain/skill-reference';
+} from './document';
+import type { SkillContent, SkillMetadata, SkillReferenceContent } from '../skills';
 
 const allowedReferenceExtensions = new Set<SkillReferenceIndex['extension']>([
   '.md',

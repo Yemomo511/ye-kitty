@@ -11,8 +11,7 @@ import {
 import type { AgentObservation } from '../domain/agent-observation';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
-import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
-import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
+import type { SkillContentReader, SkillReferenceReader } from '../../../agent-runtime/skills';
 import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
@@ -915,8 +914,8 @@ describe('AgentRuntimeHarness', () => {
 
 function createHarness(
   runner: AgentRunnerPort,
-  skillContentLoader: SkillContentLoaderPort | undefined = createSkillContentLoader(),
-  skillReferenceLoader: SkillReferenceLoaderPort | undefined = createSkillReferenceLoader(),
+  skillContentLoader: SkillContentReader | undefined = createSkillContentLoader(),
+  skillReferenceLoader: SkillReferenceReader | undefined = createSkillReferenceLoader(),
 ): AgentRuntimeHarness {
   const history = new InMemoryConversationHistory();
   return new AgentRuntimeHarness(
@@ -978,7 +977,7 @@ function createHarnessWithTools(
   );
 }
 
-function createSkillContentLoader(): SkillContentLoaderPort {
+function createSkillContentLoader(): SkillContentReader {
   return {
     async loadSkillContent(skillName) {
       return {
@@ -993,7 +992,7 @@ function createSkillContentLoader(): SkillContentLoaderPort {
   };
 }
 
-function createSkillReferenceLoader(): SkillReferenceLoaderPort {
+function createSkillReferenceLoader(): SkillReferenceReader {
   return {
     async loadSkillReference(skill, referencePath) {
       return {

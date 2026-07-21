@@ -6,20 +6,22 @@ import {
 } from '../src/platforms/qq/application/qq-account-experiment.factory';
 import { createXiaohongshuMentionSource } from '../src/platforms/xiaohongshu';
 import {
+  SkillCatalog,
+  SkillLoader,
+  SkillReferenceLoader,
+  SkillRuntime,
+  SkillSelector,
+} from '../src/agent-runtime/skills';
+import {
   createQqReplyAgent,
   CustomFaceCatalogService,
-  DefaultSkillSelector,
-  FilesystemSkillReferenceLoader,
-  FilesystemSkillMarket,
   GroupChatCadenceController,
   InMemoryQqHarnessAdmissionQueue,
   InMemoryConversationHistory,
   loadQqReplyAgentConfig,
   loadCustomFaceVisionAgentConfig,
-  MarkdownSkillContentLoader,
   OpenAiCustomFaceVisionAgent,
   QqReplyEventSubscriber,
-  SkillRuntimeService,
   createXiaohongshuMcpServerConfig,
   XiaohongshuMentionEventSubscriber,
 } from '../src/services/agent-runtime';
@@ -34,13 +36,13 @@ const qqRuntime = createQqAccountExperimentChannel(qqConfig);
 // 3. 启动期只扫描 Skill 元信息，正文留到消息命中后渐进读取。
 const skillsRoot = findNearestDirectory(process.cwd(), 'skills');
 if (!skillsRoot) throw new Error('未找到根目录 skills 资产目录');
-const skillMarket = new FilesystemSkillMarket(skillsRoot);
-const skillMetadataList = await skillMarket.listSkillMetadata();
-const skillRuntime = new SkillRuntimeService(
+const skillCatalog = new SkillCatalog(skillsRoot);
+const skillMetadataList = await skillCatalog.listSkillMetadata();
+const skillRuntime = new SkillRuntime(
   skillMetadataList,
-  new DefaultSkillSelector(),
-  new MarkdownSkillContentLoader(skillMetadataList),
-  new FilesystemSkillReferenceLoader(),
+  new SkillSelector(),
+  new SkillLoader(skillMetadataList),
+  new SkillReferenceLoader(),
 );
 console.info(
   `✅ [AgentRuntime-SkillBootstrap] 已加载Skill元信息 count=${skillMetadataList.length}`,

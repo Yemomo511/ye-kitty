@@ -1,3 +1,5 @@
+import type { SkillContent, SkillMetadata } from '../skills';
+
 /** 工具风险等级。 */
 export type ToolRisk = 'low' | 'medium' | 'high';
 
@@ -7,7 +9,14 @@ export interface ToolContext {
   readonly callId: string;
   /** 取消信号 */
   readonly signal?: AbortSignal;
+  /** 本轮允许Agent发现的Skill目录。 */
+  readonly availableSkills?: readonly SkillMetadata[];
+  /** 本轮已经加载到上下文的Skill正文。 */
+  readonly enabledSkills?: readonly SkillContent[];
 }
+
+/** Schedule调用时提供的Agent运行上下文，调用ID由Action补充。 */
+export type AgentToolContext = Omit<ToolContext, 'callId'>;
 
 /** 工具原始执行结果。 */
 export interface ToolResult {

@@ -13,15 +13,22 @@ export type {
   HarnessPromptState,
 } from './domain/harness-prompt-state';
 export type { QqReplyAction } from './domain/qq-reply-action';
-export type { SkillContent, SkillMetadata } from './domain/skill';
 export type {
   SkillPromptDocument,
   SkillPromptSection,
   SkillReferenceIndex,
   SkillReferencePromptDocument,
-} from './domain/skill-prompt-document';
-export type { SkillReferenceContent, SkillReferenceLimits } from './domain/skill-reference';
-export type { SkillSelectionContext } from './domain/skill-selection-context';
+} from '../../agent-runtime/prompt/document';
+export type {
+  SkillContent,
+  SkillContentReader,
+  SkillMetadata,
+  SkillReferenceContent,
+  SkillReferenceLimits,
+  SkillReferenceReader,
+  SkillSelection,
+  SkillSelectionContext,
+} from '../../agent-runtime/skills';
 export type { AgentConversationMessage } from './domain/agent-conversation-message';
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
 export type {
@@ -60,10 +67,6 @@ export type {
   QqHarnessAdmissionResult,
   QqHarnessAdmissionTask,
 } from './ports/qq-harness-admission-queue.port';
-export type { SkillMarketPort } from './ports/skill-market.port';
-export type { SkillContentLoaderPort } from './ports/skill-content-loader.port';
-export type { SkillReferenceLoaderPort } from './ports/skill-reference-loader.port';
-export type { SkillSelectorPort } from './ports/skill-selector.port';
 export type { RuntimeToolExecutorPort } from './ports/tool-executor.port';
 export type { RuntimeToolRegistryPort } from './ports/tool-registry.port';
 export type {
@@ -96,12 +99,7 @@ export {
   DEFAULT_QQ_HARNESS_ADMISSION_QUEUE_CONFIG,
   InMemoryQqHarnessAdmissionQueue,
 } from './application/in-memory-qq-harness-admission-queue';
-export {
-  DEFAULT_VISIBLE_SKILL_LIMIT,
-  DefaultSkillSelector,
-} from './application/default-skill-selector';
 export { SafeQqReplyAgent } from './application/safe-qq-reply.agent';
-export { SkillRuntimeService } from './application/skill-runtime.service';
 export { CustomFaceCatalogService } from './application/custom-face-catalog.service';
 export {
   BuiltinRuntimeToolExecutor,
@@ -179,11 +177,14 @@ export {
   type OpenAiQqReplyAgentConfig,
 } from './infrastructure/openai-qq-reply.agent';
 export { parseQqReplyAction } from './domain/qq-reply-action';
-export { FilesystemSkillMarket } from './infrastructure/skill-market/filesystem-skill-market';
-export { MarkdownSkillContentLoader } from './infrastructure/skill-market/markdown-skill-content-loader';
 export {
+  DEFAULT_VISIBLE_SKILL_LIMIT,
   DEFAULT_SKILL_REFERENCE_LIMITS,
-  FilesystemSkillReferenceLoader,
-} from './infrastructure/skill-market/filesystem-skill-reference-loader';
+  SkillCatalog,
+  SkillLoader,
+  SkillReferenceLoader,
+  SkillRuntime,
+  SkillSelector,
+} from '../../agent-runtime/skills';
 export { composeQqReplyPrompt } from '../../agent-runtime/prompt/reply';
 export { composeAgentPrompt, type AgentPrompt } from '../../agent-runtime/prompt/composer';

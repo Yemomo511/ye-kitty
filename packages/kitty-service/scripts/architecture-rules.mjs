@@ -15,14 +15,14 @@ const IMPORT_PATTERN = /(?:from\s+|import\s*\(\s*|import\s+)['"]([^'"]+)['"]/g;
  * 同时阻止新代码继续进入待废弃目录和命名体系。
  */
 export const CURRENT_LEGACY_BUDGETS = Object.freeze({
-  topLevelFiles: Object.freeze({ contracts: 5, 'control-plane': 4, services: 144 }),
+  topLevelFiles: Object.freeze({ contracts: 5, 'control-plane': 4, services: 129 }),
   forbiddenDirectories: Object.freeze({
-    application: 40,
-    domain: 28,
-    infrastructure: 38,
-    ports: 30,
+    application: 38,
+    domain: 24,
+    infrastructure: 34,
+    ports: 26,
   }),
-  forbiddenFileNames: 72,
+  forbiddenFileNames: 67,
 });
 
 /**

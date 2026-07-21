@@ -10,4 +10,5 @@ export { normalizeAgentAction } from './action';
 export type { Observation, ObservationStatus } from './observation';
 export * from './prompt';
 export * from './schedule';
+export * from './skills';
 export * from './tools';

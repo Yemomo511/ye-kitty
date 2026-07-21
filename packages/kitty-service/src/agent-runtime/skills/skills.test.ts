@@ -2,10 +2,7 @@ import { mkdtemp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import { DefaultSkillSelector } from '../application/default-skill-selector';
-import { FilesystemSkillMarket } from '../infrastructure/skill-market/filesystem-skill-market';
-import { FilesystemSkillReferenceLoader } from '../infrastructure/skill-market/filesystem-skill-reference-loader';
-import { MarkdownSkillContentLoader } from '../infrastructure/skill-market/markdown-skill-content-loader';
+import { SkillCatalog, SkillLoader, SkillReferenceLoader, SkillRuntime, SkillSelector } from '.';
 
 describe('Skill文件系统资产', () => {
   const tempDirectories: string[] = [];
@@ -28,7 +25,7 @@ describe('Skill文件系统资产', () => {
       '# QQ中文聊天',
     ]);
 
-    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
 
     expect(metadataList).toEqual([
       {
@@ -56,8 +53,8 @@ describe('Skill文件系统资产', () => {
       '# QQ中文聊天',
     ]);
 
-    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
-    const content = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('qq-chat');
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
+    const content = await new SkillLoader(metadataList).loadSkillContent('qq-chat');
 
     expect(metadataList[0]).toMatchObject({
       allowedTools: ['get_recent_messages', 'search_memory'],
@@ -86,13 +83,13 @@ describe('Skill文件系统资产', () => {
       '',
       '使用中文自然回复。',
     ]);
-    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
-    const content = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('qq-chat');
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
+    const content = await new SkillLoader(metadataList).loadSkillContent('qq-chat');
 
     expect(content.metadata.name).toBe('qq-chat');
     expect(content.body).toContain('使用中文自然回复。');
     expect(infoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[AgentRuntime-SkillContentLoader] 已读取Skill正文 name=qq-chat'),
+      expect.stringContaining('[AgentRuntime-Skill] 已读取Skill正文 name=qq-chat'),
     );
   });
 
@@ -100,9 +97,7 @@ describe('Skill文件系统资产', () => {
     const skillsRoot = await createTempSkillsRoot();
     await mkdir(join(skillsRoot, 'broken'), { recursive: true });
 
-    await expect(new FilesystemSkillMarket(skillsRoot).listSkillMetadata()).rejects.toThrow(
-      /SKILL\.md/,
-    );
+    await expect(new SkillCatalog(skillsRoot).listSkillMetadata()).rejects.toThrow(/SKILL\.md/);
   });
 
   test('缺少name或description时抛出清晰错误', async () => {
@@ -115,9 +110,7 @@ describe('Skill文件系统资产', () => {
       '# 缺少名称',
     ]);
 
-    await expect(new FilesystemSkillMarket(skillsRoot).listSkillMetadata()).rejects.toThrow(
-      '缺少name',
-    );
+    await expect(new SkillCatalog(skillsRoot).listSkillMetadata()).rejects.toThrow('缺少name');
   });
 
   test('缺少description时抛出清晰错误', async () => {
@@ -130,13 +123,13 @@ describe('Skill文件系统资产', () => {
       '# 缺少描述',
     ]);
 
-    await expect(new FilesystemSkillMarket(skillsRoot).listSkillMetadata()).rejects.toThrow(
+    await expect(new SkillCatalog(skillsRoot).listSkillMetadata()).rejects.toThrow(
       '缺少description',
     );
   });
 
   test('默认Skill选择器返回平台无关Skill目录', async () => {
-    const selector = new DefaultSkillSelector();
+    const selector = new SkillSelector();
     const skills = await selector.selectSkills(
       {
         platform: 'qq',
@@ -176,20 +169,17 @@ describe('Skill文件系统资产', () => {
       '示例：短句回复。',
       'utf8',
     );
-    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
-    const skill = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('chat-style');
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
+    const skill = await new SkillLoader(metadataList).loadSkillContent('chat-style');
 
-    const reference = await new FilesystemSkillReferenceLoader().loadSkillReference(
-      skill,
-      'examples.md',
-    );
+    const reference = await new SkillReferenceLoader().loadSkillReference(skill, 'examples.md');
 
     expect(reference).toMatchObject({
       referencePath: 'examples.md',
       content: '示例：短句回复。',
     });
     expect(infoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[AgentRuntime-SkillReferenceLoader] 已读取Skill引用'),
+      expect.stringContaining('[AgentRuntime-Skill] 已读取Skill引用'),
     );
   });
 
@@ -206,9 +196,9 @@ describe('Skill文件系统资产', () => {
     await mkdir(join(skillsRoot, 'chat-style', 'references'), { recursive: true });
     await writeFile(join(skillsRoot, 'secret.md'), '密文', 'utf8');
     await writeFile(join(skillsRoot, 'chat-style', 'references', 'script.ts'), '代码', 'utf8');
-    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
-    const skill = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('chat-style');
-    const loader = new FilesystemSkillReferenceLoader();
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
+    const skill = await new SkillLoader(metadataList).loadSkillContent('chat-style');
+    const loader = new SkillReferenceLoader();
 
     await expect(loader.loadSkillReference(skill, '../secret.md')).rejects.toThrow('上级目录');
     await expect(loader.loadSkillReference(skill, 'script.ts')).rejects.toThrow('扩展名不允许');
@@ -235,18 +225,49 @@ describe('Skill文件系统资产', () => {
       'x'.repeat(8),
       'utf8',
     );
-    const metadataList = await new FilesystemSkillMarket(skillsRoot).listSkillMetadata();
-    const skill = await new MarkdownSkillContentLoader(metadataList).loadSkillContent('chat-style');
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
+    const skill = await new SkillLoader(metadataList).loadSkillContent('chat-style');
 
+    await expect(new SkillReferenceLoader().loadSkillReference(skill, 'link.md')).rejects.toThrow(
+      '软链接',
+    );
     await expect(
-      new FilesystemSkillReferenceLoader().loadSkillReference(skill, 'link.md'),
-    ).rejects.toThrow('软链接');
-    await expect(
-      new FilesystemSkillReferenceLoader({
+      new SkillReferenceLoader({
         maxChars: 4,
         maxReferencesPerRun: 3,
       }).loadSkillReference(skill, 'large.md'),
     ).rejects.toThrow('大小限制');
+  });
+
+  test('运行时统一选择并渐进读取Skill', async () => {
+    const skillsRoot = await createTempSkillsRoot();
+    await writeSkillFile(skillsRoot, 'chat-style', [
+      '---',
+      'name: chat-style',
+      'description: 聊天风格',
+      '---',
+      '',
+      '# 聊天风格',
+    ]);
+    const metadataList = await new SkillCatalog(skillsRoot).listSkillMetadata();
+    const runtime = new SkillRuntime(
+      metadataList,
+      new SkillSelector(),
+      new SkillLoader(metadataList),
+      new SkillReferenceLoader(),
+    );
+
+    const selected = await runtime.selectSkills({
+      platform: 'qq',
+      conversationType: 'group',
+      messageText: '你好',
+      mentionsAgent: false,
+      receivedAt: new Date('2026-07-02T00:00:00.000Z'),
+    });
+    const content = await runtime.load('chat-style');
+
+    expect(selected.map((skill) => skill.name)).toEqual(['chat-style']);
+    expect(content.body).toContain('# 聊天风格');
   });
 
   async function createTempSkillsRoot(): Promise<string> {

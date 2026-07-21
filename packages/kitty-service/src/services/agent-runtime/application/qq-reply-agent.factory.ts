@@ -1,7 +1,6 @@
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
-import type { SkillContentLoaderPort } from '../ports/skill-content-loader.port';
-import type { SkillReferenceLoaderPort } from '../ports/skill-reference-loader.port';
+import type { SkillRuntime } from '../../../agent-runtime/skills';
 import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
 import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
@@ -55,12 +54,12 @@ export interface QqReplyAgentRuntimeDependencies {
 /**
  * 创建QQ回复Agent
  * @param config 运行配置
- * @param skillContentLoader Skill正文加载器
+ * @param skillRuntime Skill渐进读取入口
  * @returns 回复Agent
  */
 export function createQqReplyAgent(
   config: QqReplyAgentRuntimeConfig,
-  skillContentLoader?: SkillContentLoaderPort & Partial<SkillReferenceLoaderPort>,
+  skillRuntime?: SkillRuntime,
   dependencies: QqReplyAgentRuntimeDependencies = {},
 ): QqReplyAgentPort {
   const fallbackAgent = new FallbackQqReplyAgent();
@@ -91,9 +90,12 @@ export function createQqReplyAgent(
     toolRegistry,
     toolExecutor,
     conversationHistory,
-    skillContentLoader,
-    skillContentLoader?.loadSkillReference
-      ? (skillContentLoader as SkillReferenceLoaderPort)
+    skillRuntime ? { loadSkillContent: async (name) => await skillRuntime.load(name) } : undefined,
+    skillRuntime
+      ? {
+          loadSkillReference: async (skill, reference) =>
+            await skillRuntime.loadReference(skill, reference),
+        }
       : undefined,
     fallbackAgent,
     {
