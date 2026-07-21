@@ -1,8 +1,8 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type { SkillContent } from '../../domain/skill';
-import { buildBaseAgentPrompt } from './base-agent.prompt';
-import { buildQqReplyPrompt } from './qq-reply.prompt';
-import { buildEnabledSkillPrompt } from './skill.prompt';
+import type { SkillContent } from '../../services/agent-runtime/domain/skill';
+import { buildBaseAgentPrompt } from './system';
+import { buildQqReplyPrompt } from './turn';
+import { buildEnabledSkillPrompt } from './skills';
 
 /**
  * QQ回复Prompt

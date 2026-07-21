@@ -76,6 +76,46 @@ describe('parseQqReplyAgentResult', () => {
 });
 
 describe('parseAgentDecision', () => {
+  test('兼容新的 ToolAction', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'tool',
+          callId: 'call-1',
+          name: 'get_recent_messages',
+          input: { limit: 3 },
+          reason: '需要上下文',
+        }),
+      ),
+    ).toEqual({
+      type: 'tool_call',
+      toolName: 'get_recent_messages',
+      input: { limit: 3 },
+      reason: '需要上下文',
+    });
+  });
+
+  test('兼容新的 FinishAction 并过滤未知回复动作', () => {
+    expect(
+      parseAgentDecision(
+        JSON.stringify({
+          type: 'finish',
+          result: 'reply',
+          output: {
+            text: '安全回复',
+            actions: [{ type: 'set_group_kick' }, { type: 'poke_sender' }],
+          },
+          reason: '可以回复',
+        }),
+      ),
+    ).toEqual({
+      type: 'reply',
+      text: '安全回复',
+      actions: [{ type: 'poke_sender' }],
+      reason: '可以回复',
+    });
+  });
+
   test('解析工具调用决策', () => {
     expect(
       parseAgentDecision(

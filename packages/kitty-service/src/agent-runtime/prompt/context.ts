@@ -1,7 +1,7 @@
-import type { AgentConversationMessage } from '../../domain/agent-conversation-message';
-import type { RuntimeTool } from '../../domain/tool';
-import { buildSkillPrompt } from './skill.prompt';
-import { buildToolPrompt } from './tool.prompt';
+import type { AgentConversationMessage } from '../../services/agent-runtime/domain/agent-conversation-message';
+import type { RuntimeTool } from '../../services/agent-runtime/domain/tool';
+import { buildSkillPrompt } from './skills';
+import { buildToolPrompt } from './tools';
 
 /**
  * 构建外界上下文Prompt

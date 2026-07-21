@@ -2,13 +2,13 @@ import { describe, expect, test } from 'vitest';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { composeQqReplyPrompt } from '../infrastructure/prompt/prompt-composer';
-import { composeHarnessPrompt } from '../infrastructure/prompt/harness.prompt';
+import { composeQqReplyPrompt } from './reply';
+import { composeAgentPrompt } from './composer';
 import {
   buildAvailableSkillCatalogPrompt,
   buildEnabledSkillPrompt,
   createSkillPromptDocument,
-} from '../infrastructure/prompt/skill.prompt';
+} from './skills';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   ChatEventId,
@@ -83,9 +83,10 @@ describe('Agent Runtime Prompt组织', () => {
       },
     ]);
     expect(document.referenceAccess).toEqual({
-      type: 'skill_reference_call',
-      trigger:
-        '<skill_document> 可能引用 references/ 下的具体文件；当你认为任何时候有需要读取 reference 文件时，使用 skill_reference_call。',
+      type: 'tool',
+      name: 'skill',
+      referenceField: 'reference',
+      trigger: '当你需要读取 reference 文件时，调用 skill Tool 并提供 reference。',
       constraint:
         '只能请求当前已启用 Skill 的 references 索引内文件；不得猜测未出现在 references[].path 中的路径。',
       references: [
@@ -141,8 +142,8 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.input).toContain('用户消息文本：你好');
   });
 
-  test('Harness Prompt包含循环协议和工具描述', () => {
-    const prompt = composeHarnessPrompt('叶猫猫', {
+  test('Agent Prompt包含循环协议和工具描述', () => {
+    const prompt = composeAgentPrompt('叶猫猫', {
       event: createChatEvent(),
       availableSkills: [
         {
@@ -181,27 +182,30 @@ describe('Agent Runtime Prompt组织', () => {
       maxToolCalls: 3,
     });
 
-    expect(prompt.instructions).toContain('# 第一章节: Harness System Prompt');
+    expect(prompt.instructions).toContain('# 第一章节: Agent System Prompt');
     expect(prompt.instructions).toContain('# 第二章节: Outside Context Prompt');
     expect(prompt.instructions).toContain('## 1.1 宪法约束');
     expect(prompt.instructions).toContain('## 1.2 状态机约束');
-    expect(prompt.instructions).toContain('## 1.3 JSON 行动契约');
+    expect(prompt.instructions).toContain('## 1.3 JSON Action 契约');
     expect(prompt.instructions).toContain('每一轮输出必须是单个 JSON 对象');
-    expect(prompt.instructions).toContain('当你想启用 Skill 时');
-    expect(prompt.instructions).toContain('已启用时直接遵守正文');
+    expect(prompt.instructions).toContain('启用 Skill 正文');
+    expect(prompt.instructions).toContain('需要未启用 Skill 正文');
     expect(prompt.instructions).toContain('首轮决策前自动注入最近消息观察');
-    expect(prompt.instructions).toContain('不要为已成功注入的 `get_recent_messages` 重复返回');
+    expect(prompt.instructions).toContain('不要重复调用已经成功完成的工具');
     expect(prompt.instructions).toContain('可请求Skill目录');
     expect(prompt.instructions).toContain('用于 QQ 回复');
     expect(prompt.instructions).not.toContain('能力说明：');
     expect(prompt.instructions).not.toContain('群聊回复短一点。');
     expect(prompt.instructions).toContain('读取最近消息');
     expect(prompt.instructions).toContain('存在安全、合规、隐私或边界风险');
-    expect(prompt.instructions).toContain('"type": "skill_call"');
-    expect(prompt.instructions).toContain('"type": "skill_reference_call"');
-    expect(prompt.instructions).toContain('"type": "tool_call"');
+    expect(prompt.instructions).toContain('"type": "tool"');
+    expect(prompt.instructions).toContain('"name": "skill"');
+    expect(prompt.instructions).not.toContain('Harness');
+    expect(prompt.instructions).not.toContain('"type": "skill_call"');
+    expect(prompt.instructions).not.toContain('"type": "skill_reference_call"');
+    expect(prompt.instructions).not.toContain('"type": "tool_call"');
     expect(prompt.instructions).toContain('send_text_with_face');
-    expect(prompt.instructions).toContain('当使用 `poke_sender` 时');
+    expect(prompt.instructions).toContain('使用 `poke_sender` 时');
     expect(prompt.instructions.indexOf('## 2.1 Skill Prompt')).toBeLessThan(
       prompt.instructions.indexOf('## 2.2 Tool Prompt'),
     );
@@ -218,13 +222,13 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.input).toContain('用户消息文本：你好');
   });
 
-  test('Harness Prompt在Skill启用后仅在instruction第二章包含正文', () => {
+  test('Agent Prompt在Skill启用后仅在instruction第二章包含正文', () => {
     const event = createChatEvent();
-    const rootPath = join(tmpdir(), `harness-skill-doc-${Date.now()}`);
+    const rootPath = join(tmpdir(), `agent-skill-doc-${Date.now()}`);
     mkdirSync(join(rootPath, 'references'), { recursive: true });
     writeFileSync(join(rootPath, 'references', 'examples.md'), '参考正文不应提前读取。');
 
-    const prompt = composeHarnessPrompt('叶猫猫', {
+    const prompt = composeAgentPrompt('叶猫猫', {
       event,
       availableSkills: [
         {
@@ -295,10 +299,10 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.instructions).toContain('"schemaVersion": "ye-kitty.skill.prompt.v1"');
     expect(prompt.instructions).toContain('skill:qq-chat#body');
     expect(prompt.instructions).toContain(
-      '当你认为任何时候有需要读取 reference 文件时，返回 `skill_reference_call`',
+      '当你需要读取 reference 文件时，调用 `skill` Tool 并提供 `reference`',
     );
     expect(prompt.instructions).toContain('"referenceAccess"');
-    expect(prompt.instructions).toContain('"type": "skill_reference_call"');
+    expect(prompt.instructions).toContain('"type": "tool"');
     expect(prompt.instructions).toContain('"path": "examples.md"');
     expect(prompt.instructions).toContain('<skill_body format="markdown">');
     expect(prompt.instructions).not.toContain('参考正文不应提前读取。');
@@ -307,9 +311,9 @@ describe('Agent Runtime Prompt组织', () => {
     expect(prompt.input).not.toContain('群聊回复短一点。');
   });
 
-  test('Harness Prompt在reference读取后注入结构化引用文档', () => {
+  test('Agent Prompt在reference读取后注入结构化引用文档', () => {
     const event = createChatEvent();
-    const prompt = composeHarnessPrompt('叶猫猫', {
+    const prompt = composeAgentPrompt('叶猫猫', {
       event,
       availableSkills: [],
       enabledSkills: [],
@@ -351,7 +355,7 @@ describe('Agent Runtime Prompt组织', () => {
   });
 
   test('Outside Context中Skill Prompt位于Tool Prompt之前', () => {
-    const prompt = composeHarnessPrompt('叶猫猫', {
+    const prompt = composeAgentPrompt('叶猫猫', {
       event: createChatEvent(),
       availableSkills: [],
       enabledSkills: [],

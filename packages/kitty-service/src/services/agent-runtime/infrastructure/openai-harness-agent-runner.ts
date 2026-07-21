@@ -4,7 +4,8 @@ import type { QqReplyAction } from '../ports/qq-reply-agent.port';
 import { parseQqReplyAction } from '../domain/qq-reply-action';
 import type { AgentRunnerPort } from '../ports/agent-runner.port';
 import type { ModelRequestPoolPort, ModelRequestPriority } from '../ports/model-request-pool.port';
-import { composeHarnessPrompt } from './prompt/harness.prompt';
+import { composeAgentPrompt } from '../../../agent-runtime/prompt/composer';
+import { normalizeAgentAction, type AgentAction } from '../../../agent-runtime/action';
 
 /**
  * OpenAI Harness Runner配置
@@ -35,7 +36,7 @@ export class OpenAiHarnessAgentRunner implements AgentRunnerPort {
    * @returns 结构化决策
    */
   async decide(observation: AgentObservation): Promise<AgentDecision> {
-    const prompt = composeHarnessPrompt(this.config.agentName, observation);
+    const prompt = composeAgentPrompt(this.config.agentName, observation);
     const result = await this.modelPool.runDecision({
       agentName: this.config.agentName,
       instructions: prompt.instructions,
@@ -57,9 +58,59 @@ export function parseAgentDecision(rawOutput: string): AgentDecision {
   if (!rawOutput) throw new Error('Agent 返回空决策');
 
   const parsed = JSON.parse(stripCodeFence(rawOutput)) as unknown;
-  const decision = toAgentDecision(parsed);
+  const decision = toAgentDecision(parsed) ?? toLegacyDecision(normalizeAgentAction(parsed));
   if (!decision) throw new Error('Agent 决策不符合协议');
   return decision;
+}
+
+// 将新 Action 临时适配给待迁移的旧循环，所有模型输出已先进入统一协议。
+function toLegacyDecision(action: AgentAction): AgentDecision | undefined {
+  if (action.type === 'tool') {
+    if (action.name === 'skill' && isRecord(action.input)) {
+      const skillName = typeof action.input.name === 'string' ? action.input.name.trim() : '';
+      const referencePath =
+        typeof action.input.reference === 'string' ? action.input.reference.trim() : '';
+      if (!skillName) return undefined;
+      if (referencePath) {
+        return {
+          type: 'skill_reference_call',
+          skillName,
+          referencePath,
+          reason: action.reason,
+        };
+      }
+      return {
+        type: 'skill_call',
+        skillName,
+        input: action.input.input ?? {},
+        reason: action.reason,
+      };
+    }
+    return {
+      type: 'tool_call',
+      toolName: action.name,
+      input: action.input,
+      reason: action.reason,
+    };
+  }
+
+  if (action.result === 'ignore') return { type: 'ignore', reason: action.reason };
+  if (action.result === 'review') return { type: 'human_review', reason: action.reason };
+  if (!isRecord(action.output)) return undefined;
+
+  const text = typeof action.output.text === 'string' ? action.output.text.trim() : undefined;
+  const actions = Array.isArray(action.output.actions)
+    ? action.output.actions
+        .map(parseQqReplyAction)
+        .filter((item): item is QqReplyAction => Boolean(item))
+    : undefined;
+  if (!text && (!actions || actions.length === 0)) return undefined;
+  return {
+    type: 'reply',
+    text: text || undefined,
+    actions,
+    reason: action.reason,
+  };
 }
 
 // 将未知 JSON 收敛为决策。

@@ -14,8 +14,8 @@ export interface SkillPromptSafety {
   readonly canOverrideSystemPrompt: false;
   /** 是否允许授予工具权限 */
   readonly canGrantToolPermission: false;
-  /** 是否允许绕过Harness协议 */
-  readonly canBypassHarnessProtocol: false;
+  /** 是否允许绕过Agent协议 */
+  readonly canBypassAgentProtocol: false;
 }
 
 /** Skill正文定位小节 */
@@ -43,7 +43,11 @@ export interface SkillReferenceIndex {
 /** Skill引用读取入口 */
 export interface SkillReferenceAccess {
   /** 读取入口类型 */
-  readonly type: 'skill_reference_call';
+  readonly type: 'tool';
+  /** 工具名称 */
+  readonly name: 'skill';
+  /** 引用路径字段 */
+  readonly referenceField: 'reference';
   /** 触发条件 */
   readonly trigger: string;
   /** 读取约束 */

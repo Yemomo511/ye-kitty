@@ -1,4 +1,4 @@
-import type { RuntimeTool } from '../../domain/tool';
+import type { RuntimeTool } from '../../services/agent-runtime/domain/tool';
 
 /**
  * 构建Tool Prompt
@@ -10,7 +10,7 @@ export function buildToolPrompt(tools: readonly RuntimeTool[]): string {
 
   return [
     '## 2.2 Tool Prompt',
-    'Tool 是 Harness 暴露的外界信息和受控操作入口。下面只描述可见工具，不授予额外权限。',
+    'Tool 是 Agent Runtime 暴露的外界信息和受控操作入口。下面只描述可见工具，不授予额外权限。',
     ...tools.map((tool, index) =>
       [
         `### 2.2.${index + 1} ${tool.name}`,

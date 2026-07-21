@@ -1,4 +1,4 @@
-import type { AgentConversationMessage } from '../../domain/agent-conversation-message';
+import type { AgentConversationMessage } from '../../services/agent-runtime/domain/agent-conversation-message';
 
 /**
  * 渲染Agent对话观察

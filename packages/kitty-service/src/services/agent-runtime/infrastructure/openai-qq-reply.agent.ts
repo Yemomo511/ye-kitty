@@ -6,7 +6,7 @@ import type {
   QqReplyAgentResult,
 } from '../ports/qq-reply-agent.port';
 import { parseQqReplyAction } from '../domain/qq-reply-action';
-import { composeQqReplyPrompt } from './prompt/prompt-composer';
+import { composeQqReplyPrompt } from '../../../agent-runtime/prompt/reply';
 
 /**
  * OpenAI QQ回复Agent配置

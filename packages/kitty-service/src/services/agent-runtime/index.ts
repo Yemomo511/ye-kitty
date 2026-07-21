@@ -185,5 +185,5 @@ export {
   DEFAULT_SKILL_REFERENCE_LIMITS,
   FilesystemSkillReferenceLoader,
 } from './infrastructure/skill-market/filesystem-skill-reference-loader';
-export { composeQqReplyPrompt } from './infrastructure/prompt/prompt-composer';
-export { composeHarnessPrompt, type HarnessPrompt } from './infrastructure/prompt/harness.prompt';
+export { composeQqReplyPrompt } from '../../agent-runtime/prompt/reply';
+export { composeAgentPrompt, type AgentPrompt } from '../../agent-runtime/prompt/composer';

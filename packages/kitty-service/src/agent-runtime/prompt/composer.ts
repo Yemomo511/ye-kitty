@@ -1,29 +1,24 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentObservation } from '../../domain/agent-observation';
+import type { AgentObservation } from '../../services/agent-runtime/domain/agent-observation';
 import type {
   HarnessPromptDecisionHistoryItem,
   HarnessPromptState,
-} from '../../domain/harness-prompt-state';
-import { buildBaseAgentPrompt } from './base-agent.prompt';
-import { renderConversationMessages } from './conversation-renderer';
-import { buildOutsideContextPrompt } from './outside-context-prompt';
+} from '../../services/agent-runtime/domain/harness-prompt-state';
+import { buildBaseAgentPrompt } from './system';
+import { renderConversationMessages } from './history';
+import { buildOutsideContextPrompt } from './context';
 
 const promptDirectory = dirname(fileURLToPath(import.meta.url));
-const harnessRuntimePromptPath = join(
-  promptDirectory,
-  'markdown',
-  'System',
-  'harness-runtime.prompt.md',
-);
+const systemPromptPath = join(promptDirectory, 'system.md');
 
 /**
- * Harness Prompt
+ * Agent Prompt
  *
  * instructions 承载身份、循环协议、Skill目录和工具目录，input 只承载本轮循环观察。
  */
-export interface HarnessPrompt {
+export interface AgentPrompt {
   /** 第一章系统指令与第二章外界能力目录 */
   readonly instructions: string;
   /** 第三章本轮循环观察 */
@@ -31,19 +26,16 @@ export interface HarnessPrompt {
 }
 
 /**
- * 组装Harness Prompt
+ * 组装Agent Prompt
  * @param agentName Agent展示名称
  * @param observation 本轮观察
  * @returns 模型输入
  */
-export function composeHarnessPrompt(
-  agentName: string,
-  observation: AgentObservation,
-): HarnessPrompt {
+export function composeAgentPrompt(agentName: string, observation: AgentObservation): AgentPrompt {
   return {
     instructions: [
       buildBaseAgentPrompt(agentName),
-      buildHarnessRuntimePrompt(),
+      buildSystemPrompt(),
       buildOutsideContextPrompt(observation.conversationMessages, observation.tools),
     ]
       .filter(Boolean)
@@ -52,9 +44,9 @@ export function composeHarnessPrompt(
   };
 }
 
-// 构建Harness运行协议。
-function buildHarnessRuntimePrompt(): string {
-  return readMarkdownPrompt(harnessRuntimePromptPath);
+// 构建Agent运行协议。
+function buildSystemPrompt(): string {
+  return readMarkdownPrompt(systemPromptPath);
 }
 
 // 读取Markdown Prompt资产，让前置约束从代码字符串中解耦。
@@ -81,7 +73,7 @@ function renderReplyIntent(observation: AgentObservation): string {
     return [
       '<reply_intent>',
       'mode: normal',
-      '说明：请按常规 Harness 协议判断是否回复、静默或转人工。',
+      '说明：请按 Agent Action 协议判断是否回复、静默或转人工。',
       '</reply_intent>',
     ].join('\n');
   }
@@ -89,7 +81,7 @@ function renderReplyIntent(observation: AgentObservation): string {
   return [
     '<reply_intent>',
     'mode: required_group_reply',
-    '说明：本轮由群聊节奏门控触发，Harness 已在首轮决策前自动读取最近100条群消息；请直接基于该观察输出 reply。',
+    '说明：本轮由群聊节奏门控触发，Agent 已在首轮决策前自动读取最近100条群消息；请直接基于该观察输出回复。',
     '禁止：不能返回 ignore；前置最近消息观察失败时，必须重新调用 get_recent_messages 成功后再 reply。',
     `required_tools: ${observation.requiredToolCalls?.join(', ') ?? 'get_recent_messages'}`,
     `recent_message_limit: ${observation.recentMessageLimitHint ?? 100}`,
@@ -97,7 +89,7 @@ function renderReplyIntent(observation: AgentObservation): string {
   ].join('\n');
 }
 
-// 渲染Harness显式状态快照。
+// 渲染Agent显式状态快照。
 function renderPromptState(state: HarnessPromptState): string {
   return [
     '<run_state>',
