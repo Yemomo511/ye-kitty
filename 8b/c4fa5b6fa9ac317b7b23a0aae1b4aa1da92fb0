@@ -1,0 +1,157 @@
+packages/kitty-service/eval/runner.ts
+  s_89cafc4f309476::t_c8c1fc261f1f52 5
+packages/kitty-service/package.json
+  s_89cafc4f309476::t_92fca1b0180187 10-11,18
+packages/kitty-service/scripts/architecture-rules.mjs
+  s_89cafc4f309476::t_c395859922c352 20
+packages/kitty-service/scripts/start-qq.ts
+  s_89cafc4f309476::t_8e05a980f3fbbf 1-2,6,15-21,25-26,59,100,116
+packages/kitty-service/scripts/start-xiaohongshu.ts
+  s_89cafc4f309476::t_a1ec657290270e 1-2,4-5
+packages/kitty-service/scripts/validate-architecture.mjs
+  s_89cafc4f309476::t_3500feb7ac51e9 1,4,12
+packages/kitty-service/src/agent-runtime/agent.ts
+  s_89cafc4f309476::t_4205effaf36cd4 11,13-16,22,34,39
+packages/kitty-service/src/agent-runtime/history-type.ts
+  s_89cafc4f309476::t_e5f45049d2f1d6 1-2,15,23
+packages/kitty-service/src/agent-runtime/index.ts
+  s_89cafc4f309476::t_d7c7b5ad51f151 14
+packages/kitty-service/src/agent-runtime/lm/code-agent/log.ts
+  s_89cafc4f309476::t_c1ee507fb013a9 9
+packages/kitty-service/src/agent-runtime/lm/lm.ts
+  s_89cafc4f309476::t_2b2a3ae005de0d 2-3
+packages/kitty-service/src/agent-runtime/lm/reply-openai.test.ts
+  s_89cafc4f309476::t_82a21d5fca2799 2-3
+packages/kitty-service/src/agent-runtime/lm/reply-openai.ts
+  s_89cafc4f309476::t_6ce21985e7a8fb 7-9
+packages/kitty-service/src/agent-runtime/mention-subscriber.test.ts
+  s_89cafc4f309476::t_6139f6559db14c 2-4,21-22,27
+packages/kitty-service/src/agent-runtime/message.ts
+  s_89cafc4f309476::t_5cdc817f3ddc22 1,3,15
+packages/kitty-service/src/agent-runtime/prompt/reply.ts
+  s_89cafc4f309476::t_ebc9e414116325 1,26
+packages/kitty-service/src/agent-runtime/prompt/turn.ts
+  s_89cafc4f309476::t_f264396c6e922d 1,8,30
+packages/kitty-service/src/agent-runtime/runtime.ts
+  s_89cafc4f309476::t_a50b4ed64f82c7 1-3,5,14,17
+packages/kitty-service/src/agent-runtime/schedule/schedule.ts
+  s_89cafc4f309476::t_3ea72a52f58aaf 3
+packages/kitty-service/src/agent-runtime/skills/qq-chat.test.ts
+  s_89cafc4f309476::t_91be66ed703833 4-5
+packages/kitty-service/src/agent-runtime/state.ts
+  s_89cafc4f309476::t_523b0469bc468d 1,6,15
+packages/kitty-service/src/agent-runtime/tools/composite.test.ts
+  s_89cafc4f309476::t_4f584eaf154007 2-4,9
+packages/kitty-service/src/agent-runtime/tools/composite.ts
+  s_89cafc4f309476::t_6b815f14da4dbd 1-3,16
+packages/kitty-service/src/agent-runtime/tools/mcp/client-type.ts
+  s_89cafc4f309476::t_9d9d41c7466231 1-3
+packages/kitty-service/src/agent-runtime/tools/mcp/config.test.ts
+  s_89cafc4f309476::t_d861b7a15f515c 2
+packages/kitty-service/src/agent-runtime/tools/mcp/config.ts
+  s_89cafc4f309476::t_3d16780982e2ea 6-7
+packages/kitty-service/src/agent-runtime/tools/mcp/loader.test.ts
+  s_89cafc4f309476::t_7664f8579b2f0d 5
+packages/kitty-service/src/agent-runtime/tools/mcp/loader.ts
+  s_89cafc4f309476::t_3ac449a0584d27 3-4
+packages/kitty-service/src/agent-runtime/tools/mcp/schema.ts
+  s_89cafc4f309476::t_75b598ff38f52f 1,10
+packages/kitty-service/src/agent-runtime/tools/messages.ts
+  s_89cafc4f309476::t_7b903421ae2b06 1-8,159,205,212,226
+packages/kitty-service/src/agent-runtime/tools/runtime-executor.ts
+  s_89cafc4f309476::t_3d7501567ab4e6 1
+packages/kitty-service/src/agent-runtime/tools/runtime.test.ts
+  s_89cafc4f309476::t_79d2a3176a9f16 2,7
+packages/kitty-service/src/agent-runtime/tools/runtime.ts
+  s_89cafc4f309476::t_0e2af727a27ba3 1-3,15
+packages/kitty-service/src/bootstrap/agent.ts
+  s_89cafc4f309476::t_dbed631ddafbfa 1-11,16-24
+packages/kitty-service/src/bootstrap/architecture.test.ts
+  s_89cafc4f309476::t_b6031604c9402c 5
+packages/kitty-service/src/bootstrap/compose.test.ts
+  s_89cafc4f309476::t_ef275e56def35c 4
+packages/kitty-service/src/bootstrap/environment.test.ts
+  s_89cafc4f309476::t_e412805269592c 5
+packages/kitty-service/src/bootstrap/platform.test.ts
+  s_89cafc4f309476::t_4218bb1c160107 2
+packages/kitty-service/src/bootstrap/tools.test.ts
+  s_89cafc4f309476::t_2679d6f662920f 5-7
+packages/kitty-service/src/index.ts
+  s_89cafc4f309476::t_2cb9115969ef4c 1-3
+packages/kitty-service/src/platforms/action.ts
+  s_89cafc4f309476::t_595bf6d285de86 1,6
+packages/kitty-service/src/platforms/index.ts
+  s_89cafc4f309476::t_4895147d16c0e6 1-3
+packages/kitty-service/src/platforms/message.ts
+  s_89cafc4f309476::t_72071d74c97d5f 7,13,21,29,33-42
+packages/kitty-service/src/platforms/qq/api.ts
+  s_89cafc4f309476::t_4dcce71a75e9c4 1-2
+packages/kitty-service/src/platforms/qq/channel.test.ts
+  s_89cafc4f309476::t_ccdbb8cacb0ede 2-4,13,46,78,115,140
+packages/kitty-service/src/platforms/qq/channel.ts
+  s_89cafc4f309476::t_0390256fd63871 1-5,9-10,34,38
+packages/kitty-service/src/platforms/qq/client.ts
+  s_89cafc4f309476::t_9468fd8659fe51 5
+packages/kitty-service/src/platforms/qq/face.ts
+  s_89cafc4f309476::t_92dcab3a1d02d2 1
+packages/kitty-service/src/platforms/qq/index.ts
+  s_89cafc4f309476::t_23e81e2778bb18 1-20
+packages/kitty-service/src/platforms/qq/onebot/action.ts
+  s_89cafc4f309476::t_7f840688a7fc5b 1-3,12
+packages/kitty-service/src/platforms/qq/onebot/client.test.ts
+  s_89cafc4f309476::t_5ae73a8e3f222e 2-4
+packages/kitty-service/src/platforms/qq/onebot/client.ts
+  s_89cafc4f309476::t_41a0d3824bd5f9 1,8-9
+packages/kitty-service/src/platforms/qq/onebot/ingress.test.ts
+  s_89cafc4f309476::t_4fcc41c1292c64 2-3
+packages/kitty-service/src/platforms/qq/onebot/ingress.ts
+  s_89cafc4f309476::t_ba32ec2939b982 1-2
+packages/kitty-service/src/platforms/qq/onebot/server.test.ts
+  s_89cafc4f309476::t_d0c10bdd91f79e 3
+packages/kitty-service/src/platforms/qq/reply.ts
+  s_89cafc4f309476::t_fae092bf18f18f 1-5,24,48,131,222
+packages/kitty-service/src/platforms/qq/runtime.test.ts
+  s_89cafc4f309476::t_aba87d58c104b5 2
+packages/kitty-service/src/platforms/qq/vision-openai.test.ts
+  s_89cafc4f309476::t_2f7e1acc88bbb7 7
+packages/kitty-service/src/platforms/xiaohongshu/checkpoint.test.ts
+  s_89cafc4f309476::t_bd1da1d283bb03 5-6
+packages/kitty-service/src/platforms/xiaohongshu/checkpoint.ts
+  s_89cafc4f309476::t_4d45ef57e26d56 3-4
+packages/kitty-service/src/platforms/xiaohongshu/docker.test.ts
+  s_89cafc4f309476::t_53f979d9b6df02 6
+packages/kitty-service/src/platforms/xiaohongshu/event.ts
+  s_89cafc4f309476::t_188cd004680ce9 2,16,24
+packages/kitty-service/src/platforms/xiaohongshu/login.test.ts
+  s_89cafc4f309476::t_0cfeeb8af9eccb 2-4,137
+packages/kitty-service/src/platforms/xiaohongshu/mcp.ts
+  s_89cafc4f309476::t_7606dffd2e0f63 1
+packages/kitty-service/src/platforms/xiaohongshu/read.ts
+  s_89cafc4f309476::t_36abb870bb6ed5 1
+packages/kitty-service/src/platforms/xiaohongshu/reader.test.ts
+  s_89cafc4f309476::t_fc30a269254c1f 2
+packages/kitty-service/src/platforms/xiaohongshu/source.test.ts
+  s_89cafc4f309476::t_c0973e3ef2dda3 2-4,23,51,136
+packages/kitty-service/src/platforms/xiaohongshu/store.ts
+  s_89cafc4f309476::t_5ac9991f35aebf 1
+packages/kitty-service/src/shared/index.ts
+  s_89cafc4f309476::t_1140c6c8a5beeb 7-10
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "8bc4fa5b6fa9ac317b7b23a0aae1b4aa1da92fb0",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
