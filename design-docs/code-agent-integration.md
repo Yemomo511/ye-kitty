@@ -333,15 +333,35 @@ queued → running → succeeded / failed / canceled
 
 ### 实施阶段二（harness 接入）
 
+**Phase 2 核心架构决策（2026-07-18 讨论确定）**：
+
+**1. code agent 在 harness 中的表达**：
+新增 `AgentDecision` 分支 `delegate_code_agent`（不走 `tool_call`）。
+决策中包含 `agentId`、`prompt`、`workdir 模板`。
+
+**2. 触发条件**：harness LLM 自主判断（在 AgentDecision prompt 中描述 code agent 能力与风险，让模型选择）+ risk 服务门禁。
+
+**3. 审批模型（gatekeeper，非中间人执行）**：
+- code agent 拥有自己的内置工具集（Bash/Write/Edit/Grep/WebSearch 等），harness 不需要实现这些工具
+- harness 需要**知道** code agent 有哪些工具及风险级别，以便审批
+- code agent 发出 `tool_use` → harness + risk 评估 → 能则批准（stdin 写入确认），不能则拒绝 + 告知用户原因 + 优雅终止 code agent
+- **不是** harness 替 code agent 执行工具；是 harness 做 gatekeeper，code agent 自己执行
+
+**4. risk 门禁三层**：
+- 准入：仅管理员 + 群主可触发 code agent（保守起步）
+- 执行：高风险操作（删除文件/网络出站/修改系统配置）严格审批
+- 产出：沙箱 review，确认无误再放行到实际工作区
+
 | # | 项 | 处理 |
 |---|---|---|
-| B1 | 工具中间人协议 | `injectToolResult()` 回写通道 + harness ToolExecutor 接管 |
-| B2 | risk 门禁 Hook | `CodeAgentGateHook` + risk 实现 + factory 组合根装配 |
-| B3 | AgentDecision 扩展 | **5 个硬编码点必须同步改**：`toAgentDecision()`、`isFinalAgentDecision()`（否则 delegate 被误判为 final）、`toRunResult()`（否则静默降级 human_review）、`getDecisionTarget()`、harness 主循环分支；外加 `AgentRuntimeRunResult` union 扩展 |
-| B4 | 工作区模板 | temp / git-clone / persistent 三种 + 清理策略 |
-| B5 | 工具循环检测 | 抄 `tool-loop-guard.ts` |
+| B1 | Gatekeeper 审批协议 | code agent `tool_use` 事件 → harness 评估 → 批准（stdin 写同意指令）或拒绝（告知用户 + cancel session）。harness 不替 code agent 执行工具，只做审批。 |
+| B2 | risk 门禁 Hook（三层） | 准入层：仅管理员/群主（QQ 群）可触发；执行层：高风险操作需确认；产出层：沙箱 review 后放行。实现 `CodeAgentGateHook` + risk 装配。 |
+| B3 | AgentDecision 扩展 | **5 个硬编码点必须同步改**：`toAgentDecision()` 加 `delegate_code_agent` 分支、`isFinalAgentDecision()` 标记 delegate 为 final、`toRunResult()` 防止静默降级 human_review、`getDecisionTarget()` 新增 code-agent 目标、harness 主循环分发；外加 `AgentRuntimeRunResult` union 扩展 + AgentDecision prompt 中描述 code agent 能力 |
+| B4 | 工作区模板 | temp（一次性）/ git-clone（代码审查）/ sandbox（产出 review 后放行）三种 + 清理策略 |
+| B5 | 工具循环检测 | 抄 open-design `tool-loop-guard.ts`：连续 N 次同工具失败 → halt |
 | B6 | conversation 事件回放 | 抄 open-design `chat-run-messages.ts` 的 `events_json` 模式，需扩展 `ConversationMessage` 模型（现只有 `text`，无法承载结构化事件） |
 | B7 | 消费方重试策略 | 依据 `retryable` + 指数退避（抄 `run-retry-policy.ts` 按类别 base delay） |
+| B8 | Harness prompt 扩展 | harness 的 system prompt 中新增 code agent 能力描述：告知 LLM 何时应选 `delegate_code_agent`、code agent 有哪些内置工具、风险级别 |
 
 ### 实施阶段三（安全加固 + 生产化）
 
