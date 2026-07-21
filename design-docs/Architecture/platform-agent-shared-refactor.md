@@ -496,7 +496,7 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 - 唯一方案入口：本文档。
 - 文件迁移入口：[`file-name-map.md`](./file-name-map.md)。
 - 执行进度与验收入口：[`../Task.md`](../Task.md)。
-- 当前状态：开发中，阶段 0 已完成，Prompt、Skills、Tools 与 Schedule 基础模块已迁移。
-- 已完成：新增 12 项架构规则测试；建立 AgentAction、Observation、Tool Registry、Permission、Executor 和 Schedule；System Prompt 已迁入 `agent-runtime/prompt` 并只输出 `tool`、`finish` 两类 Action。
-- 兼容状态：模型的新 Action 会先归一化，再临时适配给旧循环；该适配将在 Agent 主循环迁入 `agent.ts` 并接入 Schedule 后删除。
-- 下一步：让 Agent 主循环直接消费 AgentAction 和 ScheduleResult，删除 Skill 与普通 Tool 的专用执行分支。
+- 当前状态：开发中，Agent、Action、Context、Message、Prompt、Skills、Tools 与 Schedule 已迁入目标结构。
+- 已完成：Agent 主循环直接消费 AgentAction，普通 Tool、Skill 正文和 Skill 引用全部经 Schedule 调度；生产模型 Runner 已直接返回 AgentAction。
+- 兼容状态：Agent Runner 端口暂时保留旧 Decision 联合类型，仅用于旧测试夹具过渡；迁入 LM 后一并删除。
+- 下一步：迁移 LM、Model Pool 与 Code Agent，建立 Agent 只依赖 LM 的单向边界。

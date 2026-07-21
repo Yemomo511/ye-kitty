@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import { agentEvalCases } from './cases';
-import { assertAgentDecision, type AgentEvalCaseResult } from './assertions';
+import { assertAgentAction, type AgentEvalCaseResult } from './assertions';
 import {
   InMemoryModelRequestPool,
   loadQqReplyAgentConfig,
@@ -49,8 +49,8 @@ async function runEvalCase(
   evalCase: (typeof agentEvalCases)[number],
 ): Promise<AgentEvalCaseResult> {
   try {
-    const decision = await runner.decide(evalCase.observation);
-    return assertAgentDecision(evalCase, decision);
+    const action = await runner.decide(evalCase.observation);
+    return assertAgentAction(evalCase, action);
   } catch (error) {
     return {
       case: evalCase,

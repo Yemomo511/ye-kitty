@@ -2,7 +2,7 @@ import type { SkillRuntime } from '../skills';
 import type { Tool, ToolContext, ToolResult } from './tool';
 
 /** Skill Tool依赖的最小渐进读取能力。 */
-type SkillAccess = Pick<SkillRuntime, 'load' | 'loadReference' | 'selectSkills'>;
+type SkillAccess = Pick<SkillRuntime, 'load' | 'loadReference'>;
 
 /** Skill工具输入。 */
 interface SkillToolInput {
@@ -46,7 +46,7 @@ export class SkillTool implements Tool {
       return {
         success: true,
         summary: `Skill ${name} 已启用。`,
-        data: { type: 'skill_content', content: enabled },
+        data: { contextMessages: [{ type: 'skill_content', skill: enabled }] },
       };
     }
 
@@ -63,7 +63,7 @@ export class SkillTool implements Tool {
     return {
       success: true,
       summary: `已启用Skill ${name}。`,
-      data: { type: 'skill_content', content },
+      data: { contextMessages: [{ type: 'skill_content', skill: content }] },
     };
   }
 
@@ -78,11 +78,35 @@ export class SkillTool implements Tool {
       };
     }
 
+    const referenceKey = `${input.name}:${input.reference}`;
+    const loadedReferences = context.loadedSkillReferences ?? [];
+    const existing = loadedReferences.find(
+      (item) => `${item.skill.name}:${item.referencePath}` === referenceKey,
+    );
+    if (existing) {
+      return {
+        success: true,
+        summary: `Skill ${input.name}引用 ${input.reference} 已读取。`,
+        data: { contextMessages: [] },
+      };
+    }
+
+    if (
+      context.maxSkillReferences !== undefined &&
+      loadedReferences.length >= context.maxSkillReferences
+    ) {
+      return {
+        success: false,
+        summary: `Skill引用读取已达到本轮上限 ${context.maxSkillReferences}。`,
+        error: 'Skill引用读取超限',
+      };
+    }
+
     const reference = await this.skills.loadReference(skill, input.reference!);
     return {
       success: true,
       summary: `已读取Skill ${input.name}引用 ${input.reference}。`,
-      data: { type: 'skill_reference', reference },
+      data: { contextMessages: [{ type: 'skill_reference', reference }] },
     };
   }
 }

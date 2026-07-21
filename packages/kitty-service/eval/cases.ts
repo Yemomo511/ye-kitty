@@ -5,38 +5,31 @@ import type {
   MessageId,
   ParticipantId,
 } from '../src/shared/types/ids';
-import type { AgentDecision, AgentObservation } from '../src/services/agent-runtime';
+import type { AgentContext } from '../src/agent-runtime';
 import type { SkillContent, SkillMetadata } from '../src/agent-runtime/skills';
 import {
   BuiltinRuntimeToolRegistry,
   GET_CUSTOM_FACES_TOOL_NAME,
 } from '../src/services/agent-runtime';
+import type { Tool } from '../src/agent-runtime/tools';
 
 /** 评估断言目标 */
 export type AgentEvalExpectation =
   | {
       /** 期望类型 */
-      readonly type: Extract<AgentDecision['type'], 'tool_call'>;
+      readonly type: 'tool';
       /** 期望工具 */
-      readonly toolName: string;
-    }
-  | {
-      /** 期望类型 */
-      readonly type: Extract<AgentDecision['type'], 'skill_call'>;
-      /** 期望Skill */
-      readonly skillName: string;
-    }
-  | {
-      /** 期望类型 */
-      readonly type: Extract<AgentDecision['type'], 'skill_reference_call'>;
-      /** 期望Skill */
-      readonly skillName: string;
-      /** 期望引用 */
-      readonly referencePath: string;
+      readonly name: string;
+      /** 可选的Skill名称。 */
+      readonly skillName?: string;
+      /** 可选的Skill引用。 */
+      readonly reference?: string;
     }
   | {
       /** 期望终态 */
-      readonly type: Extract<AgentDecision['type'], 'reply' | 'ignore' | 'human_review'>;
+      readonly type: 'finish';
+      /** 期望最终处理方式。 */
+      readonly result: 'reply' | 'ignore' | 'review';
     };
 
 /** Agent评估用例 */
@@ -46,12 +39,13 @@ export interface AgentEvalCase {
   /** 输入摘要 */
   readonly inputSummary: string;
   /** 模型观察 */
-  readonly observation: AgentObservation;
+  readonly observation: AgentContext;
   /** 结构期望 */
   readonly expectation: AgentEvalExpectation;
 }
 
 const toolRegistry = new BuiltinRuntimeToolRegistry();
+const promptTools = toolRegistry.listTools().map(toPromptTool);
 
 const qqChatSkill: SkillMetadata = {
   name: 'qq-chat',
@@ -88,7 +82,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       availableSkills: [],
       tools: [],
     }),
-    expectation: { type: 'reply' },
+    expectation: { type: 'finish', result: 'reply' },
   },
   {
     name: '需要额外风格时调用未启用Skill',
@@ -98,7 +92,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       availableSkills: [chatStyleSkill],
       tools: [],
     }),
-    expectation: { type: 'skill_call', skillName: 'chat-style' },
+    expectation: { type: 'tool', name: 'skill', skillName: 'chat-style' },
   },
   {
     name: '最近消息已自动注入时直接回复',
@@ -106,11 +100,11 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
     observation: createQqObservation({
       event: createChatEvent('结合最近聊天上下文，判断我刚刚是在回复谁。', 'group', 'tool'),
       availableSkills: [],
-      tools: toolRegistry.listTools(),
+      tools: promptTools,
       recentMessagesObservation:
         '会话最近 2 条消息：\n1. 小明：今晚八点开黑吗？\n2. 测试用户：可以，我刚刚是在回复小明。',
     }),
-    expectation: { type: 'reply' },
+    expectation: { type: 'finish', result: 'reply' },
   },
   {
     name: '需要自定义表情时调用表情目录工具',
@@ -121,16 +115,17 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       ]),
       availableSkills: [],
       tools: [
-        ...toolRegistry.listTools(),
+        ...promptTools,
         {
           name: GET_CUSTOM_FACES_TOOL_NAME,
           description: '根据聊天需求读取视觉Agent推荐后的QQ自定义表情目录，用于选择合适表情回复。',
-          riskLevel: 'low',
-          inputSchemaDescription: '{ "query"?: string 表情需求, "limit"?: number }',
+          risk: 'low',
+          input: '{ "query"?: string 表情需求, "limit"?: number }',
+          execute: async () => ({ success: true, summary: '评估占位工具' }),
         },
       ],
     }),
-    expectation: { type: 'tool_call', toolName: GET_CUSTOM_FACES_TOOL_NAME },
+    expectation: { type: 'tool', name: GET_CUSTOM_FACES_TOOL_NAME },
   },
   {
     name: '已启用Skill要求读取引用',
@@ -143,9 +138,10 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       extraMessages: [{ type: 'skill_content', skill: enabledChatStyleSkill }],
     }),
     expectation: {
-      type: 'skill_reference_call',
+      type: 'tool',
+      name: 'skill',
       skillName: 'chat-style',
-      referencePath: 'examples.md',
+      reference: 'examples.md',
     },
   },
   {
@@ -156,7 +152,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       availableSkills: [],
       tools: [],
     }),
-    expectation: { type: 'reply' },
+    expectation: { type: 'finish', result: 'reply' },
   },
   {
     name: '旁人闲聊可保持静默',
@@ -166,7 +162,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       availableSkills: [],
       tools: [],
     }),
-    expectation: { type: 'ignore' },
+    expectation: { type: 'finish', result: 'ignore' },
   },
   {
     name: '越权隐私请求转人工',
@@ -176,7 +172,7 @@ export const agentEvalCases: readonly AgentEvalCase[] = [
       availableSkills: [],
       tools: [],
     }),
-    expectation: { type: 'human_review' },
+    expectation: { type: 'finish', result: 'review' },
   },
 ];
 
@@ -185,15 +181,13 @@ function createQqObservation(input: {
   readonly event: ChatEventContract;
   readonly availableSkills: readonly SkillMetadata[];
   readonly enabledSkills?: readonly SkillContent[];
-  readonly tools: AgentObservation['tools'];
-  readonly extraMessages?: readonly AgentObservation['conversationMessages'][number][];
+  readonly tools: AgentContext['tools'];
+  readonly extraMessages?: readonly AgentContext['conversationMessages'][number][];
   readonly recentMessagesObservation?: string;
-}): AgentObservation {
+}): AgentContext {
   const enabledSkills = [enabledQqChatSkill, ...(input.enabledSkills ?? [])];
   const visibleTools = [
-    ...new Map(
-      [...toolRegistry.listTools(), ...input.tools].map((tool) => [tool.name, tool]),
-    ).values(),
+    ...new Map([...promptTools, ...input.tools].map((tool) => [tool.name, tool])).values(),
   ];
   const recentMessagesResult = {
     toolName: 'get_recent_messages',
@@ -210,7 +204,7 @@ function createQqObservation(input: {
       },
     ],
   };
-  const conversationMessages: AgentObservation['conversationMessages'] = [
+  const conversationMessages: AgentContext['conversationMessages'] = [
     { type: 'user_event', event: input.event },
     { type: 'skill_catalog', skills: input.availableSkills },
     { type: 'skill_content', skill: enabledQqChatSkill },
@@ -247,12 +241,23 @@ function createQqObservation(input: {
         visibleToolNames: visibleTools.map((tool) => tool.name),
         latestObservation: recentMessagesResult.observation,
       },
-      decisionHistory: [],
+      actionHistory: [],
     },
     turnIndex: 1,
     maxTurns: 100,
     toolCallCount: 0,
     maxToolCalls: 3,
+  };
+}
+
+// 评估只需要工具目录，不执行工具；用统一Tool结构保持Prompt与真实运行一致。
+function toPromptTool(tool: ReturnType<BuiltinRuntimeToolRegistry['listTools']>[number]): Tool {
+  return {
+    name: tool.name,
+    description: tool.description,
+    risk: tool.riskLevel,
+    input: tool.inputSchemaDescription,
+    execute: async () => ({ success: true, summary: '评估占位工具' }),
   };
 }
 

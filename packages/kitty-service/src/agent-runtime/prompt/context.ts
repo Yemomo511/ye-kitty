@@ -1,5 +1,5 @@
-import type { AgentConversationMessage } from '../../services/agent-runtime/domain/agent-conversation-message';
-import type { RuntimeTool } from '../../services/agent-runtime/domain/tool';
+import type { AgentMessage } from '../message';
+import type { Tool } from '../tools';
 import { buildSkillPrompt } from './skills';
 import { buildToolPrompt } from './tools';
 
@@ -10,8 +10,8 @@ import { buildToolPrompt } from './tools';
  * @returns instruction 中的第二章节Prompt
  */
 export function buildOutsideContextPrompt(
-  messages: readonly AgentConversationMessage[],
-  tools: readonly RuntimeTool[],
+  messages: readonly AgentMessage[],
+  tools: readonly Tool[],
 ): string {
   return [
     '# 第二章节: Outside Context Prompt',

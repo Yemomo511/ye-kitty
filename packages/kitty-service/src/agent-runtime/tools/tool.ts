@@ -1,4 +1,4 @@
-import type { SkillContent, SkillMetadata } from '../skills';
+import type { SkillContent, SkillMetadata, SkillReferenceContent } from '../skills';
 
 /** 工具风险等级。 */
 export type ToolRisk = 'low' | 'medium' | 'high';
@@ -13,6 +13,10 @@ export interface ToolContext {
   readonly availableSkills?: readonly SkillMetadata[];
   /** 本轮已经加载到上下文的Skill正文。 */
   readonly enabledSkills?: readonly SkillContent[];
+  /** 本轮已经加载的Skill引用。 */
+  readonly loadedSkillReferences?: readonly SkillReferenceContent[];
+  /** 本轮最多读取的Skill引用数。 */
+  readonly maxSkillReferences?: number;
 }
 
 /** Schedule调用时提供的Agent运行上下文，调用ID由Action补充。 */

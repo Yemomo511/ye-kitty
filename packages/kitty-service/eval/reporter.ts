@@ -26,17 +26,17 @@ export function reportEvalStart(total: number): void {
 /** 输出单条用例报告 */
 export function reportCaseResult(result: AgentEvalCaseResult): void {
   const expectation = JSON.stringify(result.case.expectation);
-  const decision = result.decision ? JSON.stringify(result.decision) : '无决策';
+  const action = result.action ? JSON.stringify(result.action) : '无Action';
 
   if (result.passed) {
     console.info(
-      `✅ [AgentEval] 用例通过 name=${result.case.name} expectation=${expectation} decision=${decision}`,
+      `✅ [AgentEval] 用例通过 name=${result.case.name} expectation=${expectation} action=${action}`,
     );
     return;
   }
 
   console.warn(
-    `⚠️ [AgentEval] 用例失败 name=${result.case.name} input=${result.case.inputSummary} expectation=${expectation} decision=${decision} reason=${result.errorMessage ?? '未知原因'}`,
+    `⚠️ [AgentEval] 用例失败 name=${result.case.name} input=${result.case.inputSummary} expectation=${expectation} action=${action} reason=${result.errorMessage ?? '未知原因'}`,
   );
 }
 

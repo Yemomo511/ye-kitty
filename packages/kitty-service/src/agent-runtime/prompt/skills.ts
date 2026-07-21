@@ -1,6 +1,6 @@
 import { readdirSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
-import type { AgentConversationMessage } from '../../services/agent-runtime/domain/agent-conversation-message';
+import type { AgentMessage } from '../message';
 import type {
   SkillPromptDocument,
   SkillPromptSection,
@@ -90,7 +90,7 @@ export function createSkillReferencePromptDocument(
  * @param messages 对话消息
  * @returns 第二章节中的Skill部分
  */
-export function buildSkillPrompt(messages: readonly AgentConversationMessage[]): string {
+export function buildSkillPrompt(messages: readonly AgentMessage[]): string {
   const catalogMessages = messages.filter((message) => message.type === 'skill_catalog');
   const documents = messages
     .filter((message) => message.type === 'skill_content')

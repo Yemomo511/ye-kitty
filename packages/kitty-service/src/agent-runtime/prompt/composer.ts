@@ -1,11 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentObservation } from '../../services/agent-runtime/domain/agent-observation';
-import type {
-  HarnessPromptDecisionHistoryItem,
-  HarnessPromptState,
-} from '../../services/agent-runtime/domain/harness-prompt-state';
+import type { AgentContext } from '../state';
+import type { PromptHistoryItem, PromptState } from './state';
 import { buildBaseAgentPrompt } from './system';
 import { renderConversationMessages } from './history';
 import { buildOutsideContextPrompt } from './context';
@@ -31,7 +28,7 @@ export interface AgentPrompt {
  * @param observation 本轮观察
  * @returns 模型输入
  */
-export function composeAgentPrompt(agentName: string, observation: AgentObservation): AgentPrompt {
+export function composeAgentPrompt(agentName: string, observation: AgentContext): AgentPrompt {
   return {
     instructions: [
       buildBaseAgentPrompt(agentName),
@@ -55,7 +52,7 @@ function readMarkdownPrompt(promptPath: string): string {
 }
 
 // 构建本轮观察。
-function buildObservationPrompt(observation: AgentObservation): string {
+function buildObservationPrompt(observation: AgentContext): string {
   return [
     '# 第三章节: Runtime Observation',
     '本章节只承载本轮 Agent 循环思考所需的运行状态、外部观察和历史回灌。',
@@ -68,7 +65,7 @@ function buildObservationPrompt(observation: AgentObservation): string {
 }
 
 // 渲染本轮回复意图，强制群聊回复时给模型明确行动边界。
-function renderReplyIntent(observation: AgentObservation): string {
+function renderReplyIntent(observation: AgentContext): string {
   if (observation.replyIntent !== 'required_group_reply') {
     return [
       '<reply_intent>',
@@ -90,7 +87,7 @@ function renderReplyIntent(observation: AgentObservation): string {
 }
 
 // 渲染Agent显式状态快照。
-function renderPromptState(state: HarnessPromptState): string {
+function renderPromptState(state: PromptState): string {
   return [
     '<run_state>',
     `trace_id: ${state.traceId}`,
@@ -105,14 +102,14 @@ function renderPromptState(state: HarnessPromptState): string {
     `visible_tools: ${formatList(state.context.visibleToolNames)}`,
     `latest_observation: ${state.context.latestObservation}`,
     '</run_state>',
-    renderDecisionHistory(state.decisionHistory),
+    renderActionHistory(state.actionHistory),
   ]
     .filter(Boolean)
     .join('\n');
 }
 
 // 渲染模型可见的历史决策摘要。
-function renderDecisionHistory(history: readonly HarnessPromptDecisionHistoryItem[]): string {
+function renderActionHistory(history: readonly PromptHistoryItem[]): string {
   if (history.length === 0) {
     return '<decision_history>\n暂无历史决策。\n</decision_history>';
   }
@@ -122,7 +119,7 @@ function renderDecisionHistory(history: readonly HarnessPromptDecisionHistoryIte
     ...history.map((item) =>
       [
         `- turn=${item.turnIndex}`,
-        `type=${item.decisionType}`,
+        `type=${item.actionType}`,
         item.target ? `target=${item.target}` : '',
         typeof item.success === 'boolean' ? `success=${item.success ? 'true' : 'false'}` : '',
         `reason=${item.reason}`,

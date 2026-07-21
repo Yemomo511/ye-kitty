@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseAgentDecision } from '../infrastructure/openai-harness-agent-runner';
+import { parseAgentAction } from '../infrastructure/openai-harness-agent-runner';
 import { parseQqReplyAgentResult } from '../infrastructure/openai-qq-reply.agent';
 
 describe('parseQqReplyAgentResult', () => {
@@ -75,10 +75,10 @@ describe('parseQqReplyAgentResult', () => {
   });
 });
 
-describe('parseAgentDecision', () => {
+describe('parseAgentAction', () => {
   test('兼容新的 ToolAction', () => {
     expect(
-      parseAgentDecision(
+      parseAgentAction(
         JSON.stringify({
           type: 'tool',
           callId: 'call-1',
@@ -88,8 +88,9 @@ describe('parseAgentDecision', () => {
         }),
       ),
     ).toEqual({
-      type: 'tool_call',
-      toolName: 'get_recent_messages',
+      type: 'tool',
+      callId: 'call-1',
+      name: 'get_recent_messages',
       input: { limit: 3 },
       reason: '需要上下文',
     });
@@ -97,7 +98,7 @@ describe('parseAgentDecision', () => {
 
   test('兼容新的 FinishAction 并过滤未知回复动作', () => {
     expect(
-      parseAgentDecision(
+      parseAgentAction(
         JSON.stringify({
           type: 'finish',
           result: 'reply',
@@ -109,16 +110,16 @@ describe('parseAgentDecision', () => {
         }),
       ),
     ).toEqual({
-      type: 'reply',
-      text: '安全回复',
-      actions: [{ type: 'poke_sender' }],
+      type: 'finish',
+      result: 'reply',
+      output: { text: '安全回复', actions: [{ type: 'poke_sender' }] },
       reason: '可以回复',
     });
   });
 
   test('解析工具调用决策', () => {
     expect(
-      parseAgentDecision(
+      parseAgentAction(
         JSON.stringify({
           type: 'tool_call',
           toolName: 'get_recent_messages',
@@ -126,9 +127,10 @@ describe('parseAgentDecision', () => {
           reason: '需要上下文',
         }),
       ),
-    ).toEqual({
-      type: 'tool_call',
-      toolName: 'get_recent_messages',
+    ).toMatchObject({
+      type: 'tool',
+      callId: expect.any(String),
+      name: 'get_recent_messages',
       input: { limit: 3 },
       reason: '需要上下文',
     });
@@ -136,7 +138,7 @@ describe('parseAgentDecision', () => {
 
   test('解析Skill调用决策', () => {
     expect(
-      parseAgentDecision(
+      parseAgentAction(
         JSON.stringify({
           type: 'skill_call',
           skillName: 'qq-chat',
@@ -144,17 +146,18 @@ describe('parseAgentDecision', () => {
           reason: '需要群聊方法论',
         }),
       ),
-    ).toEqual({
-      type: 'skill_call',
-      skillName: 'qq-chat',
-      input: { goal: '判断是否需要参与群聊' },
+    ).toMatchObject({
+      type: 'tool',
+      callId: expect.any(String),
+      name: 'skill',
+      input: { name: 'qq-chat', input: { goal: '判断是否需要参与群聊' } },
       reason: '需要群聊方法论',
     });
   });
 
   test('解析Skill引用调用决策', () => {
     expect(
-      parseAgentDecision(
+      parseAgentAction(
         JSON.stringify({
           type: 'skill_reference_call',
           skillName: 'chat-style',
@@ -162,17 +165,18 @@ describe('parseAgentDecision', () => {
           reason: '需要读取示例',
         }),
       ),
-    ).toEqual({
-      type: 'skill_reference_call',
-      skillName: 'chat-style',
-      referencePath: 'examples.md',
+    ).toMatchObject({
+      type: 'tool',
+      callId: expect.any(String),
+      name: 'skill',
+      input: { name: 'chat-style', reference: 'examples.md' },
       reason: '需要读取示例',
     });
   });
 
   test('过滤回复决策中的未知动作', () => {
     expect(
-      parseAgentDecision(
+      parseAgentAction(
         JSON.stringify({
           type: 'reply',
           text: '安全回复',
@@ -181,14 +185,14 @@ describe('parseAgentDecision', () => {
         }),
       ),
     ).toEqual({
-      type: 'reply',
-      text: '安全回复',
-      actions: [{ type: 'poke_sender' }],
+      type: 'finish',
+      result: 'reply',
+      output: { text: '安全回复', actions: [{ type: 'poke_sender' }] },
       reason: '可以回复',
     });
   });
 
   test('非法决策抛出错误', () => {
-    expect(() => parseAgentDecision('不是JSON')).toThrow();
+    expect(() => parseAgentAction('不是JSON')).toThrow();
   });
 });

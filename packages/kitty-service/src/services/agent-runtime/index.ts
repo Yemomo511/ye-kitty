@@ -4,14 +4,14 @@ export type {
   QqReplyAgentResult,
 } from './ports/qq-reply-agent.port';
 export type { AgentDecision } from './domain/agent-decision';
-export type { AgentObservation } from './domain/agent-observation';
+export type { AgentContext } from '../../agent-runtime/state';
 export type {
-  HarnessPromptBudgetState,
-  HarnessPromptContextState,
-  HarnessPromptDecisionHistoryItem,
-  HarnessPromptPhase,
-  HarnessPromptState,
-} from './domain/harness-prompt-state';
+  PromptBudgetState,
+  PromptContextState,
+  PromptHistoryItem,
+  PromptPhase,
+  PromptState,
+} from '../../agent-runtime/prompt/state';
 export type { QqReplyAction } from './domain/qq-reply-action';
 export type {
   SkillPromptDocument,
@@ -29,7 +29,7 @@ export type {
   SkillSelection,
   SkillSelectionContext,
 } from '../../agent-runtime/skills';
-export type { AgentConversationMessage } from './domain/agent-conversation-message';
+export type { AgentMessage } from '../../agent-runtime/message';
 export type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from './domain/tool';
 export type {
   McpRemoteServerConfig,
@@ -49,11 +49,6 @@ export type {
   ModelRequestPriority,
   ModelRuntimeState,
 } from './ports/model-request-pool.port';
-export type {
-  AgentRuntimeHarnessPort,
-  AgentRuntimeRunInput,
-  AgentRuntimeRunResult,
-} from './ports/agent-runtime-harness.port';
 export type { ConversationHistoryPort } from './ports/conversation-history.port';
 export type {
   GroupChatCadenceDecision,
@@ -83,10 +78,12 @@ export type {
   RecommendedCustomFace,
 } from './domain/custom-face';
 export {
-  AgentRuntimeHarness,
-  HarnessQqReplyAgentAdapter,
-  type AgentRuntimeHarnessConfig,
-} from './application/agent-runtime-harness';
+  Agent,
+  AgentAdapter,
+  type AgentConfig,
+  type AgentInput,
+  type AgentResult,
+} from '../../agent-runtime/agent';
 export { FallbackQqReplyAgent } from './application/fallback-qq-reply.agent';
 export { InMemoryConversationHistory } from './application/in-memory-conversation-history';
 export {
@@ -145,7 +142,7 @@ export {
 } from './application/qq-reply-agent.factory';
 export {
   OpenAiHarnessAgentRunner,
-  parseAgentDecision,
+  parseAgentAction,
   type OpenAiHarnessAgentRunnerConfig,
 } from './infrastructure/openai-harness-agent-runner';
 export { OpenAiCompatibleModelClient } from './infrastructure/openai-compatible-model.client';

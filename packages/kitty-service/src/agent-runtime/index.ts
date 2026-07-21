@@ -7,6 +7,9 @@
 
 export type { AgentAction, FinishAction, ToolAction } from './action';
 export { normalizeAgentAction } from './action';
+export { Agent, AgentAdapter, type AgentConfig, type AgentInput, type AgentResult } from './agent';
+export type { AgentMessage } from './message';
+export type { AgentContext } from './state';
 export type { Observation, ObservationStatus } from './observation';
 export * from './prompt';
 export * from './schedule';

@@ -1,5 +1,6 @@
 import type { AgentDecision } from '../domain/agent-decision';
-import type { AgentObservation } from '../domain/agent-observation';
+import type { AgentContext } from '../../../agent-runtime/state';
+import type { AgentAction } from '../../../agent-runtime/action';
 
 /**
  * Agent底层推理端口
@@ -10,7 +11,7 @@ export interface AgentRunnerPort {
   /**
    * 输出下一步决策
    * @param observation Harness观察上下文
-   * @returns 结构化决策
+   * @returns 统一Agent Action；旧Decision仅在迁移测试中兼容
    */
-  decide(observation: AgentObservation): Promise<AgentDecision>;
+  decide(observation: AgentContext): Promise<AgentAction | AgentDecision>;
 }

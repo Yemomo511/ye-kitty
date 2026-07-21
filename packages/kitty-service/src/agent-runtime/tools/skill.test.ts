@@ -18,7 +18,6 @@ describe('Skill Tool', () => {
   test('只能从本轮可见目录渐进读取正文', async () => {
     const load = vi.fn(async () => content);
     const tool = new SkillTool({
-      selectSkills: vi.fn(),
       load,
       loadReference: vi.fn(),
     });
@@ -28,7 +27,7 @@ describe('Skill Tool', () => {
     expect(result).toEqual({
       success: true,
       summary: '已启用Skill chat-style。',
-      data: { type: 'skill_content', content },
+      data: { contextMessages: [{ type: 'skill_content', skill: content }] },
     });
     expect(load).toHaveBeenCalledWith('chat-style');
   });
@@ -36,7 +35,6 @@ describe('Skill Tool', () => {
   test('拒绝读取未暴露给本轮Agent的Skill', async () => {
     const load = vi.fn();
     const tool = new SkillTool({
-      selectSkills: vi.fn(),
       load,
       loadReference: vi.fn(),
     });
@@ -59,7 +57,6 @@ describe('Skill Tool', () => {
     };
     const loadReference = vi.fn(async () => reference);
     const tool = new SkillTool({
-      selectSkills: vi.fn(),
       load: vi.fn(),
       loadReference,
     });
@@ -72,7 +69,7 @@ describe('Skill Tool', () => {
     expect(result).toEqual({
       success: true,
       summary: '已读取Skill chat-style引用 examples.md。',
-      data: { type: 'skill_reference', reference },
+      data: { contextMessages: [{ type: 'skill_reference', reference }] },
     });
     expect(loadReference).toHaveBeenCalledWith(content, 'examples.md');
   });
@@ -80,7 +77,6 @@ describe('Skill Tool', () => {
   test('未启用Skill时拒绝读取引用', async () => {
     const loadReference = vi.fn();
     const tool = new SkillTool({
-      selectSkills: vi.fn(),
       load: vi.fn(),
       loadReference,
     });

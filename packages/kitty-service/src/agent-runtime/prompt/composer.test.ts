@@ -157,8 +157,9 @@ describe('Agent Runtime Prompt组织', () => {
         {
           name: 'get_recent_messages',
           description: '读取最近消息',
-          riskLevel: 'low',
-          inputSchemaDescription: '{}',
+          risk: 'low',
+          input: '{}',
+          execute: async () => ({ success: true, summary: '完成' }),
         },
       ],
       toolResults: [],
@@ -276,11 +277,11 @@ describe('Agent Runtime Prompt组织', () => {
       promptState: createPromptState({
         phase: 'skill_loaded',
         enabledSkillNames: ['qq-chat'],
-        decisionHistory: [
+        actionHistory: [
           {
             turnIndex: 1,
-            decisionType: 'skill_call',
-            target: 'qq-chat',
+            actionType: 'tool',
+            target: 'skill',
             success: true,
             reason: '需要群聊方法论',
           },
@@ -363,8 +364,9 @@ describe('Agent Runtime Prompt组织', () => {
         {
           name: 'get_recent_messages',
           description: '读取最近消息',
-          riskLevel: 'low',
-          inputSchemaDescription: '{}',
+          risk: 'low',
+          input: '{}',
+          execute: async () => ({ success: true, summary: '完成' }),
         },
       ],
       toolResults: [],
@@ -431,10 +433,9 @@ function createPromptState(
       | 'human_review';
     readonly enabledSkillNames?: readonly string[];
     readonly loadedReferenceKeys?: readonly string[];
-    readonly decisionHistory?: readonly {
+    readonly actionHistory?: readonly {
       readonly turnIndex: number;
-      readonly decisionType:
-        'tool_call' | 'skill_call' | 'skill_reference_call' | 'reply' | 'ignore' | 'human_review';
+      readonly actionType: 'tool' | 'finish';
       readonly target?: string;
       readonly success?: boolean;
       readonly reason: string;
@@ -460,6 +461,6 @@ function createPromptState(
       visibleToolNames: ['get_recent_messages'],
       latestObservation: '尚无工具结果或错误观察。',
     },
-    decisionHistory: input.decisionHistory ?? [],
+    actionHistory: input.actionHistory ?? [],
   };
 }

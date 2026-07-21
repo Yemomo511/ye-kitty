@@ -1,16 +1,16 @@
-import type { AgentConversationMessage } from '../../services/agent-runtime/domain/agent-conversation-message';
+import type { AgentMessage } from '../message';
 
 /**
  * 渲染Agent对话观察
  * @param messages 对话消息
  * @returns 模型输入片段
  */
-export function renderConversationMessages(messages: readonly AgentConversationMessage[]): string {
+export function renderConversationMessages(messages: readonly AgentMessage[]): string {
   return messages.map(renderConversationMessage).filter(Boolean).join('\n\n');
 }
 
 // 按消息类型渲染观察片段。
-function renderConversationMessage(message: AgentConversationMessage): string {
+function renderConversationMessage(message: AgentMessage): string {
   if (message.type === 'user_event') {
     const event = message.event;
     return [

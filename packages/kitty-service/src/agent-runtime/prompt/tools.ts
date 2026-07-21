@@ -1,11 +1,11 @@
-import type { RuntimeTool } from '../../services/agent-runtime/domain/tool';
+import type { Tool } from '../tools';
 
 /**
  * 构建Tool Prompt
  * @param tools 可见工具
  * @returns 第二章节中的Tool部分
  */
-export function buildToolPrompt(tools: readonly RuntimeTool[]): string {
+export function buildToolPrompt(tools: readonly Tool[]): string {
   if (tools.length === 0) return '## 2.2 Tool Prompt\n本轮没有可用工具。';
 
   return [
@@ -15,8 +15,8 @@ export function buildToolPrompt(tools: readonly RuntimeTool[]): string {
       [
         `### 2.2.${index + 1} ${tool.name}`,
         `说明：${tool.description}`,
-        `风险等级：${tool.riskLevel}`,
-        `输入：${tool.inputSchemaDescription}`,
+        `风险等级：${tool.risk}`,
+        `输入：${tool.input}`,
       ].join('\n'),
     ),
   ].join('\n\n');

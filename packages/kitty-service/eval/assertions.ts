@@ -1,4 +1,4 @@
-import type { AgentDecision } from '../src/services/agent-runtime';
+import type { AgentAction } from '../src/agent-runtime';
 import type { AgentEvalCase, AgentEvalExpectation } from './cases';
 
 /** 单条评估结果 */
@@ -7,57 +7,59 @@ export interface AgentEvalCaseResult {
   readonly case: AgentEvalCase;
   /** 是否通过 */
   readonly passed: boolean;
-  /** 实际决策 */
-  readonly decision?: AgentDecision;
+  /** 实际Action */
+  readonly action?: AgentAction;
   /** 失败原因 */
   readonly errorMessage?: string;
 }
 
-/** 校验模型决策 */
-export function assertAgentDecision(
+/** 校验模型Action */
+export function assertAgentAction(
   evalCase: AgentEvalCase,
-  decision: AgentDecision,
+  action: AgentAction,
 ): AgentEvalCaseResult {
-  const errorMessage = findDecisionMismatch(evalCase.expectation, decision);
+  const errorMessage = findActionMismatch(evalCase.expectation, action);
   return {
     case: evalCase,
     passed: !errorMessage,
-    decision,
+    action,
     errorMessage,
   };
 }
 
-function findDecisionMismatch(
+function findActionMismatch(
   expectation: AgentEvalExpectation,
-  decision: AgentDecision,
+  action: AgentAction,
 ): string | undefined {
-  if (decision.type !== expectation.type) {
-    return `期望 type=${expectation.type}，实际 type=${decision.type}`;
+  if (action.type !== expectation.type) {
+    return `期望 type=${expectation.type}，实际 type=${action.type}`;
   }
 
-  if (expectation.type === 'tool_call') {
-    if (decision.type !== 'tool_call') return undefined;
-    return decision.toolName === expectation.toolName
+  if (expectation.type === 'finish') {
+    if (action.type !== 'finish') return undefined;
+    return action.result === expectation.result
       ? undefined
-      : `期望 toolName=${expectation.toolName}，实际 toolName=${decision.toolName}`;
+      : `期望 result=${expectation.result}，实际 result=${action.result}`;
   }
 
-  if (expectation.type === 'skill_call') {
-    if (decision.type !== 'skill_call') return undefined;
-    return decision.skillName === expectation.skillName
-      ? undefined
-      : `期望 skillName=${expectation.skillName}，实际 skillName=${decision.skillName}`;
+  if (action.type !== 'tool') return undefined;
+  if (action.name !== expectation.name) {
+    return `期望 name=${expectation.name}，实际 name=${action.name}`;
   }
 
-  if (expectation.type === 'skill_reference_call') {
-    if (decision.type !== 'skill_reference_call') return undefined;
-    if (decision.skillName !== expectation.skillName) {
-      return `期望 skillName=${expectation.skillName}，实际 skillName=${decision.skillName}`;
+  if (expectation.skillName || expectation.reference) {
+    const input = isRecord(action.input) ? action.input : {};
+    if (expectation.skillName && input.name !== expectation.skillName) {
+      return `期望 skillName=${expectation.skillName}，实际 skillName=${String(input.name)}`;
     }
-    return decision.referencePath === expectation.referencePath
-      ? undefined
-      : `期望 referencePath=${expectation.referencePath}，实际 referencePath=${decision.referencePath}`;
+    if (expectation.reference && input.reference !== expectation.reference) {
+      return `期望 reference=${expectation.reference}，实际 reference=${String(input.reference)}`;
+    }
   }
 
   return undefined;
+}
+
+function isRecord(input: unknown): input is Record<string, unknown> {
+  return typeof input === 'object' && input !== null;
 }

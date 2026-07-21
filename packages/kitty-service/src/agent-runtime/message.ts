@@ -1,17 +1,13 @@
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
-import type {
-  SkillContent,
-  SkillMetadata,
-  SkillReferenceContent,
-} from '../../../agent-runtime/skills';
-import type { ToolExecutionResult } from './tool';
+import type { SkillContent, SkillMetadata, SkillReferenceContent } from './skills';
+import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool';
 
 /**
  * Agent对话消息
  *
  * Harness 用平台无关的消息列表承载运行观察，避免把 Skill 正文提升到系统指令层。
  */
-export type AgentConversationMessage =
+export type AgentMessage =
   | {
       /** 消息类型 */
       readonly type: 'user_event';

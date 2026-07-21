@@ -1,19 +1,16 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
-import {
-  AgentRuntimeHarness,
-  HarnessQqReplyAgentAdapter,
-} from '../application/agent-runtime-harness';
-import { InMemoryConversationHistory } from '../application/in-memory-conversation-history';
+import { Agent, AgentAdapter } from './agent';
+import { InMemoryConversationHistory } from '../services/agent-runtime/application/in-memory-conversation-history';
 import {
   BuiltinRuntimeToolExecutor,
   BuiltinRuntimeToolRegistry,
-} from '../application/runtime-tools';
-import type { AgentObservation } from '../domain/agent-observation';
-import type { AgentRunnerPort } from '../ports/agent-runner.port';
-import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
-import type { SkillContentReader, SkillReferenceReader } from '../../../agent-runtime/skills';
-import type { RuntimeToolExecutorPort } from '../ports/tool-executor.port';
-import type { RuntimeToolRegistryPort } from '../ports/tool-registry.port';
+} from '../services/agent-runtime/application/runtime-tools';
+import type { AgentContext } from './state';
+import type { AgentRunnerPort } from '../services/agent-runtime/ports/agent-runner.port';
+import type { QqReplyAgentPort } from '../services/agent-runtime/ports/qq-reply-agent.port';
+import type { SkillContentReader, SkillReferenceReader } from './skills';
+import type { RuntimeToolExecutorPort } from '../services/agent-runtime/ports/tool-executor.port';
+import type { RuntimeToolRegistryPort } from '../services/agent-runtime/ports/tool-registry.port';
 import type { ChatEventContract } from '@kitty/contracts/events/chat-event.contract';
 import type {
   ChatEventId,
@@ -22,13 +19,13 @@ import type {
   ParticipantId,
 } from '@kitty/shared/types/ids';
 
-describe('AgentRuntimeHarness', () => {
+describe('Agent', () => {
   afterEach(() => {
     vi.restoreAllMocks();
   });
 
   test('首轮模型决策前自动注入最近消息观察', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness({
       async decide(observation) {
         observations.push(observation);
@@ -66,7 +63,7 @@ describe('AgentRuntimeHarness', () => {
 
   test('前置最近消息读取异常时注入失败观察并继续决策', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const execute = vi.fn(async () => {
       throw new Error('历史存储暂不可用');
     });
@@ -119,7 +116,7 @@ describe('AgentRuntimeHarness', () => {
 
   test('非low风险工具不会进入执行器', async () => {
     const execute = vi.fn();
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     let decisionCount = 0;
     const registry: RuntimeToolRegistryPort = {
       listTools: () => [
@@ -168,7 +165,7 @@ describe('AgentRuntimeHarness', () => {
     expect(observations[1]?.toolResults.at(-1)).toMatchObject({
       toolName: 'remote_write',
       success: false,
-      errorMessage: '工具风险等级不允许自动执行',
+      observation: expect.stringContaining('需要人工确认'),
     });
   });
 
@@ -199,7 +196,7 @@ describe('AgentRuntimeHarness', () => {
   });
 
   test('Skill调用请求会在下一轮注入正文', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const loadSkillContent = vi.fn(async () => ({
       metadata: {
         name: 'qq-chat',
@@ -249,17 +246,17 @@ describe('AgentRuntimeHarness', () => {
       text: '我会按群聊方法论来回。',
     });
     expect(
-      observations[1]?.toolResults.find((result) => result.toolName === 'skill_call:qq-chat'),
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill'),
     ).toMatchObject({
-      toolName: 'skill_call:qq-chat',
+      toolName: 'skill',
       success: true,
     });
     expect(observations[0]?.promptState.phase).toBe('tool_observing');
     expect(observations[1]?.promptState.phase).toBe('skill_loaded');
     expect(observations[1]?.promptState.context.enabledSkillNames).toEqual(['qq-chat']);
-    expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
-      decisionType: 'skill_call',
-      target: 'qq-chat',
+    expect(observations[1]?.promptState.actionHistory[0]).toMatchObject({
+      actionType: 'tool',
+      target: 'skill',
       success: true,
     });
     expect(observations[0]?.availableSkills[0]?.name).toBe('qq-chat');
@@ -274,14 +271,13 @@ describe('AgentRuntimeHarness', () => {
       ]),
     );
     expect(
-      observations[1]?.toolResults.find((result) => result.toolName === 'skill_call:qq-chat')
-        ?.observation,
-    ).toContain('正文将在下一轮模型上下文中生效');
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill')?.observation,
+    ).toContain('已启用Skill qq-chat');
     expect(loadSkillContent).toHaveBeenCalledTimes(1);
   });
 
   test('预启用Skill会直接进入首轮上下文，不需要Agent调用', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const loadSkillContent = vi.fn(async () => ({
       metadata: {
         name: 'qq-chat',
@@ -346,7 +342,7 @@ describe('AgentRuntimeHarness', () => {
       },
       body: '不应注入。',
     }));
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness(
       {
         async decide(observation) {
@@ -383,9 +379,9 @@ describe('AgentRuntimeHarness', () => {
     expect(result).toMatchObject({ type: 'human_review' });
     expect(loadSkillContent).not.toHaveBeenCalled();
     expect(
-      observations[1]?.toolResults.find((result) => result.toolName === 'skill_call:missing-skill'),
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill'),
     ).toMatchObject({
-      toolName: 'skill_call:missing-skill',
+      toolName: 'skill',
       success: false,
     });
   });
@@ -492,7 +488,7 @@ describe('AgentRuntimeHarness', () => {
       absolutePath: '/tmp/skills/chat-style/references/examples.md',
       content: '不应读取。',
     }));
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness(
       {
         async decide(observation) {
@@ -527,18 +523,16 @@ describe('AgentRuntimeHarness', () => {
     expect(result).toMatchObject({ type: 'human_review' });
     expect(loadSkillReference).not.toHaveBeenCalled();
     expect(
-      observations[1]?.toolResults.find(
-        (result) => result.toolName === 'skill_reference_call:chat-style',
-      ),
+      observations[1]?.toolResults.find((result) => result.toolName === 'skill'),
     ).toMatchObject({
-      toolName: 'skill_reference_call:chat-style',
+      toolName: 'skill',
       success: false,
-      errorMessage: 'Skill未启用',
+      errorMessage: 'Skill尚未启用',
     });
   });
 
   test('已启用Skill后可以按需读取references', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const loadSkillReference = vi.fn(async () => ({
       skill: {
         name: 'chat-style',
@@ -666,7 +660,7 @@ describe('AgentRuntimeHarness', () => {
       absolutePath: `/tmp/skills/chat-style/references/${referencePath}`,
       content: '示例。',
     }));
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness(
       {
         async decide(observation) {
@@ -712,7 +706,7 @@ describe('AgentRuntimeHarness', () => {
   });
 
   test('Prompt状态会记录工具观察阶段和决策历史', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness({
       async decide(observation) {
         observations.push(observation);
@@ -738,15 +732,15 @@ describe('AgentRuntimeHarness', () => {
     expect(observations[1]?.promptState.phase).toBe('tool_observing');
     expect(observations[1]?.promptState.budget.toolCallCount).toBe(1);
     expect(observations[1]?.promptState.context.latestObservation).toContain('最近 1 条消息');
-    expect(observations[1]?.promptState.decisionHistory[0]).toMatchObject({
-      decisionType: 'tool_call',
+    expect(observations[1]?.promptState.actionHistory[0]).toMatchObject({
+      actionType: 'tool',
       target: 'get_recent_messages',
       success: true,
     });
   });
 
   test('强制群聊回复可基于前置最近消息直接回复', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness({
       async decide(observation) {
         observations.push(observation);
@@ -779,7 +773,7 @@ describe('AgentRuntimeHarness', () => {
   });
 
   test('强制群聊回复读取最近消息后不能返回ignore', async () => {
-    const observations: AgentObservation[] = [];
+    const observations: AgentContext[] = [];
     const harness = createHarness({
       async decide(observation) {
         observations.push(observation);
@@ -821,14 +815,14 @@ describe('AgentRuntimeHarness', () => {
 
   test('ignore和human_review通过旧端口适配为空动作', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const ignoreAgent = new HarnessQqReplyAgentAdapter(
+    const ignoreAgent = new AgentAdapter(
       createHarness({
         async decide() {
           return { type: 'ignore', reason: '不需要参与' };
         },
       }),
     );
-    const reviewAgent = new HarnessQqReplyAgentAdapter(
+    const reviewAgent = new AgentAdapter(
       createHarness({
         async decide() {
           return { type: 'human_review', reason: '需要人看一眼' };
@@ -916,9 +910,9 @@ function createHarness(
   runner: AgentRunnerPort,
   skillContentLoader: SkillContentReader | undefined = createSkillContentLoader(),
   skillReferenceLoader: SkillReferenceReader | undefined = createSkillReferenceLoader(),
-): AgentRuntimeHarness {
+): Agent {
   const history = new InMemoryConversationHistory();
-  return new AgentRuntimeHarness(
+  return new Agent(
     runner,
     new BuiltinRuntimeToolRegistry(),
     new BuiltinRuntimeToolExecutor(history),
@@ -937,9 +931,9 @@ function createHarness(
 function createHarnessWithToolExecutor(
   runner: AgentRunnerPort,
   toolExecutor: RuntimeToolExecutorPort,
-): AgentRuntimeHarness {
+): Agent {
   const history = new InMemoryConversationHistory();
-  return new AgentRuntimeHarness(
+  return new Agent(
     runner,
     new BuiltinRuntimeToolRegistry(),
     toolExecutor,
@@ -959,9 +953,9 @@ function createHarnessWithTools(
   runner: AgentRunnerPort,
   toolRegistry: RuntimeToolRegistryPort,
   toolExecutor: RuntimeToolExecutorPort,
-): AgentRuntimeHarness {
+): Agent {
   const history = new InMemoryConversationHistory();
-  return new AgentRuntimeHarness(
+  return new Agent(
     runner,
     toolRegistry,
     toolExecutor,

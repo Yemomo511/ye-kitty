@@ -1,7 +1,7 @@
 import type { QqReplyAgentPort } from '../ports/qq-reply-agent.port';
 import type { ConversationHistoryPort } from '../ports/conversation-history.port';
 import type { SkillRuntime } from '../../../agent-runtime/skills';
-import { AgentRuntimeHarness, HarnessQqReplyAgentAdapter } from './agent-runtime-harness';
+import { Agent, AgentAdapter } from '../../../agent-runtime/agent';
 import type { CustomFaceCatalogService } from './custom-face-catalog.service';
 import { FallbackQqReplyAgent } from './fallback-qq-reply.agent';
 import { InMemoryConversationHistory } from './in-memory-conversation-history';
@@ -85,7 +85,7 @@ export function createQqReplyAgent(
     },
     modelPool,
   );
-  const harness = new AgentRuntimeHarness(
+  const agent = new Agent(
     runner,
     toolRegistry,
     toolExecutor,
@@ -105,7 +105,7 @@ export function createQqReplyAgent(
     },
   );
 
-  return new SafeQqReplyAgent(new HarnessQqReplyAgentAdapter(harness), fallbackAgent);
+  return new SafeQqReplyAgent(new AgentAdapter(agent), fallbackAgent);
 }
 
 /**

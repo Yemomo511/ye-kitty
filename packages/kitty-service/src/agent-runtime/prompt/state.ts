@@ -1,11 +1,11 @@
-import type { AgentDecision } from './agent-decision';
+import type { AgentAction } from '../action';
 
 /**
- * Harness Prompt状态阶段
+ * Prompt状态阶段
  *
  * 用显式阶段约束模型下一步行动，避免把状态隐含在对话消息列表中。
  */
-export type HarnessPromptPhase =
+export type PromptPhase =
   | 'initial_observe'
   | 'skill_loaded'
   | 'reference_loaded'
@@ -15,8 +15,8 @@ export type HarnessPromptPhase =
   | 'fallback'
   | 'human_review';
 
-/** Harness预算状态 */
-export interface HarnessPromptBudgetState {
+/** Agent预算状态 */
+export interface PromptBudgetState {
   /** 当前轮次 */
   readonly turnIndex: number;
   /** 最大轮次 */
@@ -33,8 +33,8 @@ export interface HarnessPromptBudgetState {
   readonly decisionErrorCount: number;
 }
 
-/** Harness上下文状态 */
-export interface HarnessPromptContextState {
+/** Agent上下文状态 */
+export interface PromptContextState {
   /** 可请求Skill名称 */
   readonly availableSkillNames: readonly string[];
   /** 已注入Skill名称 */
@@ -47,12 +47,12 @@ export interface HarnessPromptContextState {
   readonly latestObservation: string;
 }
 
-/** Harness历史决策 */
-export interface HarnessPromptDecisionHistoryItem {
+/** Agent历史Action */
+export interface PromptHistoryItem {
   /** 发生轮次 */
   readonly turnIndex: number;
   /** 决策类型 */
-  readonly decisionType: AgentDecision['type'];
+  readonly actionType: AgentAction['type'];
   /** 决策目标 */
   readonly target?: string;
   /** 是否成功 */
@@ -62,19 +62,19 @@ export interface HarnessPromptDecisionHistoryItem {
 }
 
 /**
- * Harness Prompt显式状态
+ * Prompt显式状态
  *
- * Harness 负责维护真实状态，Prompt 只渲染这个快照给模型参考。
+ * Agent负责维护真实状态，Prompt只渲染这个快照给模型参考。
  */
-export interface HarnessPromptState {
+export interface PromptState {
   /** 追踪ID */
   readonly traceId: string;
   /** 当前阶段 */
-  readonly phase: HarnessPromptPhase;
+  readonly phase: PromptPhase;
   /** 预算状态 */
-  readonly budget: HarnessPromptBudgetState;
+  readonly budget: PromptBudgetState;
   /** 上下文状态 */
-  readonly context: HarnessPromptContextState;
+  readonly context: PromptContextState;
   /** 决策历史 */
-  readonly decisionHistory: readonly HarnessPromptDecisionHistoryItem[];
+  readonly actionHistory: readonly PromptHistoryItem[];
 }
