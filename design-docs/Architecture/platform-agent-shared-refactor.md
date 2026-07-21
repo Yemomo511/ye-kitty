@@ -496,5 +496,6 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 - 唯一方案入口：本文档。
 - 文件迁移入口：[`file-name-map.md`](./file-name-map.md)。
 - 执行进度与验收入口：[`../Task.md`](../Task.md)。
-- 当前状态：设计中，尚未进入源码迁移。
-- 下一步：评审 AgentAction 协议、Prompt 唯一治理权和 LM/Tools 单向依赖，确认后从阶段 0 开始实施。
+- 当前状态：开发中，阶段 0 已建立目标模块入口和迁移期架构校验。
+- 已完成：新增 12 项架构规则测试；新校验禁止三层反向依赖，并使用递减债务额度阻止旧四层目录和旧文件命名继续增长。
+- 下一步：迁移 AgentAction、Prompt、Skills、Tools 与 Schedule，完成统一 Action 调度闭环。
