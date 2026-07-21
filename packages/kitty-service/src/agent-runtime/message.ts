@@ -5,7 +5,7 @@ import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool'
 /**
  * Agent对话消息
  *
- * Harness 用平台无关的消息列表承载运行观察，避免把 Skill 正文提升到系统指令层。
+ * Agent 用平台无关的消息列表承载运行观察，避免把 Skill 正文提升到系统指令层。
  */
 export type AgentMessage =
   | {

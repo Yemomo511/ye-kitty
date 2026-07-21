@@ -2,7 +2,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import { FallbackQqReplyAgent } from '../application/fallback-qq-reply.agent';
 import { SafeQqReplyAgent } from '../application/safe-qq-reply.agent';
 import {
-  DEFAULT_HARNESS_MAX_TURNS,
+  DEFAULT_AGENT_MAX_TURNS,
   createQqReplyAgent,
   loadQqReplyAgentConfig,
 } from '../application/qq-reply-agent.factory';
@@ -132,7 +132,7 @@ describe('QQ回复Agent', () => {
   });
 
   test('Harness默认最大循环次数为100次', () => {
-    expect(DEFAULT_HARNESS_MAX_TURNS).toBe(100);
+    expect(DEFAULT_AGENT_MAX_TURNS).toBe(100);
   });
 });
 

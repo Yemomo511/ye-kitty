@@ -1,12 +1,13 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { Agent, AgentAdapter } from './agent';
+import { normalizeAgentAction } from './action';
 import { InMemoryConversationHistory } from '../services/agent-runtime/application/in-memory-conversation-history';
 import {
   BuiltinRuntimeToolExecutor,
   BuiltinRuntimeToolRegistry,
 } from '../services/agent-runtime/application/runtime-tools';
 import type { AgentContext } from './state';
-import type { AgentRunnerPort } from '../services/agent-runtime/ports/agent-runner.port';
+import type { LMRunner } from './lm/lm';
 import type { QqReplyAgentPort } from '../services/agent-runtime/ports/qq-reply-agent.port';
 import type { SkillContentReader, SkillReferenceReader } from './skills';
 import type { RuntimeToolExecutorPort } from '../services/agent-runtime/ports/tool-executor.port';
@@ -19,6 +20,11 @@ import type {
   ParticipantId,
 } from '@kitty/shared/types/ids';
 
+/** 旧夹具只用于验证 Action 兼容解析，不进入生产 LM 边界。 */
+interface TestLM {
+  run(observation: AgentContext): Promise<unknown>;
+}
+
 describe('Agent', () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -26,8 +32,8 @@ describe('Agent', () => {
 
   test('首轮模型决策前自动注入最近消息观察', async () => {
     const observations: AgentContext[] = [];
-    const harness = createHarness({
-      async decide(observation) {
+    const agent = createAgent({
+      async run(observation) {
         observations.push(observation);
         return {
           type: 'reply',
@@ -37,7 +43,7 @@ describe('Agent', () => {
       },
     });
 
-    const result = await harness.run({ event: createChatEvent('你好') });
+    const result = await agent.run({ event: createChatEvent('你好') });
 
     expect(result).toMatchObject({
       type: 'reply',
@@ -67,9 +73,9 @@ describe('Agent', () => {
     const execute = vi.fn(async () => {
       throw new Error('历史存储暂不可用');
     });
-    const harness = createHarnessWithToolExecutor(
+    const agent = createAgentWithToolExecutor(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           return {
             type: 'reply',
@@ -81,7 +87,7 @@ describe('Agent', () => {
       { execute },
     );
 
-    const result = await harness.run({ event: createChatEvent('异常测试') });
+    const result = await agent.run({ event: createChatEvent('异常测试') });
 
     expect(result).toMatchObject({ type: 'reply', text: '暂时看不到历史，我先回应当前消息。' });
     expect(execute).toHaveBeenCalledOnce();
@@ -95,8 +101,8 @@ describe('Agent', () => {
 
   test('工具调用超过预算时降级到fallback', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const harness = createHarness({
-      async decide() {
+    const agent = createAgent({
+      async run() {
         return {
           type: 'tool_call',
           toolName: 'get_recent_messages',
@@ -106,7 +112,7 @@ describe('Agent', () => {
       },
     });
 
-    const result = await harness.run({ event: createChatEvent('预算测试') });
+    const result = await agent.run({ event: createChatEvent('预算测试') });
 
     expect(result).toMatchObject({
       type: 'reply',
@@ -137,9 +143,9 @@ describe('Agent', () => {
             }
           : undefined,
     };
-    const harness = createHarnessWithTools(
+    const agent = createAgentWithTools(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           decisionCount += 1;
           if (decisionCount === 1) {
@@ -157,7 +163,7 @@ describe('Agent', () => {
       { execute },
     );
 
-    await expect(harness.run({ event: createChatEvent('风险测试') })).resolves.toMatchObject({
+    await expect(agent.run({ event: createChatEvent('风险测试') })).resolves.toMatchObject({
       type: 'reply',
       text: '需要人工确认后执行。',
     });
@@ -172,8 +178,8 @@ describe('Agent', () => {
   test('Runner异常会进入下一轮观察并允许恢复', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
     let called = false;
-    const harness = createHarness({
-      async decide() {
+    const agent = createAgent({
+      async run() {
         if (!called) {
           called = true;
           throw new Error('非法 JSON');
@@ -187,7 +193,7 @@ describe('Agent', () => {
       },
     });
 
-    const result = await harness.run({ event: createChatEvent('恢复测试') });
+    const result = await agent.run({ event: createChatEvent('恢复测试') });
 
     expect(result).toMatchObject({
       type: 'reply',
@@ -206,9 +212,9 @@ describe('Agent', () => {
       },
       body: '保持自然。',
     }));
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           if (observation.turnIndex === 1) {
             return {
@@ -229,7 +235,7 @@ describe('Agent', () => {
       { loadSkillContent },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('Skill测试'),
       availableSkills: [
         {
@@ -294,9 +300,9 @@ describe('Agent', () => {
       },
       body: '保持自然。',
     };
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           return {
             type: 'reply',
@@ -308,7 +314,7 @@ describe('Agent', () => {
       { loadSkillContent },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('预启用Skill测试'),
       availableSkills: [qqChatSkill.metadata],
       skills: [qqChatSkill, { ...qqChatSkill, body: '重复正文不应进入上下文。' }],
@@ -343,9 +349,9 @@ describe('Agent', () => {
       body: '不应注入。',
     }));
     const observations: AgentContext[] = [];
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           if (observation.turnIndex === 1) {
             return {
@@ -365,7 +371,7 @@ describe('Agent', () => {
       { loadSkillContent },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('不可用Skill测试'),
       availableSkills: [
         {
@@ -395,9 +401,9 @@ describe('Agent', () => {
       },
       body: '保持自然。',
     }));
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           if (observation.turnIndex < 3) {
             return {
               type: 'skill_call',
@@ -417,7 +423,7 @@ describe('Agent', () => {
       { loadSkillContent },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('重复Skill测试'),
       availableSkills: [
         {
@@ -434,9 +440,9 @@ describe('Agent', () => {
 
   test('Skill加载失败会进入下一轮观察并允许恢复', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           if (observation.turnIndex === 1) {
             return {
               type: 'skill_call',
@@ -460,7 +466,7 @@ describe('Agent', () => {
       },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('Skill失败测试'),
       availableSkills: [
         {
@@ -489,9 +495,9 @@ describe('Agent', () => {
       content: '不应读取。',
     }));
     const observations: AgentContext[] = [];
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           if (observation.turnIndex === 1) {
             return {
@@ -509,7 +515,7 @@ describe('Agent', () => {
       { loadSkillReference },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('引用测试'),
       availableSkills: [
         {
@@ -543,9 +549,9 @@ describe('Agent', () => {
       absolutePath: '/tmp/skills/chat-style/references/examples.md',
       content: '示例：短句回复。',
     }));
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           if (observation.turnIndex === 1) {
             return {
@@ -572,7 +578,7 @@ describe('Agent', () => {
       { loadSkillReference },
     );
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('引用成功测试'),
       availableSkills: [
         {
@@ -612,9 +618,9 @@ describe('Agent', () => {
       absolutePath: '/tmp/skills/chat-style/references/examples.md',
       content: '示例。',
     }));
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           if (observation.turnIndex === 1) {
             return { type: 'skill_call', skillName: 'chat-style', input: {}, reason: '启用' };
           }
@@ -635,7 +641,7 @@ describe('Agent', () => {
       { loadSkillReference },
     );
 
-    await harness.run({
+    await agent.run({
       event: createChatEvent('重复引用测试'),
       availableSkills: [
         {
@@ -661,9 +667,9 @@ describe('Agent', () => {
       content: '示例。',
     }));
     const observations: AgentContext[] = [];
-    const harness = createHarness(
+    const agent = createAgent(
       {
-        async decide(observation) {
+        async run(observation) {
           observations.push(observation);
           if (observation.turnIndex === 1) {
             return { type: 'skill_call', skillName: 'chat-style', input: {}, reason: '启用' };
@@ -685,7 +691,7 @@ describe('Agent', () => {
       { loadSkillReference },
     );
 
-    await harness.run({
+    await agent.run({
       event: createChatEvent('引用上限测试'),
       availableSkills: [
         {
@@ -707,8 +713,8 @@ describe('Agent', () => {
 
   test('Prompt状态会记录工具观察阶段和决策历史', async () => {
     const observations: AgentContext[] = [];
-    const harness = createHarness({
-      async decide(observation) {
+    const agent = createAgent({
+      async run(observation) {
         observations.push(observation);
         if (observation.turnIndex === 1) {
           return {
@@ -726,7 +732,7 @@ describe('Agent', () => {
       },
     });
 
-    await harness.run({ event: createChatEvent('状态测试') });
+    await agent.run({ event: createChatEvent('状态测试') });
 
     expect(observations[0]?.promptState.phase).toBe('tool_observing');
     expect(observations[1]?.promptState.phase).toBe('tool_observing');
@@ -741,8 +747,8 @@ describe('Agent', () => {
 
   test('强制群聊回复可基于前置最近消息直接回复', async () => {
     const observations: AgentContext[] = [];
-    const harness = createHarness({
-      async decide(observation) {
+    const agent = createAgent({
+      async run(observation) {
         observations.push(observation);
         return {
           type: 'reply',
@@ -752,7 +758,7 @@ describe('Agent', () => {
       },
     });
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('强制回复'),
       replyIntent: 'required_group_reply',
       requiredToolCalls: ['get_recent_messages'],
@@ -774,8 +780,8 @@ describe('Agent', () => {
 
   test('强制群聊回复读取最近消息后不能返回ignore', async () => {
     const observations: AgentContext[] = [];
-    const harness = createHarness({
-      async decide(observation) {
+    const agent = createAgent({
+      async run(observation) {
         observations.push(observation);
         if (observation.turnIndex === 1) {
           return {
@@ -792,7 +798,7 @@ describe('Agent', () => {
       },
     });
 
-    const result = await harness.run({
+    const result = await agent.run({
       event: createChatEvent('不能静默'),
       replyIntent: 'required_group_reply',
       requiredToolCalls: ['get_recent_messages'],
@@ -816,15 +822,15 @@ describe('Agent', () => {
   test('ignore和human_review通过旧端口适配为空动作', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const ignoreAgent = new AgentAdapter(
-      createHarness({
-        async decide() {
+      createAgent({
+        async run() {
           return { type: 'ignore', reason: '不需要参与' };
         },
       }),
     );
     const reviewAgent = new AgentAdapter(
-      createHarness({
-        async decide() {
+      createAgent({
+        async run() {
           return { type: 'human_review', reason: '需要人看一眼' };
         },
       }),
@@ -906,14 +912,14 @@ describe('Agent', () => {
   });
 });
 
-function createHarness(
-  runner: AgentRunnerPort,
+function createAgent(
+  lm: TestLM,
   skillContentLoader: SkillContentReader | undefined = createSkillContentLoader(),
   skillReferenceLoader: SkillReferenceReader | undefined = createSkillReferenceLoader(),
 ): Agent {
   const history = new InMemoryConversationHistory();
   return new Agent(
-    runner,
+    normalizeTestLM(lm),
     new BuiltinRuntimeToolRegistry(),
     new BuiltinRuntimeToolExecutor(history),
     history,
@@ -928,13 +934,10 @@ function createHarness(
   );
 }
 
-function createHarnessWithToolExecutor(
-  runner: AgentRunnerPort,
-  toolExecutor: RuntimeToolExecutorPort,
-): Agent {
+function createAgentWithToolExecutor(lm: TestLM, toolExecutor: RuntimeToolExecutorPort): Agent {
   const history = new InMemoryConversationHistory();
   return new Agent(
-    runner,
+    normalizeTestLM(lm),
     new BuiltinRuntimeToolRegistry(),
     toolExecutor,
     history,
@@ -949,14 +952,14 @@ function createHarnessWithToolExecutor(
   );
 }
 
-function createHarnessWithTools(
-  runner: AgentRunnerPort,
+function createAgentWithTools(
+  lm: TestLM,
   toolRegistry: RuntimeToolRegistryPort,
   toolExecutor: RuntimeToolExecutorPort,
 ): Agent {
   const history = new InMemoryConversationHistory();
   return new Agent(
-    runner,
+    normalizeTestLM(lm),
     toolRegistry,
     toolExecutor,
     history,
@@ -969,6 +972,15 @@ function createHarnessWithTools(
       maxSkillReferences: 3,
     },
   );
+}
+
+// 兼容夹具在测试边界完成归一化，生产 Agent 始终只接收 AgentAction。
+function normalizeTestLM(lm: TestLM): LMRunner {
+  return {
+    async run(observation) {
+      return normalizeAgentAction(await lm.run(observation));
+    },
+  };
 }
 
 function createSkillContentLoader(): SkillContentReader {

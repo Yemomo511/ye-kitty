@@ -496,7 +496,7 @@ Platforms 不组织 Prompt、不调用 LM、不判断 AgentAction，也不引用
 - 唯一方案入口：本文档。
 - 文件迁移入口：[`file-name-map.md`](./file-name-map.md)。
 - 执行进度与验收入口：[`../Task.md`](../Task.md)。
-- 当前状态：开发中，Agent、Action、Context、Message、Prompt、Skills、Tools 与 Schedule 已迁入目标结构。
-- 已完成：Agent 主循环直接消费 AgentAction，普通 Tool、Skill 正文和 Skill 引用全部经 Schedule 调度；生产模型 Runner 已直接返回 AgentAction。
-- 兼容状态：Agent Runner 端口暂时保留旧 Decision 联合类型，仅用于旧测试夹具过渡；迁入 LM 后一并删除。
-- 下一步：迁移 LM、Model Pool 与 Code Agent，建立 Agent 只依赖 LM 的单向边界。
+- 当前状态：开发中，Agent Runtime 核心与 LM 已迁入目标结构。
+- 已完成：LM 持有 Model Pool；旧 AgentDecision 与 Runner Port 已删除；Code Agent 的协议、门禁、进程和本地服务已收进 `lm/code-agent`，并以 `code` Tool 接入 Schedule。
+- 兼容状态：旧 Runtime Tool 仍通过 `tools/runtime.ts` 适配，随 Platforms 与 MCP 迁移删除。
+- 下一步：迁移 Platforms、订阅与 Bootstrap 装配，消除 Platform → Agent Runtime 反向依赖。

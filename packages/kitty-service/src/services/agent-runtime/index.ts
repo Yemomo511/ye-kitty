@@ -3,7 +3,6 @@ export type {
   QqReplyAgentPort,
   QqReplyAgentResult,
 } from './ports/qq-reply-agent.port';
-export type { AgentDecision } from './domain/agent-decision';
 export type { AgentContext } from '../../agent-runtime/state';
 export type {
   PromptBudgetState,
@@ -40,15 +39,14 @@ export type {
   McpStdioServerConfig,
   McpTransport,
 } from './domain/mcp';
-export type { AgentRunnerPort } from './ports/agent-runner.port';
 export type {
   ModelDecisionRequest,
   ModelDecisionResult,
   ModelNodeConfig,
-  ModelRequestPoolPort,
+  ModelPoolRunner,
   ModelRequestPriority,
   ModelRuntimeState,
-} from './ports/model-request-pool.port';
+} from '../../agent-runtime/lm/model';
 export type { ConversationHistoryPort } from './ports/conversation-history.port';
 export type {
   GroupChatCadenceDecision,
@@ -126,13 +124,19 @@ export {
   type XiaohongshuMcpLoginServiceOptions,
 } from './application/xiaohongshu-mcp-login.service';
 export {
-  InMemoryModelRequestPool,
+  LM,
+  ModelPool,
+  ModelRequestError,
+  OpenAIModel,
+  loadModelPoolConfig,
+  parseAgentAction,
+  parseModelPoolConfig,
+  type LMConfig,
+  type LMRunner,
   type ModelRequestPoolClock,
   type ModelTextClient,
   type ModelTextClientRequest,
-} from './application/in-memory-model-request-pool';
-export { ModelRequestError } from './application/model-request-error';
-export { loadModelPoolConfig, parseModelPoolConfig } from './application/model-request-pool-config';
+} from '../../agent-runtime/lm';
 export { QqReplyActionExecutor } from './application/qq-reply-action-executor';
 export {
   createQqReplyAgent,
@@ -140,12 +144,6 @@ export {
   type QqReplyAgentRuntimeDependencies,
   type QqReplyAgentRuntimeConfig,
 } from './application/qq-reply-agent.factory';
-export {
-  OpenAiHarnessAgentRunner,
-  parseAgentAction,
-  type OpenAiHarnessAgentRunnerConfig,
-} from './infrastructure/openai-harness-agent-runner';
-export { OpenAiCompatibleModelClient } from './infrastructure/openai-compatible-model.client';
 export {
   loadMcpRuntimeConfig,
   type LoadedMcpRuntimeConfig,

@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { parseAgentAction } from '../infrastructure/openai-harness-agent-runner';
+import { parseAgentAction } from '../../../agent-runtime/lm/lm';
 import { parseQqReplyAgentResult } from '../infrastructure/openai-qq-reply.agent';
 
 describe('parseQqReplyAgentResult', () => {

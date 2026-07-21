@@ -8,7 +8,7 @@ import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool'
 /**
  * Agent观察上下文
  *
- * Harness 每一轮都用它约束模型只能基于当前事件、Skill、工具和工具结果做决策。
+ * Agent 每一轮都用它约束模型只能基于当前事件、Skill、工具和工具结果做决策。
  */
 export interface AgentContext {
   /** QQ标准消息 */
@@ -23,7 +23,7 @@ export interface AgentContext {
   readonly toolResults: readonly ToolExecutionResult[];
   /** 对话观察消息 */
   readonly conversationMessages: readonly AgentMessage[];
-  /** Harness Prompt显式状态 */
+  /** Agent Prompt显式状态 */
   readonly promptState: PromptState;
   /** 本轮回复意图 */
   readonly replyIntent?: 'normal' | 'required_group_reply';

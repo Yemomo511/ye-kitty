@@ -9,7 +9,7 @@ import type {
   SkillReferenceReader,
 } from './skills';
 import type { ToolExecutionResult } from '../services/agent-runtime/domain/tool';
-import type { AgentRunnerPort } from '../services/agent-runtime/ports/agent-runner.port';
+import type { LMRunner } from './lm/lm';
 import type { ConversationHistoryPort } from '../services/agent-runtime/ports/conversation-history.port';
 import type { RuntimeToolExecutorPort } from '../services/agent-runtime/ports/tool-executor.port';
 import type { RuntimeToolRegistryPort } from '../services/agent-runtime/ports/tool-registry.port';
@@ -72,6 +72,8 @@ export interface AgentConfig {
   readonly maxToolCalls: number;
   /** 最大Skill引用读取数 */
   readonly maxSkillReferences?: number;
+  /** 由 Bootstrap 注入的平台、MCP或Code Agent工具。 */
+  readonly tools?: readonly Tool[];
 }
 
 const DEFAULT_MAX_SKILL_REFERENCES = 3;
@@ -83,7 +85,7 @@ const DEFAULT_MAX_SKILL_REFERENCES = 3;
  */
 export class Agent {
   constructor(
-    private readonly runner: AgentRunnerPort,
+    private readonly lm: LMRunner,
     private readonly toolRegistry: RuntimeToolRegistryPort,
     private readonly toolExecutor: RuntimeToolExecutorPort,
     private readonly conversationHistory: ConversationHistoryPort,
@@ -174,7 +176,7 @@ export class Agent {
       };
 
       try {
-        const action = normalizeAgentAction(await this.runner.decide(observation));
+        const action = normalizeAgentAction(await this.lm.run(observation));
         console.info(
           `🔍 [AgentRuntime-Agent-run] 已获得Agent Action traceId=${traceId} turn=${turnIndex} actionType=${action.type} target=${getActionTarget(action) ?? 'final'}`,
         );
@@ -302,7 +304,10 @@ export class Agent {
 
   // 将迁移中的旧工具和Skill能力统一注册为Tool，执行只经过Schedule。
   private createTools(input: AgentInput): Tool[] {
-    const tools = createRuntimeTools(this.toolRegistry, this.toolExecutor, input.event);
+    const tools = [
+      ...createRuntimeTools(this.toolRegistry, this.toolExecutor, input.event),
+      ...(this.config.tools ?? []),
+    ];
     if (!this.skillContentLoader) return tools;
 
     const skillTool = new SkillTool({

@@ -6,12 +6,12 @@
  */
 
 import { loadNearestEnvFile } from './runtime-environment';
-import { createCodeAgentRuntime } from '../services/llm/application/code-agent.factory';
-import { startHttpServer } from '../control-plane/api/http-server';
-import { registerCodeAgentRoutes } from '../control-plane/api/code-agent.controller';
+import { createCodeAgent } from '../agent-runtime/lm/code-agent';
+import { startServer } from '../agent-runtime/lm/code-agent/server';
+import { registerRoutes } from '../agent-runtime/lm/code-agent/routes';
 import type { FastifyInstance } from 'fastify';
-import { cleanupOrphans } from '../services/llm/infrastructure/process/session-lifecycle';
-import { codeAgentLogger } from '../services/llm/infrastructure/code-agent-logger';
+import { cleanupOrphans } from '../agent-runtime/lm/code-agent/process/session';
+import { log } from '../agent-runtime/lm/code-agent/log';
 
 /** 启动结果 */
 export interface CodeAgentRuntime {
@@ -33,19 +33,19 @@ export async function startCodeAgentRuntime(): Promise<CodeAgentRuntime | undefi
 
   const apiKey = process.env['CODE_AGENT_API_KEY']?.trim();
   if (!apiKey) {
-    codeAgentLogger.info('CODE_AGENT_API_KEY 未设置，code agent 运行时跳过');
+    log.info('CODE_AGENT_API_KEY 未设置，code agent 运行时跳过');
     return undefined;
   }
 
-  const { runner, registry, shutdown } = createCodeAgentRuntime({});
+  const { runner, registry, shutdown } = createCodeAgent({});
 
   let httpApp: FastifyInstance | undefined;
   try {
-    httpApp = await startHttpServer(apiKey, (app) => {
-      registerCodeAgentRoutes(app, runner, registry);
+    httpApp = await startServer(apiKey, (app) => {
+      registerRoutes(app, runner, registry);
     });
   } catch (err) {
-    codeAgentLogger.error('control-plane HTTP 启动失败', err instanceof Error ? err : new Error(String(err)));
+    log.error('control-plane HTTP 启动失败', err instanceof Error ? err : new Error(String(err)));
     // http 启动失败不阻止整体启动（runner 仍可用 in-process）
   }
 
@@ -53,7 +53,7 @@ export async function startCodeAgentRuntime(): Promise<CodeAgentRuntime | undefi
     async stop() {
       if (httpApp) {
         await httpApp.close();
-        codeAgentLogger.info('control-plane HTTP 已关闭');
+        log.info('control-plane HTTP 已关闭');
       }
       await shutdown();
     },

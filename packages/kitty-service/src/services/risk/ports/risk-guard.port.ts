@@ -1,4 +1,4 @@
-import type { ReplyGenerationResult } from '@kitty/services/llm/ports/llm-provider.port';
+import type { ReplyGenerationResult } from '@kitty/agent-runtime/lm/reply';
 import type { RiskAssessment } from '../domain/risk-assessment';
 
 export interface RiskGuardPort {

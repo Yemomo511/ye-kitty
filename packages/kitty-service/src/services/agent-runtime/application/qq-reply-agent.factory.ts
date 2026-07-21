@@ -12,14 +12,16 @@ import {
   type RuntimeToolProvider,
 } from './composite-runtime-tools';
 import { SafeQqReplyAgent } from './safe-qq-reply.agent';
-import { OpenAiHarnessAgentRunner } from '../infrastructure/openai-harness-agent-runner';
-import { InMemoryModelRequestPool } from './in-memory-model-request-pool';
-import { loadModelPoolConfig } from './model-request-pool-config';
-import { OpenAiCompatibleModelClient } from '../infrastructure/openai-compatible-model.client';
-import type { ModelNodeConfig } from '../ports/model-request-pool.port';
+import { LM } from '../../../agent-runtime/lm/lm';
+import { ModelPool } from '../../../agent-runtime/lm/pool';
+import { loadModelPoolConfig } from '../../../agent-runtime/lm/config';
+import { OpenAIModel } from '../../../agent-runtime/lm/openai';
+import type { ModelNodeConfig } from '../../../agent-runtime/lm/model';
+import type { CodeAgentRunner } from '../../../agent-runtime/lm/code-agent/runner';
+import { CodeTool } from '../../../agent-runtime/tools/code';
 
-/** Harness 单次运行默认最大轮次 */
-export const DEFAULT_HARNESS_MAX_TURNS = 100;
+/** Agent 单次运行默认最大轮次 */
+export const DEFAULT_AGENT_MAX_TURNS = 100;
 
 /**
  * QQ回复Agent运行配置
@@ -49,6 +51,8 @@ export interface QqReplyAgentRuntimeDependencies {
   readonly customFaceCatalog?: CustomFaceCatalogService;
   /** 外部运行时工具来源 */
   readonly runtimeToolProviders?: readonly RuntimeToolProvider[];
+  /** 可选Code Agent运行能力，注入后作为统一Tool注册。 */
+  readonly codeAgent?: CodeAgentRunner;
 }
 
 /**
@@ -74,11 +78,8 @@ export function createQqReplyAgent(
   const toolProviders = [builtinProvider, ...(dependencies.runtimeToolProviders ?? [])];
   const toolRegistry = new CompositeRuntimeToolRegistry(toolProviders);
   const toolExecutor = new CompositeRuntimeToolExecutor(toolProviders);
-  const modelPool = new InMemoryModelRequestPool(
-    config.modelPoolNodes,
-    new OpenAiCompatibleModelClient(),
-  );
-  const runner = new OpenAiHarnessAgentRunner(
+  const modelPool = new ModelPool(config.modelPoolNodes, new OpenAIModel());
+  const lm = new LM(
     {
       agentName: config.agentName,
       timeoutMs: config.replyTimeoutMs,
@@ -86,7 +87,7 @@ export function createQqReplyAgent(
     modelPool,
   );
   const agent = new Agent(
-    runner,
+    lm,
     toolRegistry,
     toolExecutor,
     conversationHistory,
@@ -99,9 +100,10 @@ export function createQqReplyAgent(
       : undefined,
     fallbackAgent,
     {
-      maxTurns: DEFAULT_HARNESS_MAX_TURNS,
+      maxTurns: DEFAULT_AGENT_MAX_TURNS,
       maxToolCalls: 3,
       maxSkillReferences: 3,
+      tools: dependencies.codeAgent ? [new CodeTool(dependencies.codeAgent)] : [],
     },
   );
 

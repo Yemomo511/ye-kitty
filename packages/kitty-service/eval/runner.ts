@@ -2,12 +2,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import { agentEvalCases } from './cases';
 import { assertAgentAction, type AgentEvalCaseResult } from './assertions';
-import {
-  InMemoryModelRequestPool,
-  loadQqReplyAgentConfig,
-  OpenAiCompatibleModelClient,
-  OpenAiHarnessAgentRunner,
-} from '../src/services/agent-runtime';
+import { loadQqReplyAgentConfig } from '../src/services/agent-runtime';
+import { LM } from '../src/agent-runtime/lm/lm';
+import { ModelPool } from '../src/agent-runtime/lm/pool';
+import { OpenAIModel } from '../src/agent-runtime/lm/openai';
 import {
   reportCaseResult,
   reportEvalStart,
@@ -25,18 +23,18 @@ export async function runAgentEval(): Promise<AgentEvalSummary> {
     return reportSkipped('缺少模型池配置');
   }
 
-  const runner = new OpenAiHarnessAgentRunner(
+  const lm = new LM(
     {
       agentName: config.agentName,
       timeoutMs: config.replyTimeoutMs,
     },
-    new InMemoryModelRequestPool(config.modelPoolNodes, new OpenAiCompatibleModelClient()),
+    new ModelPool(config.modelPoolNodes, new OpenAIModel()),
   );
 
   reportEvalStart(agentEvalCases.length);
   const results: AgentEvalCaseResult[] = [];
   for (const evalCase of agentEvalCases) {
-    const result = await runEvalCase(runner, evalCase);
+    const result = await runEvalCase(lm, evalCase);
     results.push(result);
     reportCaseResult(result);
   }
@@ -45,11 +43,11 @@ export async function runAgentEval(): Promise<AgentEvalSummary> {
 }
 
 async function runEvalCase(
-  runner: OpenAiHarnessAgentRunner,
+  lm: LM,
   evalCase: (typeof agentEvalCases)[number],
 ): Promise<AgentEvalCaseResult> {
   try {
-    const action = await runner.decide(evalCase.observation);
+    const action = await lm.run(evalCase.observation);
     return assertAgentAction(evalCase, action);
   } catch (error) {
     return {

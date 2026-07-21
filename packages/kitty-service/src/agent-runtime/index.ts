@@ -11,6 +11,7 @@ export { Agent, AgentAdapter, type AgentConfig, type AgentInput, type AgentResul
 export type { AgentMessage } from './message';
 export type { AgentContext } from './state';
 export type { Observation, ObservationStatus } from './observation';
+export * from './lm';
 export * from './prompt';
 export * from './schedule';
 export * from './skills';

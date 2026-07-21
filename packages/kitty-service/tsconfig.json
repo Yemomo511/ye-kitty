@@ -7,6 +7,7 @@
     "baseUrl": ".",
     "paths": {
       "@kitty/shared/*": ["src/shared/*"],
+      "@kitty/agent-runtime/*": ["src/agent-runtime/*"],
       "@kitty/contracts/*": ["src/contracts/*"],
       "@kitty/services/*": ["src/services/*"],
       "@kitty/platforms/*": ["src/platforms/*"],

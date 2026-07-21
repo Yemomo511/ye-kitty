@@ -1,3 +1,4 @@
+export { CodeTool } from './code';
 export { ToolExecutor } from './executor';
 export { RiskToolPermission, type ToolPermission, type ToolPermissionResult } from './permission';
 export { ToolRegistry } from './registry';
