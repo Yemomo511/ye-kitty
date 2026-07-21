@@ -1,0 +1,63 @@
+packages/kitty-service/eval/assertions.ts
+  s_89cafc4f309476::t_8cb8b577cd5eee 1,10-11,16-17,19,21,25,30,32,34-35,38-40,42,45-47,50-56,62-65
+packages/kitty-service/eval/reporter.ts
+  s_89cafc4f309476::t_6f9af408395b89 29,33,39
+packages/kitty-service/eval/runner.ts
+  s_89cafc4f309476::t_025252b989ae18 4,52-53
+packages/kitty-service/src/agent-runtime/prompt/composer.test.ts
+  s_89cafc4f309476::t_3ceea436a03f44 160-162,280,283-284,367-369,436,438,464
+packages/kitty-service/src/agent-runtime/prompt/context.ts
+  s_89cafc4f309476::t_8668fcea391caf 1-2,13-14
+packages/kitty-service/src/agent-runtime/prompt/history.ts
+  s_89cafc4f309476::t_eadc63d1b7d4db 1,8,13
+packages/kitty-service/src/agent-runtime/prompt/index.ts
+  s_89cafc4f309476::t_e5bdb8cae57422 13-19
+packages/kitty-service/src/agent-runtime/prompt/skills.ts
+  s_89cafc4f309476::t_96f50bdc18d202 3,93
+packages/kitty-service/src/agent-runtime/prompt/state.ts
+  s_89cafc4f309476::t_c0cbfc54751366 1,4,8,18-19,36-37,50-51,55,65,67,69,73,75,77,79
+packages/kitty-service/src/agent-runtime/prompt/tools.ts
+  s_89cafc4f309476::t_0a54232ac9e2d9 1,8,18-19
+packages/kitty-service/src/agent-runtime/state.ts
+  s_89cafc4f309476::t_ccd955859cabb6 2-6,13,21,25,27
+packages/kitty-service/src/agent-runtime/tools/index.ts
+  s_89cafc4f309476::t_89183590aad38b 4
+packages/kitty-service/src/agent-runtime/tools/runtime.test.ts
+  s_89cafc4f309476::t_f18b59e73700dc 1-43
+packages/kitty-service/src/agent-runtime/tools/runtime.ts
+  s_89cafc4f309476::t_4eb792ad6bddde 2-4,7,9-10,12-31
+packages/kitty-service/src/agent-runtime/tools/skill.test.ts
+  s_89cafc4f309476::t_110bdc94311ac4 30,72
+packages/kitty-service/src/agent-runtime/tools/skill.ts
+  s_89cafc4f309476::t_d6b805360c3672 5,49,66,81-104,109
+packages/kitty-service/src/agent-runtime/tools/tool.ts
+  s_89cafc4f309476::t_b5ecac94033307 1,16-19
+packages/kitty-service/src/services/agent-runtime/__test__/openai-qq-reply.agent.test.ts
+  s_89cafc4f309476::t_8b83ba53e33e9f 2,78,81,91-93,101,113-115,122,130-133,141,149-153,160,168-172,179,188-190,196
+packages/kitty-service/src/services/agent-runtime/application/qq-reply-agent.factory.ts
+  s_89cafc4f309476::t_7781d9bd3a39b5 4,88,108
+packages/kitty-service/src/services/agent-runtime/index.ts
+  s_89cafc4f309476::t_55cc3ec74c5b1f 7,9-14,32,81-86,145
+packages/kitty-service/src/services/agent-runtime/infrastructure/openai-harness-agent-runner.ts
+  s_89cafc4f309476::t_e411165be6ae89 1,7-11,41,51,60,64,67-70,78,80-85,104
+packages/kitty-service/src/services/agent-runtime/ports/agent-runner.port.ts
+  s_89cafc4f309476::t_3574f0512d7222 2-3,14,16
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "76a03ca5d81b27a35b4097708ef206e46f649535",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
