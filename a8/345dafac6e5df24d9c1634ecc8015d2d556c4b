@@ -1,0 +1,23 @@
+design-docs/Architecture/flat-modular-refactor.md
+  s_89cafc4f309476::t_a6121c6ab5a9de 1,5,8,11,13,15,19-23,27-31,35-38,46,48-60,62-63,65,68-116,118-120,124-146,149,151-163,165,167,169-196,198-261,266-269,275-278,284-287,292,294-297,299,301-304,306,308,310,312,314-317,319,321-324,326,328-330,334,336-344,348-356,360-364,366,382-383,387-391,396,398,402-404
+design-docs/Task.md
+  s_89cafc4f309476::t_231f7e51715b9b 10,17,23,51,69,77,83
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "a8345dafac6e5df24d9c1634ecc8015d2d556c4b",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
