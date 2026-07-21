@@ -1,0 +1,115 @@
+design-docs/Architecture/file-name-map.md
+  s_89cafc4f309476::t_c68342f5c7fd3f 13,213-220
+design-docs/Architecture/platform-agent-shared-refactor.md
+  s_89cafc4f309476::t_9b82e0abc30395 405,466,502
+design-docs/Task.md
+  s_89cafc4f309476::t_e238dc7dcd3a2d 21-34,83
+packages/kitty-service/package.json
+  s_89cafc4f309476::t_491ecc6ef2d5a3 18-19
+packages/kitty-service/scripts/architecture-rules.mjs
+  s_89cafc4f309476::t_8f389dddd183f1 34,40-48
+packages/kitty-service/src/ARCHITECTURE.md
+  s_89cafc4f309476::t_2525e45299f211 65
+packages/kitty-service/src/agent-runtime/__test__/action.test.ts
+  s_89cafc4f309476::t_f22c3f3e18c604 2
+packages/kitty-service/src/agent-runtime/__test__/agent.test.ts
+  s_89cafc4f309476::t_d5ea92c126362d 2-11
+packages/kitty-service/src/agent-runtime/__test__/mention-subscriber.test.ts
+  s_89cafc4f309476::t_060c5de3928599 4
+packages/kitty-service/src/agent-runtime/__test__/queue.test.ts
+  s_89cafc4f309476::t_1c4d95b1def30c 4
+packages/kitty-service/src/agent-runtime/__test__/subscriber.test.ts
+  s_89cafc4f309476::t_a4fe7e2affbd02 2-7,13-15
+packages/kitty-service/src/agent-runtime/lm/__test__/pool.test.ts
+  s_89cafc4f309476::t_9b984ae37e5b0d 2-3,11-12
+packages/kitty-service/src/agent-runtime/lm/__test__/reply-openai.test.ts
+  s_89cafc4f309476::t_c64d131c04b313 2-3
+packages/kitty-service/src/agent-runtime/lm/code-agent/__test__/server.test.ts
+  s_89cafc4f309476::t_6cea7e5f8132d4 15
+packages/kitty-service/src/agent-runtime/prompt/__test__/composer.test.ts
+  s_89cafc4f309476::t_85a4cc992b20b6 5-6,11
+packages/kitty-service/src/agent-runtime/schedule/__test__/schedule.test.ts
+  s_89cafc4f309476::t_31f32f4f57d417 2-6
+packages/kitty-service/src/agent-runtime/skills/__test__/qq-chat.test.ts
+  s_89cafc4f309476::t_8067b1b673775e 4-5
+packages/kitty-service/src/agent-runtime/skills/__test__/skills.test.ts
+  s_89cafc4f309476::t_ef8cd0e232f6d8 5
+packages/kitty-service/src/agent-runtime/tools/__test__/code.test.ts
+  s_89cafc4f309476::t_88d52914a19820 2-5
+packages/kitty-service/src/agent-runtime/tools/__test__/composite.test.ts
+  s_89cafc4f309476::t_1e1a44f3a254ae 2-4,9
+packages/kitty-service/src/agent-runtime/tools/__test__/faces.test.ts
+  s_89cafc4f309476::t_c54bb286bb346f 4,9-11
+packages/kitty-service/src/agent-runtime/tools/__test__/runtime.test.ts
+  s_89cafc4f309476::t_6853fed043bbab 3
+packages/kitty-service/src/agent-runtime/tools/__test__/skill.test.ts
+  s_89cafc4f309476::t_53677edba79414 2-4
+packages/kitty-service/src/agent-runtime/tools/mcp/__test__/client.test.ts
+  s_89cafc4f309476::t_1b0d7bcc76130b 2-3
+packages/kitty-service/src/agent-runtime/tools/mcp/__test__/config.test.ts
+  s_89cafc4f309476::t_6743739ce6810a 2
+packages/kitty-service/src/agent-runtime/tools/mcp/__test__/loader.test.ts
+  s_89cafc4f309476::t_bca86f1aa12d0f 5
+packages/kitty-service/src/agent-runtime/tools/mcp/__test__/runtime.test.ts
+  s_89cafc4f309476::t_cf26f55373ca97 4-6
+packages/kitty-service/src/bootstrap/__test__/agent.test.ts
+  s_89cafc4f309476::t_c5b641d26534f0 2-4,6
+packages/kitty-service/src/bootstrap/__test__/architecture.test.ts
+  s_89cafc4f309476::t_3e7c1064e401ce 5,30,106-125
+packages/kitty-service/src/bootstrap/__test__/compose.test.ts
+  s_89cafc4f309476::t_7f7dbfdf30e7dd 4
+packages/kitty-service/src/bootstrap/__test__/environment.test.ts
+  s_89cafc4f309476::t_48856f0d4278ff 5
+packages/kitty-service/src/bootstrap/__test__/platform.test.ts
+  s_89cafc4f309476::t_c41c996d7a8211 2
+packages/kitty-service/src/bootstrap/__test__/tools.test.ts
+  s_89cafc4f309476::t_d981503bb009bf 5-7
+packages/kitty-service/src/platforms/qq/__test__/cadence.test.ts
+  s_89cafc4f309476::t_e023c38b3345d0 2
+packages/kitty-service/src/platforms/qq/__test__/channel.test.ts
+  s_89cafc4f309476::t_fd8cd09ab09413 2,4
+packages/kitty-service/src/platforms/qq/__test__/reply.test.ts
+  s_89cafc4f309476::t_7fec58c595ef30 6-8
+packages/kitty-service/src/platforms/qq/__test__/runtime.test.ts
+  s_89cafc4f309476::t_1c0890277c70ae 2
+packages/kitty-service/src/platforms/qq/__test__/vision-openai.test.ts
+  s_89cafc4f309476::t_89b4dba757df57 7
+packages/kitty-service/src/platforms/qq/onebot/__test__/client.test.ts
+  s_89cafc4f309476::t_cbed15e60c7f35 2-4
+packages/kitty-service/src/platforms/qq/onebot/__test__/ingress.test.ts
+  s_89cafc4f309476::t_f02fa2aa3d462b 2-3
+packages/kitty-service/src/platforms/qq/onebot/__test__/server.test.ts
+  s_89cafc4f309476::t_75c2cfe9f4901e 3
+packages/kitty-service/src/platforms/xiaohongshu/__test__/checkpoint.test.ts
+  s_89cafc4f309476::t_96c1e23a23aad3 5-6
+packages/kitty-service/src/platforms/xiaohongshu/__test__/docker.test.ts
+  s_89cafc4f309476::t_69cc649f57db94 6
+packages/kitty-service/src/platforms/xiaohongshu/__test__/login.test.ts
+  s_89cafc4f309476::t_9e61fc3093b0fe 2,4
+packages/kitty-service/src/platforms/xiaohongshu/__test__/mcp.test.ts
+  s_89cafc4f309476::t_09d8866b2a386b 2
+packages/kitty-service/src/platforms/xiaohongshu/__test__/qrcode.test.ts
+  s_89cafc4f309476::t_0ee18a7380324e 5
+packages/kitty-service/src/platforms/xiaohongshu/__test__/reader.test.ts
+  s_89cafc4f309476::t_5d0374dd1ab0ad 2
+packages/kitty-service/src/platforms/xiaohongshu/__test__/source.test.ts
+  s_89cafc4f309476::t_5f7e47afe26d7e 3-4
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.6.10",
+  "base_commit_sha": "551af6f86d4f7bd34855faab023cc94ceaeed655",
+  "prompts": {},
+  "sessions": {
+    "s_89cafc4f309476": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "019f845d-b397-7473-881a-95e91ed84c02",
+        "model": "unknown"
+      },
+      "human_author": "Yemomo511 <yemomo.byte.511@gamil.com>"
+    }
+  },
+  "attestation_metadata": {},
+  "remote_transcripts": {}
+}
