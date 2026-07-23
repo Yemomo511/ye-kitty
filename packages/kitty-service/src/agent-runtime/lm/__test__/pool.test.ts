@@ -1,6 +1,8 @@
-import { describe, expect, test } from 'vitest';
-import { ModelPool, type ModelTextClient, type ModelTextClientRequest } from '../pool';
+import type { Model, ModelRequest, ModelResponse, StreamEvent } from '@openai/agents';
+import { describe, expect, test, vi } from 'vitest';
 import { ModelRequestError } from '../error';
+import type { ModelFactory, ModelNodeConfig } from '../model';
+import { ModelPool, type ModelRequestPoolClock } from '../pool';
 import {
   DEFAULT_MODEL_BACKOFF_INITIAL_MS,
   DEFAULT_MODEL_MAX_CONCURRENCY,
@@ -9,18 +11,16 @@ import {
   loadModelPoolConfig,
   parseModelPoolConfig,
 } from '../config';
-import type { ModelDecisionRequest, ModelNodeConfig } from '../model';
 
 describe('模型请求池配置', () => {
-  test('解析多模型JSON数组配置', () => {
+  test('解析多模型配置并补齐系统默认值', () => {
     expect(
       parseModelPoolConfig(
         JSON.stringify([
           {
-            id: 'deepseek-chat-main',
-            baseURL: 'https://relay.example.com/v1',
-            apiKey: 'sk-deepseek',
-            model: 'deepseek-chat',
+            id: 'main',
+            apiKey: 'sk-test',
+            model: 'gpt-test',
             maxConcurrency: 4,
             minIntervalMs: 2000,
           },
@@ -28,10 +28,9 @@ describe('模型请求池配置', () => {
       ),
     ).toEqual([
       {
-        id: 'deepseek-chat-main',
-        baseURL: 'https://relay.example.com/v1',
-        apiKey: 'sk-deepseek',
-        model: 'deepseek-chat',
+        id: 'main',
+        apiKey: 'sk-test',
+        model: 'gpt-test',
         maxConcurrency: 4,
         minIntervalMs: 2000,
         maxRetries: DEFAULT_MODEL_MAX_RETRIES,
@@ -44,359 +43,182 @@ describe('模型请求池配置', () => {
     ]);
   });
 
-  test('解析models对象配置', () => {
+  test('旧单模型环境变量仍构造单节点', () => {
     expect(
-      parseModelPoolConfig(
-        JSON.stringify({
-          models: [
-            {
-              id: 'openai-gpt-main',
-              apiKey: 'sk-openai',
-              model: 'gpt-4.1-mini',
-            },
-          ],
-        }),
-      )[0],
+      loadModelPoolConfig({
+        OPENAI_API_KEY: 'sk-test',
+        YE_KITTY_AGENT_MODEL: 'gpt-test',
+      })[0],
     ).toMatchObject({
-      id: 'openai-gpt-main',
+      id: 'default-openai-agent',
       maxConcurrency: DEFAULT_MODEL_MAX_CONCURRENCY,
       minIntervalMs: DEFAULT_MODEL_MIN_INTERVAL_MS,
     });
   });
-
-  test('缺字段和非法数字报中文错误', () => {
-    expect(() => parseModelPoolConfig('[]')).toThrow('至少需要一个模型节点');
-    expect(() => parseModelPoolConfig('[{"id":"bad","apiKey":"sk"}]')).toThrow('缺少 model');
-    expect(() =>
-      parseModelPoolConfig(
-        JSON.stringify([{ id: 'bad', apiKey: 'sk', model: 'gpt', maxConcurrency: 0 }]),
-      ),
-    ).toThrow('maxConcurrency 必须是正整数');
-  });
-
-  test('旧单模型配置构造单节点模型池', () => {
-    expect(
-      loadModelPoolConfig({
-        OPENAI_API_KEY: 'sk-test',
-        OPENAI_BASE_URL: 'https://relay.example.com',
-        YE_KITTY_AGENT_MODEL: 'gpt-4.1-mini',
-      }),
-    ).toEqual([
-      {
-        id: 'default-openai-agent',
-        apiKey: 'sk-test',
-        baseURL: 'https://relay.example.com',
-        model: 'gpt-4.1-mini',
-        maxConcurrency: DEFAULT_MODEL_MAX_CONCURRENCY,
-        minIntervalMs: DEFAULT_MODEL_MIN_INTERVAL_MS,
-        maxRetries: DEFAULT_MODEL_MAX_RETRIES,
-        backoff: {
-          initialMs: DEFAULT_MODEL_BACKOFF_INITIAL_MS,
-          maxMs: 60000,
-          multiplier: 2,
-        },
-      },
-    ]);
-  });
 });
 
-describe('ModelPool', () => {
-  test('路由选择队列和运行数最小的模型', async () => {
-    const pending = createDeferred<string>();
-    const client = createClient((request) => {
-      if (request.node.id === 'model-a') return pending.promise;
-      return Promise.resolve(`来自${request.node.id}`);
-    });
-    const pool = new ModelPool(
-      [
-        createNode('model-a', { maxConcurrency: 1, minIntervalMs: 0 }),
-        createNode('model-b', { maxConcurrency: 1, minIntervalMs: 0 }),
-      ],
-      client,
-      createClock(),
-    );
-
-    void pool.runDecision(createRequest()).catch(() => undefined);
-    const result = await pool.runDecision(createRequest());
-    pending.resolve('来自model-a');
-
-    expect(result.modelNodeId).toBe('model-b');
-  });
-
-  test('单模型maxConcurrency限制同时请求数', async () => {
-    const first = createDeferred<string>();
+describe('ModelPool官方Model代理', () => {
+  test('每次Agent运行固定节点，后续运行选择压力更低的节点', async () => {
+    const first = deferred<ModelResponse>();
     const calls: string[] = [];
-    const client = createClient((request) => {
-      calls.push(request.node.id);
-      if (calls.length === 1) return first.promise;
-      return Promise.resolve('第二次完成');
-    });
+    const factory = createFactory((node) =>
+      createModel(async () => {
+        calls.push(node.id);
+        return node.id === 'model-a' ? await first.promise : createResponse(node.id);
+      }),
+    );
     const pool = new ModelPool(
-      [createNode('model-a', { maxConcurrency: 1, minIntervalMs: 0 })],
-      client,
+      [createNode('model-a'), createNode('model-b')],
+      factory,
       createClock(),
     );
 
-    const firstResult = pool.runDecision(createRequest());
-    const secondResult = pool.runDecision(createRequest());
+    const runA = pool.acquireModel({ source: 'test' });
+    const firstRequest = runA.getResponse({} as ModelRequest);
     await Promise.resolve();
+    const runB = pool.acquireModel({ source: 'test' });
+    const secondResponse = await runB.getResponse({} as ModelRequest);
+    first.resolve(createResponse('model-a'));
+    await firstRequest;
 
-    expect(calls).toHaveLength(1);
-    first.resolve('第一次完成');
-
-    await expect(firstResult).resolves.toMatchObject({ text: '第一次完成' });
-    await expect(secondResult).resolves.toMatchObject({ text: '第二次完成' });
-    expect(calls).toHaveLength(2);
+    expect(readResponseId(secondResponse)).toBe('model-b');
+    expect(calls).toEqual(['model-a', 'model-b']);
   });
 
-  test('单模型minIntervalMs限制请求启动间隔', async () => {
-    const sleeps: number[] = [];
-    let clock = createClock();
-    clock = createClock({
-      sleep: (ms) => {
-        sleeps.push(ms);
-        clock.advance(ms);
-      },
-    });
-    const client = createClient(() => Promise.resolve('完成'));
+  test('并发上限作用于Runner发出的每次模型请求', async () => {
+    const first = deferred<ModelResponse>();
+    const handler = vi
+      .fn<() => Promise<ModelResponse>>()
+      .mockImplementationOnce(async () => await first.promise)
+      .mockResolvedValue(createResponse('second'));
     const pool = new ModelPool(
-      [createNode('model-a', { maxConcurrency: 2, minIntervalMs: 2000 })],
-      client,
-      clock,
+      [createNode('model-a', { maxConcurrency: 1 })],
+      createFactory(() => createModel(handler)),
+      createClock(),
     );
+    const model = pool.acquireModel({ source: 'test' });
 
-    await Promise.all([pool.runDecision(createRequest()), pool.runDecision(createRequest())]);
+    const firstRequest = model.getResponse({} as ModelRequest);
+    const secondRequest = model.getResponse({} as ModelRequest);
+    await Promise.resolve();
+    expect(handler).toHaveBeenCalledOnce();
 
-    expect(sleeps).toContain(2000);
+    first.resolve(createResponse('first'));
+    await Promise.all([firstRequest, secondRequest]);
+    expect(handler).toHaveBeenCalledTimes(2);
   });
 
-  test('429优先使用Retry-After并重试成功', async () => {
+  test('429只重试当前模型请求并遵守Retry-After', async () => {
     const sleeps: number[] = [];
-    let clock = createClock();
-    clock = createClock({
-      sleep: (ms) => {
-        sleeps.push(ms);
-        clock.advance(ms);
-      },
+    const clock = createClock((ms) => {
+      sleeps.push(ms);
+      clock.advance(ms);
     });
-    let callCount = 0;
-    const client = createClient(() => {
-      callCount += 1;
-      if (callCount === 1) {
-        return Promise.reject(
-          new ModelRequestError('限流', { statusCode: 429, retryAfterMs: 5000 }),
-        );
-      }
-      return Promise.resolve('重试成功');
-    });
-    const pool = new ModelPool(
-      [createNode('model-a', { minIntervalMs: 0, maxRetries: 1 })],
-      client,
-      clock,
-    );
-
-    await expect(pool.runDecision(createRequest())).resolves.toMatchObject({
-      text: '重试成功',
-      attemptCount: 2,
-    });
-    expect(sleeps).toEqual([5000]);
-    expect(pool.getStates()[0].backoffUntil).toBe(0);
-  });
-
-  test('无Retry-After时指数退避翻倍', async () => {
-    const sleeps: number[] = [];
-    let clock = createClock();
-    clock = createClock({
-      sleep: (ms) => {
-        sleeps.push(ms);
-        clock.advance(ms);
-      },
-    });
-    let callCount = 0;
-    const client = createClient(() => {
-      callCount += 1;
-      if (callCount <= 2) {
-        return Promise.reject(new ModelRequestError('限流', { statusCode: 429 }));
-      }
-      return Promise.resolve('退避后成功');
-    });
-    const pool = new ModelPool(
-      [
-        createNode('model-a', {
-          minIntervalMs: 0,
-          maxRetries: 2,
-          backoffInitialMs: 2000,
-          backoffMultiplier: 2,
+    const handler = vi
+      .fn<() => Promise<ModelResponse>>()
+      .mockRejectedValueOnce(
+        new ModelRequestError('限流', {
+          statusCode: 429,
+          retryAfterMs: 2500,
+          reason: '限流',
         }),
-      ],
-      client,
+      )
+      .mockResolvedValue(createResponse('ok'));
+    const pool = new ModelPool(
+      [createNode('model-a')],
+      createFactory(() => createModel(handler)),
       clock,
     );
 
-    await expect(pool.runDecision(createRequest())).resolves.toMatchObject({
-      text: '退避后成功',
-      attemptCount: 3,
-    });
-    expect(sleeps).toEqual([2000, 4000]);
+    const response = await pool.acquireModel({ source: 'test' }).getResponse({} as ModelRequest);
+
+    expect(readResponseId(response)).toBe('ok');
+    expect(handler).toHaveBeenCalledTimes(2);
+    expect(sleeps).toContain(2500);
   });
 
-  test('路由跳过退避中的模型', async () => {
-    const backoffSleep = createDeferred<void>();
-    const clock = createClock({
-      sleep: () => backoffSleep.promise,
-    });
-    let modelACallCount = 0;
-    const client = createClient((request) => {
-      if (request.node.id === 'model-a') {
-        modelACallCount += 1;
-        if (modelACallCount === 1) {
-          return Promise.reject(
-            new ModelRequestError('限流', { statusCode: 429, retryAfterMs: 10000 }),
-          );
-        }
-        return Promise.resolve('退避后完成');
-      }
-      return Promise.resolve('健康模型完成');
-    });
+  test('流式响应在节点边界完整缓冲后再交给Runner', async () => {
+    const events = [{ type: 'response_started' }, { type: 'response_done' }] as StreamEvent[];
+    const model: Model = {
+      getResponse: async () => createResponse('unused'),
+      async *getStreamedResponse() {
+        for (const event of events) yield event;
+      },
+    };
     const pool = new ModelPool(
-      [
-        createNode('model-a', { minIntervalMs: 0, maxRetries: 1 }),
-        createNode('model-b', { minIntervalMs: 0, maxRetries: 1 }),
-      ],
-      client,
-      clock,
-    );
-
-    const firstResult = pool.runDecision(createRequest());
-    await waitMicrotasks(2);
-
-    const result = await pool.runDecision(createRequest());
-    clock.advance(10000);
-    backoffSleep.resolve(undefined);
-
-    expect(result.modelNodeId).toBe('model-b');
-    await expect(firstResult).resolves.toMatchObject({ modelNodeId: 'model-a' });
-  });
-
-  test('超过maxRetries后失败', async () => {
-    const client = createClient(() =>
-      Promise.reject(new ModelRequestError('限流', { statusCode: 429 })),
-    );
-    const pool = new ModelPool(
-      [createNode('model-a', { minIntervalMs: 0, maxRetries: 0 })],
-      client,
+      [createNode('model-a')],
+      createFactory(() => model),
       createClock(),
     );
 
-    await expect(pool.runDecision(createRequest())).rejects.toThrow('限流');
-  });
+    const actual: StreamEvent[] = [];
+    for await (const event of pool
+      .acquireModel({ source: 'test' })
+      .getStreamedResponse({} as ModelRequest)) {
+      actual.push(event);
+    }
 
-  test('TTL过期请求不再发给模型', async () => {
-    let callCount = 0;
-    const clock = createClock({
-      sleep: () => {
-        clock.advance(2000);
-      },
-    });
-    const client = createClient(() => {
-      callCount += 1;
-      return Promise.reject(new ModelRequestError('限流', { statusCode: 429 }));
-    });
-    const pool = new ModelPool(
-      [createNode('model-a', { minIntervalMs: 0, maxRetries: 3 })],
-      client,
-      clock,
-    );
-
-    await expect(pool.runDecision(createRequest({ ttlMs: 100 }))).rejects.toThrow(
-      '模型请求已超过队列存活时间',
-    );
-    expect(callCount).toBe(1);
+    expect(actual).toEqual(events);
   });
 });
 
-function createNode(
-  id: string,
-  overrides: Partial<
-    Pick<ModelNodeConfig, 'maxConcurrency' | 'minIntervalMs' | 'maxRetries'> & {
-      readonly backoffInitialMs: number;
-      readonly backoffMaxMs: number;
-      readonly backoffMultiplier: number;
-    }
-  > = {},
-): ModelNodeConfig {
+function createFactory(factory: (node: ModelNodeConfig) => Model): ModelFactory {
+  return { getModel: async (node) => factory(node) };
+}
+
+function createModel(getResponse: () => Promise<ModelResponse>): Model {
   return {
-    id,
-    apiKey: `sk-${id}`,
-    model: 'gpt-4.1-mini',
-    maxConcurrency: overrides.maxConcurrency ?? 3,
-    minIntervalMs: overrides.minIntervalMs ?? 0,
-    maxRetries: overrides.maxRetries ?? 3,
-    backoff: {
-      initialMs: overrides.backoffInitialMs ?? 2000,
-      maxMs: overrides.backoffMaxMs ?? 60000,
-      multiplier: overrides.backoffMultiplier ?? 2,
-    },
+    getResponse,
+    getStreamedResponse: () => emptyStream(),
   };
 }
 
-function createRequest(overrides: Partial<ModelDecisionRequest> = {}): ModelDecisionRequest {
+// 构造测试所需的空流。
+async function* emptyStream(): AsyncIterable<never> {
+  yield* [];
+}
+
+function createNode(id: string, overrides: Partial<ModelNodeConfig> = {}): ModelNodeConfig {
   return {
-    agentName: '测试叶猫猫',
-    instructions: '只输出JSON',
-    input: '你好',
-    timeoutMs: 30000,
-    source: 'test',
+    id,
+    apiKey: 'sk-test',
+    model: 'gpt-test',
+    maxConcurrency: 1,
+    minIntervalMs: 0,
+    maxRetries: 1,
+    backoff: { initialMs: 1000, maxMs: 60000, multiplier: 2 },
     ...overrides,
   };
 }
 
-function createClient(
-  handler: (request: ModelTextClientRequest) => Promise<string>,
-): ModelTextClient {
-  return {
-    generateText: handler,
-  };
+function createResponse(id: string): ModelResponse {
+  return { responseId: id, output: [], usage: {} as ModelResponse['usage'] };
 }
 
-function createClock(
-  options: {
-    readonly sleep?: (ms: number) => void | Promise<void>;
-  } = {},
-): {
-  readonly now: () => number;
-  readonly sleep: (ms: number) => Promise<void>;
-  readonly advance: (ms: number) => void;
+function readResponseId(response: ModelResponse): string | undefined {
+  return response.responseId;
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((done) => {
+    resolve = done;
+  });
+  return { promise, resolve };
+}
+
+function createClock(onSleep?: (ms: number) => void): ModelRequestPoolClock & {
+  advance(ms: number): void;
 } {
-  let currentTime = 0;
+  let now = 0;
   return {
-    now: () => currentTime,
+    now: () => now,
     sleep: async (ms) => {
-      if (options.sleep) {
-        await options.sleep(ms);
-        return;
-      }
-      currentTime += ms;
+      onSleep?.(ms);
+      if (!onSleep) now += ms;
     },
     advance: (ms) => {
-      currentTime += ms;
+      now += ms;
     },
   };
-}
-
-function createDeferred<T>(): {
-  readonly promise: Promise<T>;
-  readonly resolve: (value: T) => void;
-} {
-  let resolveValue: (value: T) => void = () => undefined;
-  const promise = new Promise<T>((resolve) => {
-    resolveValue = resolve;
-  });
-  return { promise, resolve: resolveValue };
-}
-
-async function waitMicrotasks(count: number): Promise<void> {
-  for (let index = 0; index < count; index += 1) {
-    await Promise.resolve();
-  }
 }

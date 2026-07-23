@@ -1,71 +1,40 @@
-import { describe, expect, test, vi } from 'vitest';
-import type { RuntimeTool, RuntimeToolCall } from '../legacy';
-import type { RuntimeToolExecutorPort } from '../runtime-executor';
-import type { RuntimeToolRegistryPort } from '../runtime-registry';
-import {
-  CompositeRuntimeToolExecutor,
-  CompositeRuntimeToolRegistry,
-  type RuntimeToolProvider,
-} from '../composite';
+import { describe, expect, test } from 'vitest';
+import { z } from 'zod';
+import { mergeToolSources, type ToolSource } from '../composite';
+import { Tool } from '../tool';
 
-describe('组合运行时工具', () => {
-  test('合并工具目录并按所属Provider路由执行', async () => {
-    const builtin = createProvider(createTool('builtin_read'));
-    const mcp = createProvider(createTool('docs_search'));
-    const registry = new CompositeRuntimeToolRegistry([builtin, mcp]);
-    const executor = new CompositeRuntimeToolExecutor([builtin, mcp]);
-    const call = { toolName: 'docs_search', input: {} } as RuntimeToolCall;
+describe('Tool来源合并', () => {
+  test('合并不同来源的规范Tool', () => {
+    const merged = mergeToolSources([createSource('builtin_read'), createSource('docs_search')]);
 
-    await executor.execute(call);
-
-    expect(registry.listTools().map((tool) => tool.name)).toEqual(['builtin_read', 'docs_search']);
-    expect(mcp.executor.execute).toHaveBeenCalledWith(call);
-    expect(builtin.executor.execute).not.toHaveBeenCalled();
+    expect(Object.keys(merged)).toEqual(['builtin_read', 'docs_search']);
+    expect(Tool.is(merged.docs_search)).toBe(true);
   });
 
-  test('组合后工具名称冲突时拒绝启动', () => {
-    const first = createProvider(createTool('same_tool'));
-    const second = createProvider(createTool('same_tool'));
-
-    expect(() => new CompositeRuntimeToolRegistry([first, second])).toThrow('工具名称冲突');
-    expect(() => new CompositeRuntimeToolExecutor([first, second])).toThrow('工具名称冲突');
-  });
-
-  test('执行未注册工具时返回失败观察', async () => {
-    const executor = new CompositeRuntimeToolExecutor([createProvider(createTool('known'))]);
-
-    await expect(
-      executor.execute({ toolName: 'unknown', input: {} } as RuntimeToolCall),
-    ).resolves.toMatchObject({
-      toolName: 'unknown',
-      success: false,
-      errorMessage: '工具未注册',
-    });
+  test('名称冲突和伪造Tool均拒绝启动', () => {
+    expect(() => mergeToolSources([createSource('same'), createSource('same')])).toThrow(
+      '名称冲突',
+    );
+    expect(() => mergeToolSources([{ listTools: () => ({ fake: {} as never }) }])).toThrow(
+      '不是规范Tool',
+    );
   });
 });
 
-function createTool(name: string): RuntimeTool {
+function createSource(name: string): ToolSource {
   return {
-    name,
-    description: `${name}说明`,
-    riskLevel: 'low',
-    inputSchemaDescription: '{}',
+    listTools: () => ({
+      [name]: Tool.make({
+        description: `${name}说明`,
+        parameters: z.object({}).strict(),
+        policy: {
+          source: 'builtin',
+          risk: 'low',
+          approval: 'never',
+          timeoutMs: 1000,
+        },
+        execute: async () => ({ success: true, summary: '完成' }),
+      }),
+    }),
   };
-}
-
-function createProvider(tool: RuntimeTool): RuntimeToolProvider & {
-  executor: RuntimeToolExecutorPort & { execute: ReturnType<typeof vi.fn> };
-} {
-  const registry: RuntimeToolRegistryPort = {
-    listTools: () => [tool],
-    getTool: (toolName) => (toolName === tool.name ? tool : undefined),
-  };
-  const executor = {
-    execute: vi.fn(async (call: RuntimeToolCall) => ({
-      toolName: call.toolName,
-      success: true,
-      observation: '执行成功',
-    })),
-  };
-  return { registry, executor };
 }

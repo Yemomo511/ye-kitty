@@ -1,6 +1,5 @@
 import { readdirSync } from 'node:fs';
 import { extname, join, relative, sep } from 'node:path';
-import type { AgentMessage } from '../message';
 import type {
   SkillPromptDocument,
   SkillPromptSection,
@@ -87,22 +86,21 @@ export function createSkillReferencePromptDocument(
 
 /**
  * 构建Skill Prompt
- * @param messages 对话消息
+ * @param input 系统筛选后的Skill状态
  * @returns 第二章节中的Skill部分
  */
-export function buildSkillPrompt(messages: readonly AgentMessage[]): string {
-  const catalogMessages = messages.filter((message) => message.type === 'skill_catalog');
-  const documents = messages
-    .filter((message) => message.type === 'skill_content')
-    .map((message) => createSkillPromptDocument(message.skill));
-  const references = messages
-    .filter((message) => message.type === 'skill_reference')
-    .map((message) => createSkillReferencePromptDocument(message.reference));
+export function buildSkillPrompt(input: {
+  readonly availableSkills: readonly SkillMetadata[];
+  readonly enabledSkills: readonly SkillContent[];
+  readonly loadedReferences: readonly SkillReferenceContent[];
+}): string {
+  const documents = input.enabledSkills.map(createSkillPromptDocument);
+  const references = input.loadedReferences.map(createSkillReferencePromptDocument);
 
   return [
     '## 2.1 Skill Prompt',
     '阅读规则：<skill_document> 可能引用 references/ 下的具体文件。当你需要读取 reference 文件时，调用 `skill` Tool 并提供 `reference`，路径只能来自 `referenceAccess.references[].path` 或 `references[].path`。',
-    buildAvailableSkillCatalogPrompt(catalogMessages.flatMap((message) => message.skills)),
+    buildAvailableSkillCatalogPrompt(input.availableSkills),
     ...documents.map(renderSkillPromptDocument),
     ...references.map(renderSkillReferencePromptDocument),
   ]

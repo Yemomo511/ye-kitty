@@ -1,17 +1,15 @@
 import type { McpRemoteTool, McpServerRuntimeConfig } from './schema';
-import type { RuntimeTool, RuntimeToolCall, ToolExecutionResult } from '../legacy';
 import type { McpClientFactoryPort, McpClientPort, McpToolCallResult } from './client-type';
 import type { McpRawToolCaller } from '@kitty/shared/mcp';
-import type { RuntimeToolExecutorPort } from '../runtime-executor';
-import type { RuntimeToolRegistryPort } from '../runtime-registry';
-
-/** MCP observation最大字符数 */
-export const MAX_MCP_OBSERVATION_LENGTH = 12000;
+import type { ToolSource } from '../composite';
+import { Tool, type Tool as CanonicalTool, type ToolJsonObjectSchema } from '../tool';
+import { validateToolJsonSchemaDefinition } from '../schema';
 
 interface ActiveMcpTool {
   readonly client: McpClientPort;
   readonly originalName: string;
-  readonly runtimeTool: RuntimeTool;
+  readonly publicName: string;
+  readonly tool: CanonicalTool;
 }
 
 /**
@@ -20,9 +18,7 @@ interface ActiveMcpTool {
  * 管理多个MCP Server连接、工具发现、过滤、前缀命名和调用结果转换。
  * Server之间相互隔离，单个连接失败只会移除该Server工具。
  */
-export class McpRuntimeService
-  implements RuntimeToolRegistryPort, RuntimeToolExecutorPort, McpRawToolCaller
-{
+export class McpRuntimeService implements ToolSource, McpRawToolCaller {
   private readonly activeClients: McpClientPort[] = [];
   private readonly toolsByName = new Map<string, ActiveMcpTool>();
   private readonly rawToolsByName = new Map<string, ActiveMcpTool>();
@@ -69,14 +65,13 @@ export class McpRuntimeService
     console.info(`✅ [AgentRuntime-MCP-stop] MCP运行时已关闭 serverCount=${clients.length}`);
   }
 
-  /** 列出已发现工具 */
-  listTools(): readonly RuntimeTool[] {
-    return [...this.toolsByName.values()].map((item) => item.runtimeTool);
-  }
-
-  /** 查找已发现工具 */
-  getTool(toolName: string): RuntimeTool | undefined {
-    return this.toolsByName.get(toolName)?.runtimeTool;
+  /** 列出已发现的规范Tool。 */
+  listTools(): Readonly<Record<string, CanonicalTool>> {
+    return Object.freeze(
+      Object.fromEntries(
+        [...this.toolsByName.values()].map((item) => [item.publicName, item.tool]),
+      ),
+    );
   }
 
   /** 判断公开或内部MCP工具是否存在 */
@@ -99,67 +94,6 @@ export class McpRuntimeService
     return await activeTool.client.callTool(activeTool.originalName, input);
   }
 
-  /**
-   * 执行MCP工具
-   * @param call Agent工具调用
-   * @returns 中文工具观察
-   */
-  async execute(call: RuntimeToolCall): Promise<ToolExecutionResult> {
-    const activeTool = this.toolsByName.get(call.toolName);
-    if (!activeTool) return createUnregisteredResult(call.toolName);
-
-    const input = normalizeToolInput(call.input);
-    if (input === undefined) {
-      return {
-        toolName: call.toolName,
-        success: false,
-        observation: `MCP工具 ${call.toolName} 的输入必须是JSON对象。`,
-        errorMessage: 'MCP工具输入不是JSON对象',
-      };
-    }
-
-    try {
-      console.info(
-        `🚧 [AgentRuntime-MCP-call] 开始调用MCP工具 server=${activeTool.client.name} tool=${activeTool.originalName}`,
-      );
-      const result = await activeTool.client.callTool(activeTool.originalName, input);
-      const observation = formatMcpObservation(result);
-      if (result.isError) {
-        console.warn(
-          `⚠️ [AgentRuntime-MCP-call] MCP工具返回失败 server=${activeTool.client.name} tool=${activeTool.originalName}`,
-        );
-        return {
-          toolName: call.toolName,
-          success: false,
-          observation,
-          structuredData: result.structuredContent,
-          errorMessage: observation,
-        };
-      }
-
-      console.info(
-        `✅ [AgentRuntime-MCP-call] MCP工具调用成功 server=${activeTool.client.name} tool=${activeTool.originalName} observationLength=${observation.length}`,
-      );
-      return {
-        toolName: call.toolName,
-        success: true,
-        observation,
-        structuredData: result.structuredContent,
-      };
-    } catch (error) {
-      const reason = formatError(error);
-      console.warn(
-        `⚠️ [AgentRuntime-MCP-call] MCP工具调用异常，已回灌失败观察 server=${activeTool.client.name} tool=${activeTool.originalName} reason=${reason}`,
-      );
-      return {
-        toolName: call.toolName,
-        success: false,
-        observation: `MCP工具 ${call.toolName} 调用失败：${reason}`,
-        errorMessage: reason,
-      };
-    }
-  }
-
   // 连接单个Server并注册过滤后的工具。
   private async startServer(config: McpServerRuntimeConfig): Promise<void> {
     let client: McpClientPort | undefined;
@@ -174,18 +108,20 @@ export class McpRuntimeService
       const internalTools = remoteTools.filter(
         (tool) => !isToolVisible(config, tool.name) && isToolInternal(config, tool.name),
       );
-      const activeVisibleTools = visibleTools.map((tool) =>
-        createActiveTool(config, client!, tool),
-      );
-      const activeInternalTools = internalTools.map((tool) =>
-        createActiveTool(config, client!, tool),
-      );
+      const activeVisibleTools = visibleTools.flatMap((tool) => {
+        const active = createActiveTool(config, client!, tool);
+        return active ? [active] : [];
+      });
+      const activeInternalTools = internalTools.flatMap((tool) => {
+        const active = createActiveTool(config, client!, tool);
+        return active ? [active] : [];
+      });
       const activeRawTools = [...activeVisibleTools, ...activeInternalTools];
       this.ensureNoToolCollision(activeRawTools);
 
       this.activeClients.push(client);
-      activeVisibleTools.forEach((tool) => this.toolsByName.set(tool.runtimeTool.name, tool));
-      activeRawTools.forEach((tool) => this.rawToolsByName.set(tool.runtimeTool.name, tool));
+      activeVisibleTools.forEach((tool) => this.toolsByName.set(tool.publicName, tool));
+      activeRawTools.forEach((tool) => this.rawToolsByName.set(tool.publicName, tool));
       console.info(
         `✅ [AgentRuntime-MCP-connect] MCP Server连接成功 server=${config.name} transport=${config.transport} discoveredToolCount=${remoteTools.length} visibleToolCount=${visibleTools.length} internalToolCount=${internalTools.length}`,
       );
@@ -200,8 +136,8 @@ export class McpRuntimeService
   // 检查跨Server公开工具重名。
   private ensureNoToolCollision(activeTools: readonly ActiveMcpTool[]): void {
     for (const tool of activeTools) {
-      if (this.rawToolsByName.has(tool.runtimeTool.name)) {
-        throw new Error(`MCP公开工具名称冲突：${tool.runtimeTool.name}`);
+      if (this.rawToolsByName.has(tool.publicName)) {
+        throw new Error(`MCP公开工具名称冲突：${tool.publicName}`);
       }
     }
   }
@@ -219,19 +155,56 @@ function createActiveTool(
   config: McpServerRuntimeConfig,
   client: McpClientPort,
   tool: McpRemoteTool,
-): ActiveMcpTool {
+): ActiveMcpTool | undefined {
   const publicName = `${config.name}_${tool.name}`;
+  const normalizedSchema = normalizeObjectSchema(tool.inputSchema);
+  const schemaError = normalizedSchema
+    ? validateToolJsonSchemaDefinition(normalizedSchema)
+    : '参数Schema不是对象';
+  const parameters = schemaError ? undefined : normalizedSchema;
+  if (!isNativeToolName(publicName) || !parameters) {
+    console.warn(
+      `⚠️ [AgentRuntime-MCP-discover] 已隔离不兼容工具 server=${config.name} tool=${tool.name} reason=${!isNativeToolName(publicName) ? '工具名不符合原生函数约束' : schemaError}`,
+    );
+    return undefined;
+  }
   return {
     client,
     originalName: tool.name,
-    runtimeTool: {
-      name: publicName,
+    publicName,
+    tool: Tool.make({
       description:
         tool.description?.trim() || `调用MCP Server ${config.name} 的 ${tool.name} 工具。`,
-      riskLevel: config.toolRiskLevels[tool.name] ?? config.defaultRiskLevel,
-      inputSchemaDescription: stringifySchema(tool.inputSchema),
-    },
+      parameters,
+      strict: false,
+      policy: {
+        source: 'mcp',
+        risk: config.toolRiskLevels[tool.name] ?? config.defaultRiskLevel,
+        approval:
+          (config.toolRiskLevels[tool.name] ?? config.defaultRiskLevel) === 'low'
+            ? 'never'
+            : 'required',
+        timeoutMs: config.timeoutMs,
+        consumesBudget: true,
+      },
+      execute: async (input) =>
+        await executeMcpTool(client, tool.name, publicName, normalizeToolInput(input)!),
+    }),
   };
+}
+
+// OpenAI原生函数名只允许字母、数字、下划线和连字符，且最长64个字符。
+function isNativeToolName(name: string): boolean {
+  return name.length <= 64 && /^[A-Za-z0-9_-]+$/.test(name);
+}
+
+// MCP未声明Schema时按空对象处理，显式非对象Schema则隔离。
+function normalizeObjectSchema(
+  schema: Record<string, unknown> | undefined,
+): ToolJsonObjectSchema | undefined {
+  if (schema === undefined) return { type: 'object', properties: {} };
+  if (schema.type !== 'object') return undefined;
+  return schema as ToolJsonObjectSchema;
 }
 
 // 根据允许或禁用规则过滤工具。
@@ -302,8 +275,7 @@ function formatMcpObservation(result: McpToolCallResult): string {
       : result.structuredContent !== undefined
         ? safeStringify(result.structuredContent)
         : 'MCP工具执行完成，但没有返回可读内容。';
-  if (rawObservation.length <= MAX_MCP_OBSERVATION_LENGTH) return rawObservation;
-  return `${rawObservation.slice(0, MAX_MCP_OBSERVATION_LENGTH)}\n[MCP结果过长，已截断]`;
+  return rawObservation;
 }
 
 // 提取MCP文本内容块。
@@ -320,11 +292,6 @@ function extractTextParts(content: unknown): string[] {
     }
     return [`[MCP返回非文本内容 ${safeStringify(item)}]`];
   });
-}
-
-// 序列化输入Schema。
-function stringifySchema(schema: Record<string, unknown> | undefined): string {
-  return safeStringify(schema ?? { type: 'object', properties: {} });
 }
 
 // 安全序列化未知值。
@@ -350,16 +317,6 @@ async function closeFailedClient(client: McpClientPort): Promise<void> {
   }
 }
 
-// 创建未注册工具结果。
-function createUnregisteredResult(toolName: string): ToolExecutionResult {
-  return {
-    toolName,
-    success: false,
-    observation: `工具 ${toolName} 未注册，不能执行。`,
-    errorMessage: '工具未注册',
-  };
-}
-
 // 格式化错误。
 function formatError(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
@@ -367,4 +324,51 @@ function formatError(error: unknown): string {
     .replace(/Bearer\s+[^\s,;]+/gi, 'Bearer ***')
     .replace(/((?:token|api[_-]?key|secret)\s*[=:]\s*)[^\s,;]+/gi, '$1***')
     .slice(0, 500);
+}
+
+// 执行已发现MCP工具并归一化远端结果。
+async function executeMcpTool(
+  client: McpClientPort,
+  originalName: string,
+  publicName: string,
+  input: Record<string, unknown> | null,
+) {
+  try {
+    console.info(
+      `🚧 [AgentRuntime-MCP-call] 开始调用MCP工具 server=${client.name} tool=${originalName}`,
+    );
+    const result = await client.callTool(originalName, input);
+    const summary = formatMcpObservation(result);
+    if (result.isError) {
+      console.warn(
+        `⚠️ [AgentRuntime-MCP-call] MCP工具返回失败 server=${client.name} tool=${originalName}`,
+      );
+      return {
+        success: false,
+        summary,
+        data: result.structuredContent,
+        error: summary,
+        retryable: false,
+      };
+    }
+    console.info(
+      `✅ [AgentRuntime-MCP-call] MCP工具调用成功 server=${client.name} tool=${originalName} observationLength=${summary.length}`,
+    );
+    return {
+      success: true,
+      summary,
+      data: result.structuredContent,
+    };
+  } catch (error) {
+    const reason = formatError(error);
+    console.warn(
+      `⚠️ [AgentRuntime-MCP-call] MCP工具调用异常，已进入统一结算 server=${client.name} tool=${originalName} reason=${reason}`,
+    );
+    return {
+      success: false,
+      summary: `MCP工具 ${publicName} 调用失败。`,
+      error: reason,
+      retryable: true,
+    };
+  }
 }

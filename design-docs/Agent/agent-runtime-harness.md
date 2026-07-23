@@ -1,5 +1,12 @@
 # Harness Agent 第二版设计方案
 
+> 历史方案说明：本文记录 2026-07-06 至 2026-07-21 的自定义
+> `AgentAction -> Schedule -> ToolExecutor` 方案，不再代表当前实现。自 2026-07-23
+> 起，模型与工具循环已经迁移到官方 Agents SDK，内部治理采用不可伪造的规范 Tool、
+> `Tool.settle()` 与 `AgentRunState`。当前唯一事实入口为
+> `design-docs/Agent/openapi-tool-runtime.md`。本文中的 JSON Action、显式状态机 Prompt、
+> Schedule、旧四层路径和 Runner 只生成文本等内容仅供迁移追溯，禁止据此新增代码。
+
 ## 背景
 
 当前 Ye-Kitty 的 QQ Agent 链路以 `QqReplyAgentPort.generateReply()` 为核心能力。它能在收到一条 QQ 消息后生成一条回复，但缺少循环观察能力：模型无法先判断需要哪些信息，再调用工具获取新信息，再把工具结果作为新的 Observation 继续决策。

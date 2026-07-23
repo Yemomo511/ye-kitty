@@ -1,8 +1,7 @@
 import { existsSync } from 'node:fs';
 import { dirname, join, parse } from 'node:path';
 import type { McpRuntimeConfig } from '../agent-runtime/tools/mcp/schema';
-import type { RuntimeToolExecutorPort } from '../agent-runtime/tools/runtime-executor';
-import type { RuntimeToolRegistryPort } from '../agent-runtime/tools/runtime-registry';
+import type { ToolSource } from '../agent-runtime/tools/composite';
 import type { McpRawToolCaller } from '@kitty/shared/mcp';
 import { McpRuntimeService } from '../agent-runtime/tools/mcp/runtime';
 import {
@@ -20,8 +19,7 @@ import {
 } from '../platforms/xiaohongshu/docker';
 
 /** 已启动MCP运行时能力 */
-export interface BootstrappedMcpRuntime
-  extends RuntimeToolRegistryPort, RuntimeToolExecutorPort, McpRawToolCaller {
+export interface BootstrappedMcpRuntime extends ToolSource, McpRawToolCaller {
   /** 建立全部Server连接 */
   start(): Promise<void>;
   /** 关闭全部Server连接 */
