@@ -1,50 +1,58 @@
-import { Agent, OpenAIProvider, Runner } from '@openai/agents';
+import { OpenAIProvider, type Model } from '@openai/agents';
 import { ModelRequestError } from './error';
-import type { ModelTextClient, ModelTextClientRequest } from './pool';
-import type { ModelNodeConfig } from './model';
+import type { ModelFactory, ModelNodeConfig } from './model';
 
 /**
- * OpenAI兼容模型客户端
+ * OpenAI兼容Model工厂
  *
- * 只负责对单个模型节点发起真实请求，并把远端错误转换为模型池可识别的错误。
+ * 只负责创建官方SDK Model并归一化远端错误。并发、节流、重试和节点选择
+ * 由ModelPool维护，避免把系统治理交给模型或Prompt。
  */
-export class OpenAIModel implements ModelTextClient {
-  private readonly runners = new Map<string, Runner>();
+export class OpenAIModel implements ModelFactory {
+  private readonly models = new Map<string, Promise<Model>>();
 
   /**
-   * 生成模型文本
-   * @param request 模型节点和Prompt
-   * @returns 模型文本
+   * 获取节点官方Model
+   * @param node 模型节点
+   * @returns 带错误归一化的Model
    */
-  async generateText(request: ModelTextClientRequest): Promise<string> {
-    const runner = this.getRunner(request.node);
-    const agent = new Agent({
-      name: request.agentName,
-      model: request.node.model,
-      instructions: request.instructions,
-    });
-
-    try {
-      const result = await withTimeout(runner.run(agent, request.input), request.timeoutMs);
-      return String(result.finalOutput ?? '').trim();
-    } catch (error) {
-      throw toModelRequestError(error, request.node);
-    }
-  }
-
-  // 按节点缓存Runner，避免每次请求重复创建Provider。
-  private getRunner(node: ModelNodeConfig): Runner {
-    const existing = this.runners.get(node.id);
+  getModel(node: ModelNodeConfig): Promise<Model> {
+    const existing = this.models.get(node.id);
     if (existing) return existing;
 
-    const modelProvider = new OpenAIProvider({
+    const provider = new OpenAIProvider({
       apiKey: node.apiKey,
       baseURL: node.baseURL,
     });
-    const runner = new Runner({ modelProvider });
-    this.runners.set(node.id, runner);
-    return runner;
+    const created = provider.getModel(node.model).then((model) => wrapModel(model, node));
+    this.models.set(node.id, created);
+    return created;
   }
+}
+
+// 在官方Model边界统一转换远端错误。
+function wrapModel(model: Model, node: ModelNodeConfig): Model {
+  return {
+    getResponse: async (request) => {
+      try {
+        return await model.getResponse(request);
+      } catch (error) {
+        throw toModelRequestError(error, node);
+      }
+    },
+    async *getStreamedResponse(request) {
+      try {
+        for await (const event of model.getStreamedResponse(request)) yield event;
+      } catch (error) {
+        throw toModelRequestError(error, node);
+      }
+    },
+    ...(model.getRetryAdvice
+      ? {
+          getRetryAdvice: model.getRetryAdvice.bind(model),
+        }
+      : {}),
+  };
 }
 
 // 转换远端错误。
@@ -93,7 +101,7 @@ function readHeader(error: unknown, name: string): string | undefined {
   );
 }
 
-// 兼容 Headers、普通对象和SDK自定义Header容器。
+// 兼容Headers、普通对象和SDK自定义Header容器。
 function readHeaderFrom(headers: unknown, name: string): string | undefined {
   if (!headers) return undefined;
   if (typeof (headers as { get?: unknown }).get === 'function') {
@@ -109,23 +117,7 @@ function readHeaderFrom(headers: unknown, name: string): string | undefined {
 function sanitizeErrorReason(error: unknown, apiKey: string): string {
   const rawText = error instanceof Error ? error.message : JSON.stringify(error);
   const text = (rawText ?? '未知错误').trim().slice(0, 500);
-  return text.split(apiKey).join('****');
-}
-
-// 为单次模型决策增加超时。
-async function withTimeout<T>(task: Promise<T>, timeoutMs: number): Promise<T> {
-  let timeout: NodeJS.Timeout | undefined;
-  const timeoutTask = new Promise<never>((_, reject) => {
-    timeout = setTimeout(() => {
-      reject(new ModelRequestError(`OpenAI Agent 决策超过 ${timeoutMs}ms`, { reason: '请求超时' }));
-    }, timeoutMs);
-  });
-
-  try {
-    return await Promise.race([task, timeoutTask]);
-  } finally {
-    if (timeout) clearTimeout(timeout);
-  }
+  return apiKey ? text.split(apiKey).join('****') : text;
 }
 
 // 判断普通对象。

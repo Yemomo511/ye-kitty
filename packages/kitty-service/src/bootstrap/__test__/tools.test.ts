@@ -237,13 +237,7 @@ function createRuntimeStub(order: string[]): BootstrappedMcpRuntime & {
       order.push('runtime');
     }),
     stop: vi.fn(async () => undefined),
-    listTools: vi.fn(() => []),
-    getTool: vi.fn(() => undefined),
-    execute: vi.fn(async (call) => ({
-      toolName: call.toolName,
-      success: true,
-      observation: '成功',
-    })),
+    listTools: vi.fn(() => ({})),
     hasTool: vi.fn(() => true),
     callToolRaw: vi.fn(async () => ({ content: [] })),
   };

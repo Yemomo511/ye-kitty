@@ -5,15 +5,7 @@ import { Agent, AgentAdapter } from '../agent-runtime/agent';
 import type { CustomFaceCatalogService } from '../platforms/qq/faces';
 import { FallbackQqReplyAgent } from '../agent-runtime/lm/fallback';
 import { InMemoryConversationHistory } from '../agent-runtime/history';
-import {
-  BuiltinRuntimeToolExecutor,
-  BuiltinRuntimeToolRegistry,
-} from '../agent-runtime/tools/messages';
-import {
-  CompositeRuntimeToolExecutor,
-  CompositeRuntimeToolRegistry,
-  type RuntimeToolProvider,
-} from '../agent-runtime/tools/composite';
+import type { ToolSource } from '../agent-runtime/tools/composite';
 import { SafeQqReplyAgent } from '../agent-runtime/safe';
 import { LM } from '../agent-runtime/lm/lm';
 import { ModelPool } from '../agent-runtime/lm/pool';
@@ -21,7 +13,7 @@ import { loadModelPoolConfig } from '../agent-runtime/lm/config';
 import { OpenAIModel } from '../agent-runtime/lm/openai';
 import type { ModelNodeConfig } from '../agent-runtime/lm/model';
 import type { CodeAgentRunner } from '../agent-runtime/lm/code-agent/runner';
-import { CodeTool } from '../agent-runtime/tools/code';
+import { createCodeTool } from '../agent-runtime/tools/code';
 
 /** Agent 单次运行默认最大轮次 */
 export const DEFAULT_AGENT_MAX_TURNS = 100;
@@ -52,8 +44,8 @@ export interface QqReplyAgentRuntimeDependencies {
   readonly conversationHistory?: ConversationHistoryPort;
   /** 自定义表情目录 */
   readonly customFaceCatalog?: CustomFaceCatalogService;
-  /** 外部运行时工具来源 */
-  readonly runtimeToolProviders?: readonly RuntimeToolProvider[];
+  /** MCP等外部Tool来源 */
+  readonly toolSources?: readonly ToolSource[];
   /** 可选Code Agent运行能力，注入后作为统一Tool注册。 */
   readonly codeAgent?: CodeAgentRunner;
 }
@@ -73,14 +65,6 @@ export function createQqReplyAgent(
   if (config.modelPoolNodes.length === 0) return fallbackAgent;
 
   const conversationHistory = dependencies.conversationHistory ?? new InMemoryConversationHistory();
-  const toolDependencies = { customFaceCatalog: dependencies.customFaceCatalog };
-  const builtinProvider: RuntimeToolProvider = {
-    registry: new BuiltinRuntimeToolRegistry(toolDependencies),
-    executor: new BuiltinRuntimeToolExecutor(conversationHistory, toolDependencies),
-  };
-  const toolProviders = [builtinProvider, ...(dependencies.runtimeToolProviders ?? [])];
-  const toolRegistry = new CompositeRuntimeToolRegistry(toolProviders);
-  const toolExecutor = new CompositeRuntimeToolExecutor(toolProviders);
   const modelPool = new ModelPool(config.modelPoolNodes, new OpenAIModel());
   const lm = new LM(
     {
@@ -89,26 +73,21 @@ export function createQqReplyAgent(
     },
     modelPool,
   );
-  const agent = new Agent(
+  const agent = new Agent({
     lm,
-    toolRegistry,
-    toolExecutor,
     conversationHistory,
-    skillRuntime ? { loadSkillContent: async (name) => await skillRuntime.load(name) } : undefined,
-    skillRuntime
-      ? {
-          loadSkillReference: async (skill, reference) =>
-            await skillRuntime.loadReference(skill, reference),
-        }
-      : undefined,
+    skillRuntime,
     fallbackAgent,
-    {
+    toolSources: dependencies.toolSources,
+    messageTools: { customFaceCatalog: dependencies.customFaceCatalog },
+    agentName: config.agentName,
+    config: {
       maxTurns: DEFAULT_AGENT_MAX_TURNS,
       maxToolCalls: 3,
       maxSkillReferences: 3,
-      tools: dependencies.codeAgent ? [new CodeTool(dependencies.codeAgent)] : [],
+      tools: dependencies.codeAgent ? { code_agent: createCodeTool(dependencies.codeAgent) } : {},
     },
-  );
+  });
 
   return new SafeQqReplyAgent(new AgentAdapter(agent), fallbackAgent);
 }

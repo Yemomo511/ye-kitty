@@ -1,20 +1,22 @@
 export { loadModelPoolConfig, parseModelPoolConfig } from './config';
 export { ModelRequestError, isModelRequestError } from './error';
-export { LM, parseAgentAction, type LMConfig, type LMRunner } from './lm';
+export {
+  LM,
+  type LMApprovalInterruption,
+  type LMConfig,
+  type LMRunner,
+  type LMRunRequest,
+  type LMRunResult,
+} from './lm';
 export type {
   ModelBackoffConfig,
-  ModelDecisionRequest,
-  ModelDecisionResult,
+  ModelFactory,
   ModelNodeConfig,
   ModelPoolRunner,
   ModelRequestPriority,
+  ModelRunMetadata,
   ModelRuntimeState,
 } from './model';
 export { OpenAIModel } from './openai';
-export {
-  ModelPool,
-  type ModelRequestPoolClock,
-  type ModelTextClient,
-  type ModelTextClientRequest,
-} from './pool';
+export { ModelPool, type ModelRequestPoolClock } from './pool';
 export * from './code-agent';

@@ -1,28 +1,13 @@
+import type { Model, ModelRequest, ModelResponse, StreamEvent } from '@openai/agents';
+import { isModelRequestError } from './error';
 import type {
-  ModelDecisionRequest,
-  ModelDecisionResult,
+  ModelFactory,
   ModelNodeConfig,
   ModelPoolRunner,
   ModelRequestPriority,
+  ModelRunMetadata,
   ModelRuntimeState,
 } from './model';
-import { isModelRequestError } from './error';
-
-/** 模型文本客户端请求 */
-export interface ModelTextClientRequest extends ModelDecisionRequest {
-  /** 模型节点配置 */
-  readonly node: ModelNodeConfig;
-}
-
-/** 模型文本客户端 */
-export interface ModelTextClient {
-  /**
-   * 生成模型文本
-   * @param request 模型节点和Prompt
-   * @returns 模型原始文本
-   */
-  generateText(request: ModelTextClientRequest): Promise<string>;
-}
 
 /** 模型池时钟 */
 export interface ModelRequestPoolClock {
@@ -32,10 +17,11 @@ export interface ModelRequestPoolClock {
   readonly sleep: (ms: number) => Promise<void>;
 }
 
-interface PendingModelRequest {
-  readonly input: ModelDecisionRequest;
+interface PendingModelRequest<T = unknown> {
+  readonly metadata: ModelRunMetadata;
   readonly createdAt: number;
-  readonly resolve: (result: ModelDecisionResult) => void;
+  readonly run: (model: Model) => Promise<T>;
+  readonly resolve: (result: T) => void;
   readonly reject: (error: Error) => void;
   attemptCount: number;
 }
@@ -50,34 +36,32 @@ const DEFAULT_TTL_BY_PRIORITY: Record<ModelRequestPriority, number> = {
 /**
  * 进程内模型请求池
  *
- * 在 Agent Runtime 内统一调度多个 OpenAI 兼容模型节点。
- * 每个模型节点拥有独立队列、并发令牌、请求间隔和 429 退避状态。
+ * Agent一次运行固定选择一个节点，但Runner每一轮真实模型请求仍分别进入
+ * 节点队列。429只重放尚未向Runner返回结果的单次模型请求，不重放已结算工具。
  */
 export class ModelPool implements ModelPoolRunner {
   private readonly workers: readonly ModelWorker[];
 
   constructor(
     nodes: readonly ModelNodeConfig[],
-    client: ModelTextClient,
+    factory: ModelFactory,
     private readonly clock: ModelRequestPoolClock = createRealClock(),
   ) {
     if (nodes.length === 0) throw new Error('模型请求池至少需要一个模型节点');
-    this.workers = nodes.map((node) => new ModelWorker(node, client, clock));
+    this.workers = nodes.map((node) => new ModelWorker(node, factory, clock));
   }
 
   /**
-   * 执行一次模型决策
-   * @param input 决策请求
-   * @returns 模型文本
+   * 为一次Agent运行固定模型节点
+   * @param metadata 调度元数据
+   * @returns 官方Model代理
    */
-  runDecision(input: ModelDecisionRequest): Promise<ModelDecisionResult> {
+  acquireModel(metadata: ModelRunMetadata): Model {
     const worker = this.selectWorker();
     console.info(
-      `🚧 [AgentRuntime-ModelPool-runDecision] 模型请求已入队 source=${input.source} priority=${
-        input.priority ?? DEFAULT_PRIORITY
-      } modelNodeId=${worker.nodeId} queueLength=${worker.queueLength}`,
+      `🚧 [AgentRuntime-ModelPool-acquire] Agent运行已绑定模型节点 source=${metadata.source} priority=${metadata.priority ?? DEFAULT_PRIORITY} modelNodeId=${worker.nodeId} queueLength=${worker.queueLength}`,
     );
-    return worker.enqueue(input);
+    return worker.createModel(metadata);
   }
 
   /** 读取模型节点状态 */
@@ -101,10 +85,9 @@ export class ModelPool implements ModelPoolRunner {
 }
 
 /**
- * 单模型调度器
+ * 单模型节点调度器
  *
- * 维护一个模型节点的等待队列和运行状态。该类只负责节流、
- * 并发和退避，不理解 Agent、平台消息或 Skill 语义。
+ * 只维护并发、间隔、队列和429退避，不理解Agent消息、工具或终态语义。
  */
 class ModelWorker {
   private readonly queue: PendingModelRequest[] = [];
@@ -113,10 +96,11 @@ class ModelWorker {
   private backoffUntilValue = 0;
   private currentBackoffMs = 0;
   private draining = false;
+  private modelPromise: Promise<Model> | undefined;
 
   constructor(
     private readonly node: ModelNodeConfig,
-    private readonly client: ModelTextClient,
+    private readonly factory: ModelFactory,
     private readonly clock: ModelRequestPoolClock,
   ) {}
 
@@ -136,18 +120,27 @@ class ModelWorker {
     return this.backoffUntilValue;
   }
 
-  /** 请求入队 */
-  enqueue(input: ModelDecisionRequest): Promise<ModelDecisionResult> {
-    return new Promise((resolve, reject) => {
-      this.queue.push({
-        input,
-        createdAt: this.clock.now(),
-        resolve,
-        reject,
-        attemptCount: 0,
-      });
-      void this.drain();
+  /** 创建固定绑定当前节点的Model代理。 */
+  createModel(metadata: ModelRunMetadata): Model {
+    return {
+      getResponse: async (request: ModelRequest): Promise<ModelResponse> =>
+        await this.enqueue(metadata, async (model) => await model.getResponse(request)),
+      getStreamedResponse: (request: ModelRequest): AsyncIterable<StreamEvent> =>
+        this.streamResponse(metadata, request),
+    };
+  }
+
+  // 先在节点队列内完整消费流，失败时才能安全重试且不会向Runner重复输出事件。
+  private async *streamResponse(
+    metadata: ModelRunMetadata,
+    request: ModelRequest,
+  ): AsyncIterable<StreamEvent> {
+    const events = await this.enqueue(metadata, async (model) => {
+      const buffered: StreamEvent[] = [];
+      for await (const event of model.getStreamedResponse(request)) buffered.push(event);
+      return buffered;
     });
+    for (const event of events) yield event;
   }
 
   /** 读取运行状态 */
@@ -159,6 +152,21 @@ class ModelWorker {
       nextAvailableAt: this.nextAvailableAt,
       backoffUntil: this.backoffUntilValue,
     };
+  }
+
+  // 将一个SDK模型请求加入节点队列。
+  private enqueue<T>(metadata: ModelRunMetadata, run: (model: Model) => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      this.queue.push({
+        metadata,
+        createdAt: this.clock.now(),
+        run,
+        resolve,
+        reject,
+        attemptCount: 0,
+      } as PendingModelRequest);
+      void this.drain();
+    });
   }
 
   // 持续尝试启动请求，直到并发、间隔或退避条件阻塞。
@@ -176,7 +184,6 @@ class ModelWorker {
           await this.clock.sleep(waitMs);
           continue;
         }
-
         if (this.activeCount >= this.node.maxConcurrency) return;
 
         const pending = this.queue.shift();
@@ -185,7 +192,6 @@ class ModelWorker {
           pending.reject(new Error('模型请求已超过队列存活时间'));
           continue;
         }
-
         this.startRequest(pending);
       }
     } finally {
@@ -196,32 +202,25 @@ class ModelWorker {
     }
   }
 
-  // 启动一次真实模型请求。
+  // 启动一次真实SDK模型请求。
   private startRequest(pending: PendingModelRequest): void {
     const startedAt = this.clock.now();
-    const queueWaitMs = Math.max(0, startedAt - pending.createdAt);
     const attemptNumber = pending.attemptCount + 1;
     pending.attemptCount = attemptNumber;
     this.activeCount += 1;
     this.nextAvailableAt = startedAt + this.node.minIntervalMs;
     console.info(
-      `🚧 [AgentRuntime-ModelWorker-startRequest] 开始模型请求 modelNodeId=${this.node.id} attempt=${attemptNumber} queueWaitMs=${queueWaitMs}`,
+      `🚧 [AgentRuntime-ModelWorker-start] 开始模型请求 modelNodeId=${this.node.id} attempt=${attemptNumber} queueWaitMs=${Math.max(0, startedAt - pending.createdAt)}`,
     );
 
-    void this.client
-      .generateText({ ...pending.input, node: this.node })
-      .then((text) => {
+    void this.getModel()
+      .then(async (model) => await pending.run(model))
+      .then((result) => {
         this.currentBackoffMs = 0;
         this.backoffUntilValue = 0;
-        pending.resolve({
-          text,
-          modelNodeId: this.node.id,
-          queueWaitMs,
-          attemptCount: attemptNumber,
-          requestDurationMs: Math.max(0, this.clock.now() - startedAt),
-        });
+        pending.resolve(result);
         console.info(
-          `✅ [AgentRuntime-ModelWorker-startRequest] 模型请求完成 modelNodeId=${this.node.id} attempt=${attemptNumber}`,
+          `✅ [AgentRuntime-ModelWorker-complete] 模型请求完成 modelNodeId=${this.node.id} attempt=${attemptNumber}`,
         );
       })
       .catch((error: unknown) => this.handleRequestError(error, pending))
@@ -231,7 +230,7 @@ class ModelWorker {
       });
   }
 
-  // 处理429重试和不可恢复失败。
+  // 只重试当前尚未返回Runner的模型请求。
   private handleRequestError(error: unknown, pending: PendingModelRequest): void {
     if (
       isModelRequestError(error) &&
@@ -242,7 +241,7 @@ class ModelWorker {
       const backoffMs = this.applyBackoff(error.retryAfterMs);
       this.queue.unshift(pending);
       console.warn(
-        `🔁 [AgentRuntime-ModelWorker-retry] 模型触发429，已进入节点退避 modelNodeId=${this.node.id} attempt=${pending.attemptCount} backoffMs=${backoffMs}`,
+        `🔁 [AgentRuntime-ModelWorker-retry] 模型触发429，节点进入退避 modelNodeId=${this.node.id} attempt=${pending.attemptCount} backoffMs=${backoffMs}`,
       );
       return;
     }
@@ -252,6 +251,12 @@ class ModelWorker {
       `⚠️ [AgentRuntime-ModelWorker-fail] 模型请求失败 modelNodeId=${this.node.id} attempt=${pending.attemptCount} reason=${reason}`,
     );
     pending.reject(error instanceof Error ? error : new Error(reason));
+  }
+
+  // 延迟创建并缓存节点Model。
+  private getModel(): Promise<Model> {
+    this.modelPromise ??= this.factory.getModel(this.node);
+    return this.modelPromise;
   }
 
   // 计算节点退避时间。
@@ -281,15 +286,15 @@ class ModelWorker {
       this.queue.shift();
       pending.reject(new Error('模型请求已超过队列存活时间'));
       console.warn(
-        `⚠️ [AgentRuntime-ModelWorker-expire] 模型请求队列等待超时 modelNodeId=${this.node.id} source=${pending.input.source}`,
+        `⚠️ [AgentRuntime-ModelWorker-expire] 模型请求队列等待超时 modelNodeId=${this.node.id} source=${pending.metadata.source}`,
       );
     }
   }
 
   // 判断请求是否超过队列存活时间。
   private isExpired(pending: PendingModelRequest): boolean {
-    const priority = pending.input.priority ?? DEFAULT_PRIORITY;
-    const ttlMs = pending.input.ttlMs ?? DEFAULT_TTL_BY_PRIORITY[priority];
+    const priority = pending.metadata.priority ?? DEFAULT_PRIORITY;
+    const ttlMs = pending.metadata.ttlMs ?? DEFAULT_TTL_BY_PRIORITY[priority];
     return this.clock.now() - pending.createdAt > ttlMs;
   }
 }

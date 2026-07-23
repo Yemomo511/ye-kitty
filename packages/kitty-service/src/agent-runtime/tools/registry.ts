@@ -1,41 +1,110 @@
-import type { Tool } from './tool';
+import { Tool, type Tool as CanonicalTool } from './tool';
 
 /**
- * 工具注册表
+ * 单次运行Tool快照
  *
- * 持有 Agent 当前可见的全部工具，构造时拒绝重名，避免 Action 被路由到
- * 非预期实现。注册表只负责发现，不执行工具。
+ * 快照与Registry后续注册变化隔离，保证一次Agent运行看到稳定工具集合。
  */
-export class ToolRegistry {
-  private readonly tools: readonly Tool[];
-  private readonly toolsByName: ReadonlyMap<string, Tool>;
+export class ToolSnapshot {
+  /** 只读工具映射 */
+  readonly entries: ReadonlyMap<string, CanonicalTool>;
 
-  constructor(tools: readonly Tool[]) {
-    this.toolsByName = createUniqueToolMap(tools);
-    this.tools = [...this.toolsByName.values()];
-  }
-
-  /** 列出当前可见工具。 */
-  list(): readonly Tool[] {
-    return this.tools;
+  constructor(entries: ReadonlyMap<string, CanonicalTool>) {
+    this.entries = createReadonlyMap(entries);
+    Object.freeze(this);
   }
 
   /**
-   * 按稳定名称查找工具
-   * @param name 工具名称
-   * @returns 工具或空
+   * 按名称获取Tool
+   * @param name 注册名称
+   * @returns 规范Tool
    */
-  get(name: string): Tool | undefined {
-    return this.toolsByName.get(name);
+  get(name: string): CanonicalTool | undefined {
+    return this.entries.get(name);
+  }
+
+  /** 返回稳定名称列表。 */
+  names(): readonly string[] {
+    return Object.freeze([...this.entries.keys()]);
   }
 }
 
-// 构建唯一工具映射。
-function createUniqueToolMap(tools: readonly Tool[]): ReadonlyMap<string, Tool> {
-  const toolsByName = new Map<string, Tool>();
-  for (const tool of tools) {
-    if (toolsByName.has(tool.name)) throw new Error(`工具名称冲突：${tool.name}`);
-    toolsByName.set(tool.name, tool);
+/**
+ * 规范Tool注册表
+ *
+ * Registry是工具名称的唯一真相，只接受Tool.make创建的对象。
+ * 它不执行、授权、重试或拼接Prompt。
+ */
+export class ToolRegistry {
+  private readonly tools = new Map<string, CanonicalTool>();
+
+  constructor(initial: Readonly<Record<string, CanonicalTool>> = {}) {
+    this.registerMany(initial);
   }
-  return toolsByName;
+
+  /**
+   * 注册Tool
+   * @param name 唯一工具名
+   * @param tool 规范Tool
+   */
+  register(name: string, tool: CanonicalTool): void {
+    if (!Tool.is(tool)) throw new Error(`工具 ${name} 不是规范Tool`);
+    validateToolName(name);
+    if (this.tools.has(name)) throw new Error(`工具名称冲突：${name}`);
+    this.tools.set(name, tool);
+  }
+
+  /**
+   * 批量注册Tool
+   * @param tools 名称到Tool映射
+   */
+  registerMany(tools: Readonly<Record<string, CanonicalTool>>): void {
+    for (const [name, tool] of Object.entries(tools)) this.register(name, tool);
+  }
+
+  /**
+   * 移除Tool
+   * @param name 注册名称
+   * @returns 是否存在
+   */
+  unregister(name: string): boolean {
+    return this.tools.delete(name);
+  }
+
+  /**
+   * 获取Tool
+   * @param name 注册名称
+   * @returns 规范Tool
+   */
+  get(name: string): CanonicalTool | undefined {
+    return this.tools.get(name);
+  }
+
+  /** 创建单次运行快照。 */
+  snapshot(): ToolSnapshot {
+    return new ToolSnapshot(new Map(this.tools));
+  }
+}
+
+// 校验OpenAI函数工具名称约束。
+function validateToolName(name: string): void {
+  if (!name || name.length > 64 || !/^[A-Za-z0-9_-]+$/.test(name)) {
+    throw new Error(`工具名称不符合原生函数约束：${name}`);
+  }
+}
+
+// 使用Proxy阻止Map在运行期被强制转型后修改。
+function createReadonlyMap<K, V>(source: ReadonlyMap<K, V>): ReadonlyMap<K, V> {
+  const target = new Map(source);
+  return new Proxy(target, {
+    get(map, property) {
+      if (property === 'set' || property === 'delete' || property === 'clear') {
+        return () => {
+          throw new Error('Tool快照不可修改');
+        };
+      }
+      const value = Reflect.get(map, property, map) as unknown;
+      return typeof value === 'function' ? value.bind(map) : value;
+    },
+  });
 }

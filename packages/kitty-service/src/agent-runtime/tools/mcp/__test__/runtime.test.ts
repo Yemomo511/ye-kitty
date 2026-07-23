@@ -1,77 +1,12 @@
-import { afterEach, describe, expect, test, vi } from 'vitest';
-import type { PlatformMessage } from '@kitty/platforms/message';
-import type { ChatEventId, ConversationId, MessageId, ParticipantId } from '@kitty/shared/ids';
-import { MAX_MCP_OBSERVATION_LENGTH, McpRuntimeService } from '../runtime';
+import { describe, expect, test, vi } from 'vitest';
+import type { McpClientFactoryPort, McpClientPort } from '../client-type';
+import { McpRuntimeService } from '../runtime';
 import type { McpServerRuntimeConfig } from '../schema';
-import type { McpClientFactoryPort, McpClientPort, McpToolCallResult } from '../client-type';
+import { Tool } from '../../tool';
+import { createToolTestContext } from '../../__test__/runtime-context';
 
-describe('MCP运行时', () => {
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  test('启动多Server并把过滤后的工具以前缀形式注册到Agent', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const filesystem = createClient('filesystem', [
-      { name: 'read_file', description: '读取文件', inputSchema: { type: 'object' } },
-      { name: 'write_file', description: '写入文件', inputSchema: { type: 'object' } },
-      { name: 'list_directory', description: '列出目录', inputSchema: { type: 'object' } },
-    ]);
-    const docs = createClient('docs', [
-      { name: 'search', description: '搜索文档', inputSchema: { type: 'object' } },
-    ]);
-    const runtime = new McpRuntimeService(
-      [
-        createStdioConfig('filesystem', {
-          allowedTools: ['read_*', 'filesystem_list_*'],
-          toolRiskLevels: { read_file: 'low' },
-        }),
-        createHttpConfig('docs', { defaultRiskLevel: 'low' }),
-      ],
-      createFactory({ filesystem, docs }),
-    );
-
-    await runtime.start();
-
-    expect(runtime.listTools()).toEqual([
-      expect.objectContaining({
-        name: 'filesystem_read_file',
-        description: '读取文件',
-        riskLevel: 'low',
-      }),
-      expect.objectContaining({
-        name: 'filesystem_list_directory',
-        riskLevel: 'medium',
-      }),
-      expect.objectContaining({ name: 'docs_search', riskLevel: 'low' }),
-    ]);
-    expect(filesystem.connect).toHaveBeenCalledOnce();
-    expect(docs.connect).toHaveBeenCalledOnce();
-  });
-
-  test('单个Server连接失败时保留其他Server工具', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const failed = createClient('failed', []);
-    failed.connect.mockRejectedValue(new Error('Authorization: Bearer super-secret'));
-    const healthy = createClient('healthy', [
-      { name: 'read', description: '读取数据', inputSchema: { type: 'object' } },
-    ]);
-    const runtime = new McpRuntimeService(
-      [createHttpConfig('failed'), createHttpConfig('healthy', { defaultRiskLevel: 'low' })],
-      createFactory({ failed, healthy }),
-    );
-
-    await runtime.start();
-
-    expect(runtime.listTools()).toEqual([
-      expect.objectContaining({ name: 'healthy_read', riskLevel: 'low' }),
-    ]);
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('failed'));
-    expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('super-secret'));
-  });
-
-  test('按公开工具名路由到原始MCP工具并回灌结果', async () => {
+describe('MCP规范Tool来源', () => {
+  test('发现、过滤并以前缀名称暴露规范Tool', async () => {
     vi.spyOn(console, 'info').mockImplementation(() => undefined);
     const client = createClient('docs', [
       {
@@ -83,346 +18,162 @@ describe('MCP运行时', () => {
           required: ['query'],
         },
       },
+      { name: 'delete', inputSchema: { type: 'object' } },
+    ]);
+    const runtime = new McpRuntimeService(
+      [createConfig({ allowedTools: ['search'] })],
+      createFactory(client),
+    );
+
+    await runtime.start();
+
+    expect(Object.keys(runtime.listTools())).toEqual(['docs_search']);
+    expect(Tool.is(runtime.listTools().docs_search)).toBe(true);
+    expect(Tool.definition(runtime.listTools().docs_search)).toMatchObject({
+      description: '搜索文档',
+      strict: false,
+    });
+  });
+
+  test('调用结果经过统一Tool结算和模型投影', async () => {
+    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+    const client = createClient('docs', [
+      {
+        name: 'search',
+        inputSchema: {
+          type: 'object',
+          properties: { query: { type: 'string' } },
+          required: ['query'],
+        },
+      },
     ]);
     client.callTool.mockResolvedValue({
-      content: [{ type: 'text', text: '搜索结果：MCP文档' }],
+      content: [{ type: 'text', text: '搜索结果' }],
       structuredContent: { count: 1 },
     });
     const runtime = new McpRuntimeService(
-      [createHttpConfig('docs', { defaultRiskLevel: 'low' })],
-      createFactory({ docs: client }),
+      [createConfig({ defaultRiskLevel: 'low' })],
+      createFactory(client),
     );
     await runtime.start();
 
-    const result = await runtime.execute({
-      event: createChatEvent(),
-      toolName: 'docs_search',
-      input: { query: 'MCP' },
-    });
+    const tool = runtime.listTools().docs_search;
+    const settlement = await Tool.settle(
+      'docs_search',
+      tool,
+      { query: 'MCP' },
+      createToolTestContext(),
+    );
 
+    expect(settlement).toMatchObject({
+      status: 'success',
+      output: { summary: '搜索结果', data: { count: 1 } },
+    });
     expect(client.callTool).toHaveBeenCalledWith('search', { query: 'MCP' });
-    expect(result).toMatchObject({
-      toolName: 'docs_search',
-      success: true,
-      observation: '搜索结果：MCP文档',
-      structuredData: { count: 1 },
+  });
+
+  test('中高风险MCP工具强制声明SDK审批', async () => {
+    const client = createClient('docs', [{ name: 'write', inputSchema: { type: 'object' } }]);
+    const runtime = new McpRuntimeService([createConfig()], createFactory(client));
+    await runtime.start();
+
+    expect(Tool.policy(runtime.listTools().docs_write)).toMatchObject({
+      risk: 'medium',
+      approval: 'required',
     });
   });
 
-  test('启动前置流程可以读取原始MCP图片内容', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const client = createClient('xiaohongshu', [{ name: 'get_login_qrcode' }]);
-    const rawResult = {
-      content: [{ type: 'image', mimeType: 'image/png', data: 'cG5n' }],
-    };
-    client.callTool.mockResolvedValue(rawResult);
+  test('内部工具只允许系统原始调用，不进入模型目录', async () => {
+    const client = createClient('docs', [
+      { name: 'login_status', inputSchema: { type: 'object' } },
+    ]);
+    client.callTool.mockResolvedValue({ structuredContent: { loggedIn: true } });
     const runtime = new McpRuntimeService(
-      [createHttpConfig('xiaohongshu', { defaultRiskLevel: 'low' })],
-      createFactory({ xiaohongshu: client }),
+      [createConfig({ allowedTools: [], internalTools: ['login_*'] })],
+      createFactory(client),
     );
     await runtime.start();
 
-    await expect(runtime.callToolRaw('xiaohongshu_get_login_qrcode', null)).resolves.toBe(
-      rawResult,
-    );
-    expect(runtime.hasTool('xiaohongshu_get_login_qrcode')).toBe(true);
-  });
-
-  test('内部工具只允许系统原始调用且不暴露给Agent', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const client = createClient('xiaohongshu', [{ name: 'list_feeds' }, { name: 'list_mentions' }]);
-    client.callTool.mockResolvedValue({ content: [{ type: 'text', text: '{"message_list":[]}' }] });
-    const runtime = new McpRuntimeService(
-      [
-        createHttpConfig('xiaohongshu', {
-          allowedTools: ['list_feeds'],
-          internalTools: ['list_mentions'],
-          defaultRiskLevel: 'low',
-        }),
-      ],
-      createFactory({ xiaohongshu: client }),
-    );
-    await runtime.start();
-
-    expect(runtime.listTools().map((tool) => tool.name)).toEqual(['xiaohongshu_list_feeds']);
-    expect(runtime.getTool('xiaohongshu_list_mentions')).toBeUndefined();
-    expect(runtime.hasTool('xiaohongshu_list_mentions')).toBe(true);
-    await expect(runtime.callToolRaw('xiaohongshu_list_mentions', null)).resolves.toMatchObject({
-      content: [{ type: 'text', text: '{"message_list":[]}' }],
+    expect(runtime.listTools()).toEqual({});
+    expect(runtime.hasTool('docs_login_status')).toBe(true);
+    await expect(runtime.callToolRaw('docs_login_status', null)).resolves.toEqual({
+      structuredContent: { loggedIn: true },
     });
-    await expect(
-      runtime.execute({
-        event: createChatEvent(),
-        toolName: 'xiaohongshu_list_mentions',
-        input: {},
-      }),
-    ).resolves.toMatchObject({ errorMessage: '工具未注册' });
-    expect(client.callTool).toHaveBeenCalledOnce();
   });
 
-  test('MCP返回isError时转换为失败观察', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  test('单个Server连接失败时隔离且脱敏凭证', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const client = createClient('api', [
-      { name: 'query', description: '查询', inputSchema: { type: 'object' } },
-    ]);
-    client.callTool.mockResolvedValue({
-      isError: true,
-      content: [{ type: 'text', text: '远端限流' }],
-    });
-    const runtime = new McpRuntimeService(
-      [createHttpConfig('api', { defaultRiskLevel: 'low' })],
-      createFactory({ api: client }),
-    );
+    const client = createClient('docs', []);
+    client.connect.mockRejectedValue(new Error('Authorization: Bearer super-secret'));
+    const runtime = new McpRuntimeService([createConfig()], createFactory(client));
+
     await runtime.start();
 
-    await expect(
-      runtime.execute({ event: createChatEvent(), toolName: 'api_query', input: {} }),
-    ).resolves.toMatchObject({
-      success: false,
-      observation: '远端限流',
-      errorMessage: '远端限流',
-    });
+    expect(runtime.listTools()).toEqual({});
+    expect(console.warn).not.toHaveBeenCalledWith(expect.stringContaining('super-secret'));
+    expect(client.close).toHaveBeenCalledOnce();
   });
 
-  test('停止时关闭全部已连接Server且保持幂等', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const first = createClient('first', []);
-    const second = createClient('second', []);
-    const runtime = new McpRuntimeService(
-      [createStdioConfig('first'), createHttpConfig('second')],
-      createFactory({ first, second }),
-    );
-    await runtime.start();
-
-    await runtime.stop();
-    await runtime.stop();
-
-    expect(first.close).toHaveBeenCalledOnce();
-    expect(second.close).toHaveBeenCalledOnce();
-    expect(runtime.listTools()).toEqual([]);
-  });
-
-  test('启动与未启动停止保持幂等', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const client = createClient('once', []);
-    const runtime = new McpRuntimeService(
-      [createStdioConfig('once')],
-      createFactory({ once: client }),
-    );
-
-    await runtime.stop();
-    await runtime.start();
-    await runtime.start();
-
-    expect(client.connect).toHaveBeenCalledOnce();
-  });
-
-  test('关闭Server异常时记录警告并完成清理', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
+  test('远端Schema包含运行时未知关键字时隔离该工具', async () => {
     vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const client = createClient('close-failed', []);
-    client.close.mockRejectedValue(new Error('关闭超时'));
-    const runtime = new McpRuntimeService(
-      [createStdioConfig('close-failed')],
-      createFactory({ 'close-failed': client }),
-    );
-    await runtime.start();
-
-    await runtime.stop();
-
-    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('关闭失败'));
-    expect(runtime.listTools()).toEqual([]);
-  });
-
-  test('禁用规则、问号和字符范围通配符会过滤工具', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const client = createClient('api', [
-      { name: 'read_a', inputSchema: { type: 'object' } },
-      { name: 'read_b', inputSchema: { type: 'object' } },
-      { name: 'delete_a', inputSchema: { type: 'object' } },
-      { name: 'keep', inputSchema: { type: 'object' } },
+    const client = createClient('docs', [
+      {
+        name: 'search',
+        inputSchema: {
+          type: 'object',
+          properties: { query: { type: 'string', format: 'email' } },
+        },
+      },
+      {
+        name: 'safe_search',
+        inputSchema: {
+          type: 'object',
+          properties: { query: { type: 'string', minLength: 1 } },
+        },
+      },
     ]);
     const runtime = new McpRuntimeService(
-      [createHttpConfig('api', { disabledTools: ['read_?', 'delete_[ab]'] })],
-      createFactory({ api: client }),
+      [createConfig({ defaultRiskLevel: 'low' })],
+      createFactory(client),
     );
 
     await runtime.start();
 
-    expect(runtime.listTools()).toEqual([
-      expect.objectContaining({
-        name: 'api_keep',
-        description: expect.stringContaining('api'),
-      }),
-    ]);
-    expect(runtime.getTool('api_keep')?.inputSchemaDescription).toBe('{"type":"object"}');
-  });
-
-  test('未注册工具和非法输入不会调用远端', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const client = createClient('api', [{ name: 'query' }]);
-    const runtime = new McpRuntimeService(
-      [createHttpConfig('api', { defaultRiskLevel: 'low' })],
-      createFactory({ api: client }),
-    );
-    await runtime.start();
-
-    await expect(
-      runtime.execute({ event: createChatEvent(), toolName: 'missing', input: {} }),
-    ).resolves.toMatchObject({ errorMessage: '工具未注册' });
-    await expect(
-      runtime.execute({ event: createChatEvent(), toolName: 'api_query', input: 'invalid' }),
-    ).resolves.toMatchObject({ errorMessage: 'MCP工具输入不是JSON对象' });
-    expect(client.callTool).not.toHaveBeenCalled();
-  });
-
-  test('远端抛错时回灌失败观察且允许null输入', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    vi.spyOn(console, 'warn').mockImplementation(() => undefined);
-    const client = createClient('api', [{ name: 'query' }]);
-    client.callTool.mockRejectedValue(new Error('连接中断'));
-    const runtime = new McpRuntimeService(
-      [createHttpConfig('api', { defaultRiskLevel: 'low' })],
-      createFactory({ api: client }),
-    );
-    await runtime.start();
-
-    await expect(
-      runtime.execute({ event: createChatEvent(), toolName: 'api_query', input: null }),
-    ).resolves.toMatchObject({
-      success: false,
-      observation: expect.stringContaining('连接中断'),
-      errorMessage: '连接中断',
-    });
-    expect(client.callTool).toHaveBeenCalledWith('query', null);
-  });
-
-  test('结构化、图片、非文本和超长内容会转为受限观察', async () => {
-    vi.spyOn(console, 'info').mockImplementation(() => undefined);
-    const client = createClient('media', [
-      { name: 'structured' },
-      { name: 'mixed' },
-      { name: 'long' },
-      { name: 'empty' },
-    ]);
-    client.callTool.mockImplementation(async (toolName) => {
-      if (toolName === 'structured') return { structuredContent: { count: 2 } };
-      if (toolName === 'mixed') {
-        return {
-          content: [
-            '字符串内容',
-            { type: 'image', mimeType: 'image/png' },
-            { type: 'resource', uri: 'file:///tmp/a' },
-          ],
-        };
-      }
-      if (toolName === 'long') return { content: 'x'.repeat(MAX_MCP_OBSERVATION_LENGTH + 1) };
-      return {};
-    });
-    const runtime = new McpRuntimeService(
-      [createHttpConfig('media', { defaultRiskLevel: 'low' })],
-      createFactory({ media: client }),
-    );
-    await runtime.start();
-
-    await expect(execute(runtime, 'media_structured')).resolves.toMatchObject({
-      observation: '{"count":2}',
-    });
-    await expect(execute(runtime, 'media_mixed')).resolves.toMatchObject({
-      observation: expect.stringContaining('image/png'),
-    });
-    await expect(execute(runtime, 'media_long')).resolves.toMatchObject({
-      observation: expect.stringContaining('已截断'),
-    });
-    await expect(execute(runtime, 'media_empty')).resolves.toMatchObject({
-      observation: 'MCP工具执行完成，但没有返回可读内容。',
-    });
+    expect(Object.keys(runtime.listTools())).toEqual(['docs_safe_search']);
+    expect(console.warn).toHaveBeenCalledWith(expect.stringContaining('不支持的关键字 format'));
   });
 });
-
-type MockClient = McpClientPort & {
-  connect: ReturnType<typeof vi.fn>;
-  close: ReturnType<typeof vi.fn>;
-  listTools: ReturnType<typeof vi.fn>;
-  callTool: ReturnType<typeof vi.fn>;
-};
 
 function createClient(
   name: string,
   tools: Awaited<ReturnType<McpClientPort['listTools']>>,
-): MockClient {
+): McpClientPort & {
+  readonly connect: ReturnType<typeof vi.fn>;
+  readonly close: ReturnType<typeof vi.fn>;
+  readonly callTool: ReturnType<typeof vi.fn>;
+} {
   return {
     name,
     connect: vi.fn(async () => undefined),
     close: vi.fn(async () => undefined),
     listTools: vi.fn(async () => tools),
-    callTool: vi.fn(async (): Promise<McpToolCallResult> => ({ content: [] })),
+    callTool: vi.fn(async () => ({})),
   };
 }
 
-function createFactory(clients: Record<string, MockClient>): McpClientFactoryPort {
-  return {
-    create(config) {
-      const client = clients[config.name];
-      if (!client) throw new Error(`测试Client不存在：${config.name}`);
-      return client;
-    },
-  };
+function createFactory(client: McpClientPort): McpClientFactoryPort {
+  return { create: () => client };
 }
 
-function createStdioConfig(
-  name: string,
-  overrides: Partial<McpServerRuntimeConfig> = {},
-): McpServerRuntimeConfig {
+function createConfig(overrides: Partial<McpServerRuntimeConfig> = {}): McpServerRuntimeConfig {
   return {
-    name,
-    transport: 'stdio',
-    command: 'node',
-    args: [],
-    env: {},
-    timeoutMs: 30000,
-    defaultRiskLevel: 'medium',
-    toolRiskLevels: {},
-    ...overrides,
-  } as McpServerRuntimeConfig;
-}
-
-function createHttpConfig(
-  name: string,
-  overrides: Partial<McpServerRuntimeConfig> = {},
-): McpServerRuntimeConfig {
-  return {
-    name,
+    name: 'docs',
     transport: 'http',
-    url: `https://${name}.example.com/mcp`,
+    url: 'https://mcp.example.com',
     headers: {},
-    timeoutMs: 30000,
+    timeoutMs: 1000,
     defaultRiskLevel: 'medium',
     toolRiskLevels: {},
     ...overrides,
   } as McpServerRuntimeConfig;
-}
-
-function createChatEvent(): PlatformMessage {
-  return {
-    id: 'chat-event-mcp' as ChatEventId,
-    platform: 'qq',
-    eventType: 'message.received',
-    conversationId: 'qq:conversation:mcp' as ConversationId,
-    conversationType: 'private',
-    senderId: 'qq:participant:mcp' as ParticipantId,
-    senderDisplayName: '测试用户',
-    message: {
-      id: 'message-mcp' as MessageId,
-      type: 'text',
-      text: '查询MCP',
-      mentions: [],
-    },
-    receivedAt: new Date('2026-07-16T00:00:00.000Z'),
-  };
-}
-
-function execute(runtime: McpRuntimeService, toolName: string) {
-  return runtime.execute({ event: createChatEvent(), toolName, input: {} });
 }

@@ -107,7 +107,7 @@ const qqReplySubscriber = new QqReplyEventSubscriber(
   createQqReplyAgent(agentConfig, skillRuntime, {
     conversationHistory,
     customFaceCatalog,
-    runtimeToolProviders: mcpRuntime ? [{ registry: mcpRuntime, executor: mcpRuntime }] : undefined,
+    toolSources: mcpRuntime ? [mcpRuntime] : undefined,
   }),
   skillRuntime,
   { selfQqId: qqConfig.selfQqId },

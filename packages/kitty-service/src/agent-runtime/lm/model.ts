@@ -1,3 +1,5 @@
+import type { Model } from '@openai/agents';
+
 /** 模型请求优先级 */
 export type ModelRequestPriority = 'high' | 'normal' | 'low';
 
@@ -31,36 +33,14 @@ export interface ModelNodeConfig {
   readonly backoff: ModelBackoffConfig;
 }
 
-/** 模型决策请求 */
-export interface ModelDecisionRequest {
-  /** Agent名称 */
-  readonly agentName: string;
-  /** 模型指令 */
-  readonly instructions: string;
-  /** 单次输入 */
-  readonly input: string;
-  /** 请求超时毫秒 */
-  readonly timeoutMs: number;
+/** 单次Agent运行的模型调度元数据。 */
+export interface ModelRunMetadata {
   /** 请求优先级 */
   readonly priority?: ModelRequestPriority;
-  /** 队列存活毫秒 */
+  /** 每次模型请求的队列存活毫秒 */
   readonly ttlMs?: number;
   /** 调用来源 */
   readonly source: string;
-}
-
-/** 模型决策结果 */
-export interface ModelDecisionResult {
-  /** 模型文本 */
-  readonly text: string;
-  /** 命中模型节点 */
-  readonly modelNodeId: string;
-  /** 排队耗时毫秒 */
-  readonly queueWaitMs: number;
-  /** 实际请求次数 */
-  readonly attemptCount: number;
-  /** 请求耗时毫秒 */
-  readonly requestDurationMs: number;
 }
 
 /** 模型运行状态 */
@@ -77,12 +57,22 @@ export interface ModelRuntimeState {
   readonly backoffUntil: number;
 }
 
-/** 模型请求池公开能力 */
+/** 模型节点工厂。 */
+export interface ModelFactory {
+  /**
+   * 获取节点对应的官方SDK Model
+   * @param node 模型节点
+   * @returns 官方模型
+   */
+  getModel(node: ModelNodeConfig): Promise<Model>;
+}
+
+/** 模型请求池公开能力。 */
 export interface ModelPoolRunner {
   /**
-   * 执行一次模型决策
-   * @param input 决策请求
-   * @returns 模型文本和调度摘要
+   * 为一次Agent运行固定模型节点
+   * @param metadata 系统调度元数据
+   * @returns 受队列、并发和退避治理的官方Model
    */
-  runDecision(input: ModelDecisionRequest): Promise<ModelDecisionResult>;
+  acquireModel(metadata: ModelRunMetadata): Model;
 }

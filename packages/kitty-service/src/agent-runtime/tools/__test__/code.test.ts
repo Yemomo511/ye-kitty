@@ -2,35 +2,34 @@ import { describe, expect, test, vi } from 'vitest';
 import type { CodeAgentEvent } from '../../lm/code-agent/event';
 import type { CodeAgentRunner } from '../../lm/code-agent/runner';
 import type { CodeAgentSession } from '../../lm/code-agent/session';
-import { CodeTool } from '../code';
+import { createCodeTool } from '../code';
+import { Tool } from '../tool';
+import { createToolTestContext } from './runtime-context';
 
-describe('CodeTool', () => {
+describe('Code Agent Tool', () => {
   test('提交任务并收集文本输出', async () => {
     const runner = createRunner([
       { type: 'text_delta', sessionId: 'session-1', delta: '完成' },
       { type: 'session_end', sessionId: 'session-1', status: 'succeeded', exitCode: 0 },
     ]);
-    const tool = new CodeTool(runner);
 
-    await expect(
-      tool.execute(
-        { agentId: 'codex', prompt: '检查代码', workdir: '/tmp/workspace' },
-        { callId: 'call-1' },
-      ),
-    ).resolves.toMatchObject({
-      success: true,
-      summary: '完成',
-      data: { sessionId: 'session-1', output: '完成' },
-    });
-    expect(runner.submit).toHaveBeenCalledWith({
-      agentId: 'codex',
-      prompt: '检查代码',
-      workdir: '/tmp/workspace',
-      source: 'agent-runtime',
+    const settlement = await Tool.settle(
+      'code_agent',
+      createCodeTool(runner),
+      { agentId: 'codex', prompt: '检查代码', workdir: '/tmp/workspace' },
+      createToolTestContext({ approvalGranted: true }),
+    );
+
+    expect(settlement).toMatchObject({
+      status: 'success',
+      output: {
+        summary: '完成',
+        data: { sessionId: 'session-1', output: '完成' },
+      },
     });
   });
 
-  test('Code Agent请求外部工具时取消会话并交回上层', async () => {
+  test('Code Agent请求外部工具时取消会话', async () => {
     const runner = createRunner([
       {
         type: 'tool_use',
@@ -40,14 +39,15 @@ describe('CodeTool', () => {
         input: { path: 'README.md' },
       },
     ]);
-    const tool = new CodeTool(runner);
 
-    const result = await tool.execute(
+    const settlement = await Tool.settle(
+      'code_agent',
+      createCodeTool(runner),
       { agentId: 'codex', prompt: '读取文件', workdir: '/tmp/workspace' },
-      { callId: 'call-2' },
+      createToolTestContext({ approvalGranted: true }),
     );
 
-    expect(result).toMatchObject({ success: false, error: 'Code Agent请求外部工具' });
+    expect(settlement.output?.error).toBe('Code Agent请求外部工具');
     expect(runner.cancel).toHaveBeenCalledWith('session-1');
   });
 });

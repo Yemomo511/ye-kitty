@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "test": "pnpm run validate:architecture && pnpm run typecheck && vitest run",
     "test:coverage:agent": "vitest run src/agent-runtime/__test__/queue.test.ts src/agent-runtime/__test__/subscriber.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/agent-runtime/queue.ts --coverage.include=src/agent-runtime/subscriber.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80",
+    "test:coverage:tool-runtime": "vitest run src/agent-runtime/__test__/agent.test.ts src/agent-runtime/tools/__test__/*.test.ts src/agent-runtime/tools/mcp/__test__/runtime.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/agent-runtime/state.ts --coverage.include=src/agent-runtime/tools/tool.ts --coverage.include=src/agent-runtime/tools/schema.ts --coverage.include=src/agent-runtime/tools/output.ts --coverage.include=src/agent-runtime/tools/registry.ts --coverage.include=src/agent-runtime/tools/materialize.ts --coverage.include=src/agent-runtime/tools/finish.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80",
     "test:coverage:code-agent": "vitest run src/agent-runtime/lm/code-agent/__test__/*.test.ts src/agent-runtime/lm/code-agent/process/__test__/*.test.ts --coverage --coverage.provider=v8 --coverage.reporter=text --coverage.include=src/agent-runtime/lm/code-agent/ --coverage.exclude=src/agent-runtime/lm/code-agent/**/__test__/*.test.ts --coverage.exclude=src/agent-runtime/lm/code-agent/fixtures/ --coverage.exclude=src/agent-runtime/lm/code-agent/definition.ts --coverage.exclude=src/agent-runtime/lm/code-agent/event.ts --coverage.exclude=src/agent-runtime/lm/code-agent/session.ts --coverage.exclude=src/agent-runtime/lm/code-agent/failure.ts --coverage.thresholds.perFile --coverage.thresholds.lines=80 --coverage.thresholds.functions=80 --coverage.thresholds.branches=80 --coverage.thresholds.statements=80"
   },
   "keywords": [
@@ -31,7 +32,8 @@
     "@openai/agents": "^0.12.0",
     "fastify": "^5.4.0",
     "rxjs": "^7.8.2",
-    "ws": "^8.18.3"
+    "ws": "^8.18.3",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.10",

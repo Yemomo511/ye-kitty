@@ -10,6 +10,7 @@ describe('MCP运行配置', () => {
           args: ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
           env: { FILESYSTEM_MODE: 'readonly' },
           allowedTools: ['read_file', 'list_*'],
+          internalTools: ['login_*'],
           toolRiskLevels: { read_file: 'low' },
         },
         docs: {
@@ -47,6 +48,7 @@ describe('MCP运行配置', () => {
         args: ['-y', '@modelcontextprotocol/server-filesystem', '/tmp'],
         env: { FILESYSTEM_MODE: 'readonly' },
         allowedTools: ['read_file', 'list_*'],
+        internalTools: ['login_*'],
         defaultRiskLevel: 'medium',
         toolRiskLevels: { read_file: 'low' },
       }),

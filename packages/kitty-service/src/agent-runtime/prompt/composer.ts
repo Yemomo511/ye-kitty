@@ -1,137 +1,77 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import type { AgentContext } from '../state';
-import type { PromptHistoryItem, PromptState } from './state';
+import type { AgentRunState } from '../state';
+import type { ToolModelOutput } from '../tools';
+import { buildSkillPrompt } from './skills';
 import { buildBaseAgentPrompt } from './system';
-import { renderConversationMessages } from './history';
-import { buildOutsideContextPrompt } from './context';
 
 const promptDirectory = dirname(fileURLToPath(import.meta.url));
 const systemPromptPath = join(promptDirectory, 'system.md');
 
 /**
- * Agent Prompt
+ * 组装动态Agent系统指令
  *
- * instructions 承载身份、循环协议、Skill目录和工具目录，input 只承载本轮循环观察。
+ * 只投影模型完成任务需要的身份、Skill和行为边界。预算、审批、调用ID、
+ * 结算记录和终态维护均保留在AgentRunState中。
+ *
+ * @param agentName Agent展示名称
+ * @param state 单次运行系统状态
+ * @returns 模型系统指令
  */
-export interface AgentPrompt {
-  /** 第一章系统指令与第二章外界能力目录 */
-  readonly instructions: string;
-  /** 第三章本轮循环观察 */
-  readonly input: string;
+export function composeAgentInstructions(agentName: string, state: AgentRunState): string {
+  return [
+    buildBaseAgentPrompt(agentName),
+    readFileSync(systemPromptPath, 'utf8').trim(),
+    buildSkillPrompt({
+      availableSkills: state.availableSkills,
+      enabledSkills: state.enabledSkills,
+      loadedReferences: state.loadedReferences,
+    }),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
 }
 
 /**
- * 组装Agent Prompt
- * @param agentName Agent展示名称
- * @param observation 本轮观察
- * @returns 模型输入
+ * 组装单次运行初始输入
+ * @param state 单次运行系统状态
+ * @param recentMessages 前置最近消息观察
+ * @returns 模型可见用户事件与必要观察
  */
-export function composeAgentPrompt(agentName: string, observation: AgentContext): AgentPrompt {
-  return {
-    instructions: [
-      buildBaseAgentPrompt(agentName),
-      buildSystemPrompt(),
-      buildOutsideContextPrompt(observation.conversationMessages, observation.tools),
-    ]
-      .filter(Boolean)
-      .join('\n\n'),
-    input: buildObservationPrompt(observation),
-  };
-}
-
-// 构建Agent运行协议。
-function buildSystemPrompt(): string {
-  return readMarkdownPrompt(systemPromptPath);
-}
-
-// 读取Markdown Prompt资产，让前置约束从代码字符串中解耦。
-function readMarkdownPrompt(promptPath: string): string {
-  return readFileSync(promptPath, 'utf8').trim();
-}
-
-// 构建本轮观察。
-function buildObservationPrompt(observation: AgentContext): string {
+export function composeAgentInput(state: AgentRunState, recentMessages: ToolModelOutput): string {
+  const event = state.event;
   return [
-    '# 第三章节: Runtime Observation',
-    '本章节只承载本轮 Agent 循环思考所需的运行状态、外部观察和历史回灌。',
-    renderPromptState(observation.promptState),
-    renderReplyIntent(observation),
-    `当前轮次：${observation.turnIndex}/${observation.maxTurns}`,
-    `已调用工具次数：${observation.toolCallCount}/${observation.maxToolCalls}`,
-    renderConversationMessages(observation.conversationMessages),
-  ].join('\n\n');
-}
-
-// 渲染本轮回复意图，强制群聊回复时给模型明确行动边界。
-function renderReplyIntent(observation: AgentContext): string {
-  if (observation.replyIntent !== 'required_group_reply') {
-    return [
-      '<reply_intent>',
-      'mode: normal',
-      '说明：请按 Agent Action 协议判断是否回复、静默或转人工。',
-      '</reply_intent>',
-    ].join('\n');
-  }
-
-  return [
-    '<reply_intent>',
-    'mode: required_group_reply',
-    '说明：本轮由群聊节奏门控触发，Agent 已在首轮决策前自动读取最近100条群消息；请直接基于该观察输出回复。',
-    '禁止：不能返回 ignore；前置最近消息观察失败时，必须重新调用 get_recent_messages 成功后再 reply。',
-    `required_tools: ${observation.requiredToolCalls?.join(', ') ?? 'get_recent_messages'}`,
-    `recent_message_limit: ${observation.recentMessageLimitHint ?? 100}`,
-    '</reply_intent>',
-  ].join('\n');
-}
-
-// 渲染Agent显式状态快照。
-function renderPromptState(state: PromptState): string {
-  return [
-    '<run_state>',
-    `trace_id: ${state.traceId}`,
-    `phase: ${state.phase}`,
-    `turn: ${state.budget.turnIndex}/${state.budget.maxTurns}`,
-    `tool_budget: ${state.budget.toolCallCount}/${state.budget.maxToolCalls}`,
-    `skill_reference_budget: ${state.budget.skillReferenceCount}/${state.budget.maxSkillReferences}`,
-    `decision_error_count: ${state.budget.decisionErrorCount}`,
-    `available_skills: ${formatList(state.context.availableSkillNames)}`,
-    `enabled_skills: ${formatList(state.context.enabledSkillNames)}`,
-    `loaded_references: ${formatList(state.context.loadedReferenceKeys)}`,
-    `visible_tools: ${formatList(state.context.visibleToolNames)}`,
-    `latest_observation: ${state.context.latestObservation}`,
-    '</run_state>',
-    renderActionHistory(state.actionHistory),
+    '<current_event>',
+    `平台：${event.platform}`,
+    `会话类型：${event.conversationType}`,
+    `会话ID：${event.conversationId}`,
+    `发送者ID：${event.senderId}`,
+    `发送者昵称：${event.senderDisplayName ?? '未知'}`,
+    `消息文本：${event.message.text}`,
+    `提及对象：${event.message.mentions.length > 0 ? event.message.mentions.join('、') : '无'}`,
+    `接收时间：${event.receivedAt.toISOString()}`,
+    '</current_event>',
+    renderReplyIntent(state),
+    '<recent_messages_observation>',
+    `状态：${recentMessages.status}`,
+    `摘要：${recentMessages.summary}`,
+    recentMessages.data === undefined ? '' : `结构化结果：${JSON.stringify(recentMessages.data)}`,
+    '</recent_messages_observation>',
   ]
     .filter(Boolean)
     .join('\n');
 }
 
-// 渲染模型可见的历史决策摘要。
-function renderActionHistory(history: readonly PromptHistoryItem[]): string {
-  if (history.length === 0) {
-    return '<decision_history>\n暂无历史决策。\n</decision_history>';
+// 回复意图是业务要求，模型可以感知；执行约束仍由finish工具校验。
+function renderReplyIntent(state: AgentRunState): string {
+  if (state.replyIntent === 'normal') {
+    return '<reply_intent>根据上下文判断回复、忽略或请求人工复核。</reply_intent>';
   }
-
   return [
-    '<decision_history>',
-    ...history.map((item) =>
-      [
-        `- turn=${item.turnIndex}`,
-        `type=${item.actionType}`,
-        item.target ? `target=${item.target}` : '',
-        typeof item.success === 'boolean' ? `success=${item.success ? 'true' : 'false'}` : '',
-        `reason=${item.reason}`,
-      ]
-        .filter(Boolean)
-        .join(' '),
-    ),
-    '</decision_history>',
+    '<reply_intent>',
+    '本轮由群聊节奏门控触发，需要基于最近消息给出一条自然短回复。',
+    '如果最近消息观察失败，请重新调用 get_recent_messages 后再结束。',
+    '</reply_intent>',
   ].join('\n');
-}
-
-// 格式化状态列表。
-function formatList(values: readonly string[]): string {
-  return values.length > 0 ? values.join(', ') : '无';
 }

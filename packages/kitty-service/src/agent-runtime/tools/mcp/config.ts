@@ -4,12 +4,12 @@ import type {
   McpServerRuntimeConfig,
   McpTransport,
 } from './schema';
-import type { RuntimeToolRiskLevel } from '../legacy';
+import type { McpToolRiskLevel } from '@kitty/shared/mcp';
 
 /** 默认MCP调用超时 */
 export const DEFAULT_MCP_TIMEOUT_MS = 30000;
 /** 默认MCP工具风险 */
-export const DEFAULT_MCP_TOOL_RISK_LEVEL: RuntimeToolRiskLevel = 'medium';
+export const DEFAULT_MCP_TOOL_RISK_LEVEL: McpToolRiskLevel = 'medium';
 
 /**
  * 解析通用MCP JSON配置
@@ -35,7 +35,7 @@ export function parseMcpRuntimeConfig(input: unknown): McpRuntimeConfig {
 }
 
 const MCP_SERVER_NAME_PATTERN = /^[A-Za-z0-9_-]+$/;
-const RISK_LEVELS = new Set<RuntimeToolRiskLevel>(['low', 'medium', 'high']);
+const RISK_LEVELS = new Set<McpToolRiskLevel>(['low', 'medium', 'high']);
 
 // 解析单个Server并识别传输方式。
 function parseServerConfig(name: string, input: Record<string, unknown>): McpServerRuntimeConfig {
@@ -90,6 +90,7 @@ function parseCommonConfig(
 ): McpServerBaseConfig {
   const allowedTools = readToolFilter(name, 'allowedTools', input.allowedTools);
   const disabledTools = readToolFilter(name, 'disabledTools', input.disabledTools);
+  const internalTools = readToolFilter(name, 'internalTools', input.internalTools);
   if (allowedTools && disabledTools) {
     throw new Error(`MCP Server ${name} 不能同时配置allowedTools和disabledTools`);
   }
@@ -100,6 +101,7 @@ function parseCommonConfig(
     timeoutMs: readPositiveInteger(input.timeoutMs, DEFAULT_MCP_TIMEOUT_MS, `${name}.timeoutMs`),
     allowedTools,
     disabledTools,
+    internalTools,
     defaultRiskLevel: readRiskLevel(input.defaultRiskLevel, DEFAULT_MCP_TOOL_RISK_LEVEL, name),
     toolRiskLevels: readRiskLevelRecord(input.toolRiskLevels, name),
   };
@@ -145,7 +147,7 @@ function readToolFilter(
 function readRiskLevelRecord(
   input: unknown,
   name: string,
-): Readonly<Record<string, RuntimeToolRiskLevel>> {
+): Readonly<Record<string, McpToolRiskLevel>> {
   if (input === undefined) return {};
   const record = requireRecord(input, `MCP Server ${name} 的toolRiskLevels必须是对象`);
   return Object.fromEntries(
@@ -159,14 +161,14 @@ function readRiskLevelRecord(
 // 读取风险等级。
 function readRiskLevel(
   input: unknown,
-  defaultValue: RuntimeToolRiskLevel,
+  defaultValue: McpToolRiskLevel,
   field: string,
-): RuntimeToolRiskLevel {
+): McpToolRiskLevel {
   if (input === undefined) return defaultValue;
-  if (typeof input !== 'string' || !RISK_LEVELS.has(input as RuntimeToolRiskLevel)) {
+  if (typeof input !== 'string' || !RISK_LEVELS.has(input as McpToolRiskLevel)) {
     throw new Error(`MCP配置 ${field} 的风险等级必须是low、medium或high`);
   }
-  return input as RuntimeToolRiskLevel;
+  return input as McpToolRiskLevel;
 }
 
 // 校验远端MCP地址。
