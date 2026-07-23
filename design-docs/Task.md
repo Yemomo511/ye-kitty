@@ -7,20 +7,22 @@
 - 通过 `xpzouying/xiaohongshu-mcp` 完成项目级小红书启动、扫码登录、登录状态检查和 Harness 工具接入。
 - 通过上游 `list_mentions`、小红书平台信息源和 Agent Runtime 暂不处理订阅，建立被 `@` 提醒的近实时输入链路。
 - 让产品、开发、设计和 Agent 对第二版 Agent Runtime 的边界、分阶段实现、验收口径和唯一入口达成一致。
+- 将自定义 JSON Action 工具协议改装为官方 OpenAPI FunctionTool，并把权限、状态、预算、审批和副作用收回系统治理。
 - 摧毁当前微服务模块内重复的 application、domain、infrastructure、ports，收敛为 Platforms、Agent Runtime、Shared 三层和 Bootstrap 装配模块。
 
 ## 当前状态
 
-- 状态：待验收
+- 状态：开发中
 - 负责人：Codex
-- 最近更新：2026-07-21
-- 唯一入口：`design-docs/Architecture/platform-agent-shared-refactor.md`
+- 最近更新：2026-07-23
+- 唯一入口：`design-docs/Agent/openapi-tool-runtime.md`
 
 ## 设计拆分
 
 | 模块                         | 设计文档                                                        | 状态   | 进度说明                                                                                                                                                                                                                                                                                                                                                                           |
 | ---------------------------- | --------------------------------------------------------------- | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Kitty Service 三层模块化重构 | `design-docs/Architecture/platform-agent-shared-refactor.md`    | 待验收 | Platforms、Agent Runtime、Shared 与 Bootstrap 已完成迁移；Prompt、Skills、Tools、Schedule、LM、Model Pool 和 Code Agent 均已归入新 owner。旧 `services/contracts/control-plane`、四层目录、兼容入口及旧文件命名全部删除。52 个测试文件已集中至直接所属模块的 `__test__` 目录，并由架构规则禁止散落；`pnpm check` 全量通过：339 项测试和 8 项真实模型评估均通过，等待产品行为验收。 |
+| OpenAPI Tool Runtime 改装    | `design-docs/Agent/openapi-tool-runtime.md`                     | 开发中 | 已完成模型最小能力投影、系统结算、官方 FunctionTool、finish、审批和 Model 请求级故障转移设计；正在以 TDD 替换 JSON Action、Schedule 与旧 RuntimeTool 执行链。                                                                                                                                                                                                                      |
 | Harness Agent 第二版整体方案 | `design-docs/Agent/agent-runtime-harness.md`                    | 待验收 | MVP 已实现 Harness 主循环、`get_recent_messages`、`get_custom_faces`、Prompt 三章治理、Prompt 宪法分层、第二章 instruction 化、显式 `HarnessPromptState` 状态机、Outside Context Prompt、平台无关 Skill 目录、结构化 Skill 文档、`skill_call`、`skill_reference_call`、`references/` 按需读取、文字类 `send_msg` 自动引用触发消息并 @ 发送者，以及自定义表情单独发送。             |
 | QQ 群聊低负载节奏控制        | `design-docs/QQ/chat-time.md`                                   | 待验收 | 将回复后门槛延长为 10-60 分钟与 10-50 条消息；随机片段改为每群每小时一个且只消费一次；冷却期屏蔽随机入口；所有群的未 @ 主动触发共享 2 分钟全局预算，节奏触发后仍强制读取最近 100 条群消息并回复；定向 12 项测试、Lint、类型与架构检查已通过。                                                                                                                                      |
 | 模型请求池第一版             | `design-docs/Agent/model-request-pool-v1.md`                    | 待验收 | 已从单个 OpenAI 兼容模型配置演进为模型请求池，由统一调度层负责模型路由、单节点并发、请求间隔、429 退避、队列 TTL 和失败降级；定向模型池单元测试已通过。                                                                                                                                                                                                                            |
@@ -49,6 +51,7 @@
 12. 在 `services/llm/` 下构建通用 code agent 接入基建：contracts → domain → infrastructure（json-line-stream + Claude Code/Codex adapter + 探测 + 失败分类）→ application（orchestrator + gate）→ control-plane API；第一消费者交付后验证，第二消费者（harness AgentDecision 集成）独立 PR 跟进。（Phase 1 ✅）
 13. 在 `agent-runtime` 中新增 `delegate_code_agent` 决策分支 + Gatekeeper 审批模型：harness prompt 扩展 → risk 三层门禁 → code-agent-executor 审批循环 → harness 管线 5 个硬编码点改造 → QQ 端到端联调。（Phase 2 设计中）
 14. 评审三层模块化重构方案，依次迁移 Prompt 与 Agent 命名、Skills/Tools/Schedule、LM/Code Agent、Platforms 和旧骨架，保持每个提交可运行和可回滚。
+15. 建立唯一 Tool、系统结算和官方 FunctionTool 投影，迁移全部工具来源后删除 JSON Action、Schedule 与旧 RuntimeTool 执行链。
 
 ## 阻塞与风险
 
@@ -67,6 +70,7 @@
 | 小红书通知接口属于网页内部能力  | 页面路径、响应结构或签名链路变化会导致 `list_mentions` 失效                           | 固定上游提交，通过页面自身请求读取并做结构校验；失败时退避且不发布不完整事件。                                                               |
 | 被提及内容包含提示注入          | 外部用户可以在 @内容中编写针对 Agent 的恶意指令                                       | 本期事件只到 Agent Runtime 订阅边界并明确跳过，不进入 Harness Prompt。                                                                       |
 | 架构迁移与 Phase 2 开发冲突     | Code Agent Harness 接入若继续修改旧路径，会制造重复迁移和合并冲突                     | 先迁移完整 Code Agent 模块，后续 Phase 2 只在新路径开发；迁移提交不得顺带改业务算法。                                                        |
+| Tool 改装期间存在双执行链       | 工具可能绕过统一权限、审计或被重复执行                                                | Registry 只接受规范 Tool；官方 FunctionTool 仅为临时投影；迁移完成后删除 JSON Action、Schedule、RuntimeTool 和旧 Executor。                  |
 
 ## 验收总览
 
@@ -81,6 +85,7 @@
 | 日期       | 变更                                        | 原因                                                                                                          |
 | ---------- | ------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
 | 2026-07-21 | 集中模块测试目录并启用架构校验              | 将 52 个测试文件迁入直接所属模块的 `__test__`，统一测试发现方式并阻止后续测试重新散落。                       |
+| 2026-07-23 | 设计 OpenAPI Tool Runtime                   | 参考 opencode 与官方 Agents SDK，明确模型最小投影、系统结算、finish、审批和 Model 请求级故障转移边界。        |
 | 2026-07-21 | 完成三层架构迁移并启用严格校验              | Platforms、Agent Runtime、Shared 和 Bootstrap 全部就位，旧目录、兼容入口与冗余文件命名清零。                  |
 | 2026-07-21 | 迁移 LM、Model Pool 与 Code Agent           | Agent 只依赖 LM；Code Agent 收进 LM 子模块，并作为统一 code Tool 接入 Schedule。                              |
 | 2026-07-21 | 迁移 Agent 并统一 Action 调度循环           | Agent 主循环只消费 AgentAction，所有 Skill 与普通工具调用均通过 Schedule 执行。                               |
